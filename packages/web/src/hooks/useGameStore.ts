@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { GameState, GameEvent, tick, createInitialState } from '@copack/engine';
+import { GameState, GameEvent, tick, createInitialState, generateWorker } from '@copack/engine';
 
 export type SpeedSetting = 1 | 4 | 16;
+
+const HIRE_COST = 500;
 
 interface GameStore {
   state: GameState;
@@ -16,7 +18,10 @@ interface GameStore {
   unassignStation: (lineId: string, stationId: string) => void;
   togglePause: () => void;
   setSpeed: (s: SpeedSetting) => void;
+  hireWorker: () => void;
 }
+
+export { HIRE_COST };
 
 export const useGameStore = create<GameStore>((set) => ({
   state: createInitialState(),
@@ -82,4 +87,20 @@ export const useGameStore = create<GameStore>((set) => ({
 
   togglePause: () => set((store) => ({ paused: !store.paused })),
   setSpeed: (speed) => set({ speed }),
+
+  hireWorker: () =>
+    set((store) => {
+      if (store.state.cash < HIRE_COST) return {};
+      const workerCount = Object.keys(store.state.workers).length;
+      const newId = `w${workerCount + 1}`;
+      const seed = store.state.tick * 9999 + workerCount * 1337;
+      const worker = generateWorker(newId, seed);
+      return {
+        state: {
+          ...store.state,
+          cash: store.state.cash - HIRE_COST,
+          workers: { ...store.state.workers, [newId]: worker },
+        },
+      };
+    }),
 }));

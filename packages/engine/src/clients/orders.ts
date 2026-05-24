@@ -42,15 +42,16 @@ export function processOrders(state: GameState): { state: GameState; events: Gam
 
 function generateNextOrder(state: GameState, count: number): Order {
   const rng = seededRandom(count * 31337 + state.tick);
-  const units = Math.round(400 + count * 60 + rng * 100);
+  // Volume grows with each order; deadline stays tight at 960 ticks (2 shifts)
+  const units = Math.round(280 + count * 40 + rng * 60);
   return {
     id: `ord${count}`,
     clientId: 'c1',
     sku: `SKU-${String(count).padStart(3, '0')}`,
     units,
     unitsCompleted: 0,
-    deadline: state.tick + 2880,
-    revenuePerUnit: +(0.80 + seededRandom(count * 12345) * 0.15).toFixed(2),
+    deadline: state.tick + 960,
+    revenuePerUnit: +(2.20 + seededRandom(count * 12345) * 0.60).toFixed(2),
     qualityThreshold: 0.9,
   };
 }
