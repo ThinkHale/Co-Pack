@@ -1,8 +1,90 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { GameState, GameEvent, Line, Order, Worker } from '@copack/engine';
 import { useGameStore, SpeedSetting, HIRE_COST } from './hooks/useGameStore';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+type CharacterProfile = {
+  alias: string;
+  role: string;
+  trait: string;
+  palette: string;
+  skin: string;
+  hair: string;
+  uniform: string;
+  shape: 'round' | 'square' | 'diamond' | 'wide';
+};
+
+const BASE_UNITS_PER_TICK = 0.6;
+const UNTRAINED_PROFICIENCY = 0.30;
+
+const STATION_NAMES: Record<string, string> = { s1: 'Induct', s2: 'Pack', s3: 'Stage' };
+const STATION_THEMES: Record<string, { icon: string; color: string; note: string }> = {
+  s1: { icon: 'IN', color: '#35d0ba', note: 'Feed' },
+  s2: { icon: 'PK', color: '#ffb02e', note: 'Build' },
+  s3: { icon: 'ST', color: '#ff5f7e', note: 'Ship' },
+};
+
+const PROFILE_BANK: CharacterProfile[] = [
+  {
+    alias: 'Switch',
+    role: 'Induct specialist',
+    trait: 'Fast starts',
+    palette: '#35d0ba',
+    skin: '#c8895f',
+    hair: '#182033',
+    uniform: '#2fb8a8',
+    shape: 'round',
+  },
+  {
+    alias: 'Ribbon',
+    role: 'Pack captain',
+    trait: 'Clean hands',
+    palette: '#ffb02e',
+    skin: '#8f5f45',
+    hair: '#351f24',
+    uniform: '#ef8f2f',
+    shape: 'square',
+  },
+  {
+    alias: 'Docklight',
+    role: 'Stage runner',
+    trait: 'Cool under rush',
+    palette: '#ff5f7e',
+    skin: '#b56f53',
+    hair: '#522f8f',
+    uniform: '#d9557b',
+    shape: 'diamond',
+  },
+  {
+    alias: 'Torque',
+    role: 'Line flex',
+    trait: 'Steady tempo',
+    palette: '#7c6cff',
+    skin: '#d6a16f',
+    hair: '#24335f',
+    uniform: '#6b62e8',
+    shape: 'wide',
+  },
+  {
+    alias: 'Cricket',
+    role: 'Quality scout',
+    trait: 'Sharp eyes',
+    palette: '#6ee56e',
+    skin: '#a96f4f',
+    hair: '#1d2b1f',
+    uniform: '#34b96f',
+    shape: 'round',
+  },
+  {
+    alias: 'Nova',
+    role: 'Rush finisher',
+    trait: 'Late save',
+    palette: '#ff7a45',
+    skin: '#734a3b',
+    hair: '#111827',
+    uniform: '#e86b4f',
+    shape: 'square',
+  },
+];
 
 function ticksToTimeRemaining(ticks: number): string {
   if (ticks <= 0) return 'OVERDUE';
@@ -16,13 +98,42 @@ function ticksToTimeRemaining(ticks: number): string {
 function shiftLabel(tick: number): string {
   const day = Math.floor(tick / 1440) + 1;
   const shift = Math.floor((tick % 1440) / 480) + 1;
-  return `Day ${day}  ·  Shift ${shift}`;
+  return `Day ${day} / Shift ${shift}`;
 }
 
-const BASE_UNITS_PER_TICK = 0.6;
-const UNTRAINED_PROFICIENCY = 0.30;
+function formatCurrency(value: number): string {
+  return value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
 
-// Approximate throughput for display — mirrors engine logic, display-only
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function profileForWorker(worker: Worker): CharacterProfile {
+  const idNumber = Number(worker.id.replace(/\D/g, ''));
+  const index = Number.isFinite(idNumber) && idNumber > 0
+    ? idNumber - 1
+    : worker.name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const base = PROFILE_BANK[index % PROFILE_BANK.length];
+  const strongestSkill = [...worker.skills].sort((a, b) => b.proficiency - a.proficiency)[0];
+  const stationName = strongestSkill ? STATION_NAMES[strongestSkill.stationId] : 'Flex';
+
+  return {
+    ...base,
+    role: index >= PROFILE_BANK.length ? `${stationName} prospect` : base.role,
+  };
+}
+
+function averageMorale(workers: Worker[]): number {
+  if (workers.length === 0) return 0;
+  return workers.reduce((sum, worker) => sum + worker.morale, 0) / workers.length;
+}
+
 function computeThroughput(state: GameState): number {
   let total = 0;
   for (const line of Object.values(state.lines)) {
@@ -30,7 +141,7 @@ function computeThroughput(state: GameState): number {
     const staffed = line.stations.filter(
       s => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift
     );
-    if (staffed.length < line.stations.length) continue; // pipeline blocked
+    if (staffed.length < line.stations.length) continue;
     const workers = staffed.map(s => state.workers[s.assignedWorkerId!]);
     const avgMorale = workers.reduce((sum, w) => sum + w.morale, 0) / workers.length;
     const avgSkill = staffed.reduce((sum, s) => {
@@ -44,36 +155,35 @@ function computeThroughput(state: GameState): number {
   return total;
 }
 
-function formatEvent(e: GameEvent): { text: string; color: string } {
+function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } {
   const p = e.payload as Record<string, unknown>;
   switch (e.type) {
     case 'WORKER_ARRIVED':
-      return { text: `${p.workerName} clocked in.`, color: 'text-slate-400' };
+      return { text: `${p.workerName} clocked in.`, tone: 'event-good', tag: 'CREW' };
     case 'WORKER_NO_SHOW':
-      return { text: `${p.workerName} is a no-show.`, color: 'text-red-400' };
+      return { text: `${p.workerName} is a no-show.`, tone: 'event-bad', tag: 'MISS' };
     case 'ORDER_COMPLETED':
-      return { text: `Order ${p.sku} complete! +$${(p.revenue as number).toFixed(2)}`, color: 'text-green-400' };
+      return { text: `Order ${p.sku} complete. +$${(p.revenue as number).toFixed(2)}`, tone: 'event-good', tag: 'WIN' };
     case 'ORDER_MISSED':
-      return { text: `Order ${p.sku} MISSED.`, color: 'text-red-500' };
+      return { text: `Order ${p.sku} missed.`, tone: 'event-bad', tag: 'LATE' };
     case 'MORALE_SHIFT': {
       const delta = p.delta as number;
       const sign = delta > 0 ? '+' : '';
       return {
         text: `${p.workerName}: morale ${sign}${(delta * 100).toFixed(0)}% (${p.cause})`,
-        color: delta > 0 ? 'text-yellow-400' : 'text-orange-400',
+        tone: delta > 0 ? 'event-warm' : 'event-alert',
+        tag: 'MOOD',
       };
     }
     case 'SHIFT_START': {
       const day = Math.floor(e.tick / 1440) + 1;
       const shift = Math.floor((e.tick % 1440) / 480) + 1;
-      return { text: `Day ${day}, Shift ${shift} starting`, color: 'text-slate-600' };
+      return { text: `Day ${day}, Shift ${shift} starting.`, tone: 'event-neutral', tag: 'TIME' };
     }
     default:
-      return { text: e.type, color: 'text-slate-600' };
+      return { text: e.type, tone: 'event-neutral', tag: 'LOG' };
   }
 }
-
-// ─── root ────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const {
@@ -85,189 +195,216 @@ export default function App() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (paused) { if (intervalRef.current) clearInterval(intervalRef.current); return; }
+    if (paused) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
     const ms = 1000 / speed;
     intervalRef.current = setInterval(runTick, ms);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [runTick, paused, speed]);
 
   const throughput = computeThroughput(state);
   const firstOrder = state.activeOrders[0];
-  const recentEvents = [...state.eventLog].reverse().slice(0, 5);
-
-  // Workers not assigned to any station
-  const assignedIds = new Set(
-    Object.values(state.lines).flatMap(l =>
-      l.stations.map(s => s.assignedWorkerId).filter(Boolean) as string[]
-    )
+  const recentEvents = [...state.eventLog].reverse().slice(0, 7);
+  const workers = Object.values(state.workers);
+  const assignedIds = useMemo(
+    () => new Set(
+      Object.values(state.lines).flatMap(l =>
+        l.stations.map(s => s.assignedWorkerId).filter(Boolean) as string[]
+      )
+    ),
+    [state.lines]
   );
-  const benchWorkers = Object.values(state.workers).filter(w => !assignedIds.has(w.id));
+  const benchWorkers = workers.filter(w => !assignedIds.has(w.id));
+  const selectedWorker = selectedWorkerId ? state.workers[selectedWorkerId] : null;
+  const staffedStations = Object.values(state.lines).reduce(
+    (sum, line) => sum + line.stations.filter(s => s.assignedWorkerId).length,
+    0
+  );
+  const totalStations = Object.values(state.lines).reduce((sum, line) => sum + line.stations.length, 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white max-w-4xl mx-auto px-4 py-5 space-y-5">
+    <div className="game-shell min-h-screen text-white">
+      <div className="game-grid-bg" />
+      <main className="relative mx-auto w-full max-w-7xl px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
+        <header className="hud-panel mb-4 p-3 sm:p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="eyebrow">Co-Pack Tactics</div>
+              <h1 className="text-3xl font-black tracking-normal text-white sm:text-5xl">
+                Floor Rush
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                <span className="status-pill status-time">{shiftLabel(state.tick)}</span>
+                <span className={`status-pill ${paused ? 'status-paused' : 'status-live'}`}>
+                  {paused ? 'Paused' : 'Live run'}
+                </span>
+              </div>
+            </div>
 
-      {/* ── Header ── */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-yellow-400 tracking-tight leading-none">Co-Pack Floor</h1>
-          <p className="text-slate-500 text-sm mt-1">{shiftLabel(state.tick)}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md overflow-hidden border border-slate-700 text-xs">
-            {([1, 4, 16] as SpeedSetting[]).map(s => (
-              <button
-                type="button" key={s} onClick={() => setSpeed(s)}
-                className={`px-2.5 py-1.5 transition ${speed === s && !paused ? 'bg-yellow-500 text-black font-bold' : 'text-slate-400 hover:text-white'}`}
-              >{s}×</button>
-            ))}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[560px]">
+              <HudStat label="Cash" value={formatCurrency(state.cash)} tone="green" />
+              <HudStat label="Output" value={`${throughput.toFixed(2)}/min`} tone="cyan" />
+              <HudStat label="Crew" value={`${staffedStations}/${totalStations}`} tone="pink" />
+              <HudStat label="Morale" value={pct(averageMorale(workers))} tone="gold" />
+            </div>
           </div>
-          <button type="button" onClick={togglePause}
-            className={`text-xs px-3 py-1.5 rounded-md border transition font-medium ${paused ? 'border-yellow-500 text-yellow-400 bg-yellow-950' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
-          >{paused ? '▶ Resume' : '⏸ Pause'}</button>
-          <button type="button" onClick={reset}
-            className="text-xs text-slate-600 border border-slate-800 rounded-md px-2.5 py-1.5 hover:border-slate-600 transition"
-          >Reset</button>
-        </div>
-      </header>
 
-      {/* ── Order Hero ── */}
-      {firstOrder ? (
-        <OrderHero order={firstOrder} tick={state.tick} throughput={throughput} />
-      ) : (
-        <div className="h-32 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-center text-slate-600 text-sm">
-          No active orders
-        </div>
-      )}
-
-      {/* ── Assignment hint ── */}
-      {selectedWorkerId && (
-        <div className="px-4 py-2.5 bg-yellow-950 border border-yellow-700/60 rounded-lg text-yellow-300 text-sm flex items-center justify-between">
-          <span><strong>{state.workers[selectedWorkerId]?.name}</strong> — click a station to assign</span>
-          <button type="button" onClick={() => selectWorker(null)} className="text-yellow-600 hover:text-yellow-400 text-xs">cancel</button>
-        </div>
-      )}
-
-      {/* ── Cash ── */}
-      <div className="text-2xl font-mono font-bold text-green-400 tabular-nums">
-        ${state.cash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      </div>
-
-      {/* ── Floor ── */}
-      {Object.entries(state.lines).map(([lineId, line]) => (
-        <FloorLine
-          key={lineId} lineId={lineId} line={line}
-          workers={state.workers} throughput={throughput}
-          selectedWorkerId={selectedWorkerId}
-          onSelectWorker={selectWorker}
-          onAssign={assignWorker}
-          onUnassign={unassignStation}
-        />
-      ))}
-
-      {/* ── Bench (unassigned workers + hire button) ── */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-xs text-slate-600 uppercase tracking-widest">
-            {benchWorkers.length > 0 ? 'Bench' : 'Floor Roster'}
+          <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="speed-toggle" aria-label="Speed controls">
+                {([1, 4, 16] as SpeedSetting[]).map(s => (
+                  <button
+                    type="button"
+                    key={s}
+                    onClick={() => setSpeed(s)}
+                    className={speed === s && !paused ? 'active' : ''}
+                  >
+                    {s}x
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={togglePause} className="game-button game-button-primary">
+                {paused ? 'Resume' : 'Pause'}
+              </button>
+              <button type="button" onClick={reset} className="game-button game-button-muted">
+                Reset
+              </button>
+            </div>
+            <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">
+              Assign crew, keep the belt moving, cash the order.
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={hireWorker}
-            disabled={state.cash < HIRE_COST}
-            className={`text-xs px-3 py-1 rounded border transition font-medium ${
-              state.cash >= HIRE_COST
-                ? 'border-green-700 text-green-400 hover:bg-green-950'
-                : 'border-slate-800 text-slate-700 cursor-not-allowed'
-            }`}
-          >
-            + Hire  ${HIRE_COST}
-          </button>
-        </div>
-        {benchWorkers.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {benchWorkers.map(w => (
-              <BenchWorker
-                key={w.id} worker={w}
+        </header>
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="space-y-4">
+            {firstOrder ? (
+              <OrderHero order={firstOrder} tick={state.tick} throughput={throughput} />
+            ) : (
+              <div className="game-panel flex min-h-[180px] items-center justify-center p-5 text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
+                No active orders
+              </div>
+            )}
+
+            {selectedWorker && (
+              <div className="selection-banner">
+                <div className="flex items-center gap-3">
+                  <CharacterAvatar worker={selectedWorker} size="sm" />
+                  <div>
+                    <div className="text-sm font-black text-white">
+                      {profileForWorker(selectedWorker).alias} is ready to drop.
+                    </div>
+                    <div className="text-xs text-amber-100/80">Click any station tile to assign them.</div>
+                  </div>
+                </div>
+                <button type="button" onClick={() => selectWorker(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {Object.entries(state.lines).map(([lineId, line]) => (
+              <FloorLine
+                key={lineId}
+                lineId={lineId}
+                line={line}
+                workers={state.workers}
+                throughput={throughput}
                 selectedWorkerId={selectedWorkerId}
-                onSelect={() => selectWorker(w.id)}
+                onSelectWorker={selectWorker}
+                onAssign={assignWorker}
+                onUnassign={unassignStation}
               />
             ))}
-          </div>
-        ) : (
-          <p className="text-slate-700 text-sm">All workers are on the floor.</p>
-        )}
-      </div>
+          </section>
 
-      {/* ── Floor Log ── */}
-      {recentEvents.length > 0 && (
-        <div className="space-y-px">
-          {recentEvents.map((e, i) => {
-            const { text, color } = formatEvent(e);
-            return (
-              <div key={i} className="flex gap-3 items-baseline py-1">
-                <span className="text-slate-700 font-mono text-xs shrink-0 tabular-nums">t{e.tick}</span>
-                <span className={`text-sm ${color}`}>{text}</span>
-              </div>
-            );
-          })}
+          <aside className="space-y-4">
+            <CrewPanel
+              benchWorkers={benchWorkers}
+              allAssigned={benchWorkers.length === 0}
+              selectedWorkerId={selectedWorkerId}
+              cash={state.cash}
+              onHire={hireWorker}
+              onSelectWorker={selectWorker}
+            />
+            <EventLog events={recentEvents} />
+          </aside>
         </div>
-      )}
-
+      </main>
     </div>
   );
 }
 
-// ─── Order Hero ──────────────────────────────────────────────────────────────
+function HudStat({ label, value, tone }: { label: string; value: string; tone: 'green' | 'cyan' | 'pink' | 'gold' }) {
+  return (
+    <div className={`hud-stat hud-stat-${tone}`}>
+      <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-slate-950/60">{label}</div>
+      <div className="mt-1 truncate text-xl font-black leading-none text-slate-950 sm:text-2xl">{value}</div>
+    </div>
+  );
+}
 
 function OrderHero({ order, tick, throughput }: { order: Order; tick: number; throughput: number }) {
   const progress = order.unitsCompleted / order.units;
   const remaining = order.deadline - tick;
   const isUrgent = remaining < 480;
   const isOverdue = remaining <= 0;
+  const unitsLeft = Math.max(order.units - order.unitsCompleted, 0);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-      <div className="flex items-start justify-between mb-4">
+    <section className="order-panel overflow-hidden">
+      <div className="relative z-10 grid gap-5 p-4 sm:p-5 md:grid-cols-[1fr_220px]">
         <div>
-          <div className="text-xl font-bold text-white">{order.sku}</div>
-          <div className="text-slate-500 text-sm">{order.clientId} · ${order.revenuePerUnit}/unit</div>
+          <div className="eyebrow text-slate-950/60">Active contract</div>
+          <div className="mt-1 flex flex-wrap items-end gap-3">
+            <h2 className="text-3xl font-black leading-none text-slate-950 sm:text-5xl">{order.sku}</h2>
+            <span className={`deadline-chip ${isOverdue ? 'danger' : isUrgent ? 'warn' : ''}`}>
+              {ticksToTimeRemaining(remaining)}
+            </span>
+          </div>
+          <p className="mt-3 max-w-2xl text-sm font-semibold text-slate-900/70">
+            Client {order.clientId} pays ${order.revenuePerUnit.toFixed(2)} per unit. Keep the crew aligned and push boxes through the belt.
+          </p>
         </div>
-        <div className="text-right">
-          <div className="text-3xl font-mono font-bold tabular-nums">
-            <span className="text-white">{Math.round(order.unitsCompleted)}</span>
-            <span className="text-slate-600 text-xl"> / {order.units}</span>
+
+        <div className="score-box">
+          <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-950/50">Units left</div>
+          <div className="mt-1 font-mono text-4xl font-black leading-none text-slate-950 tabular-nums">
+            {Math.ceil(unitsLeft)}
           </div>
-          <div className={`text-sm mt-0.5 ${isOverdue ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-slate-500'}`}>
-            {ticksToTimeRemaining(remaining)} left
-          </div>
+          <div className="mt-2 text-xs font-bold text-slate-950/60">{throughput.toFixed(2)} units/min</div>
         </div>
       </div>
 
-      {/* Big progress bar */}
-      <div className="h-10 bg-slate-800 rounded-lg overflow-hidden relative">
-        <div
-          className={`h-10 rounded-lg transition-all duration-300 ${isOverdue ? 'bg-red-600' : 'bg-green-600'}`}
-          style={{ width: `${Math.max(progress * 100, 0.3)}%` }}
-        />
-        <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
-          <span className="text-sm font-bold text-white/80">{(progress * 100).toFixed(1)}%</span>
-          {throughput > 0 && (
-            <span className="text-xs text-white/50">▶ {throughput.toFixed(2)} u/min</span>
-          )}
+      <div className="relative z-10 px-4 pb-4 sm:px-5 sm:pb-5">
+        <div className="progress-rail">
+          <div
+            className={`progress-fill ${isOverdue ? 'danger' : ''}`}
+            style={{ width: `${Math.min(Math.max(progress * 100, 1), 100)}%` }}
+          />
+          <div className="progress-label">
+            <span>{(progress * 100).toFixed(1)}%</span>
+            <span>{Math.round(order.unitsCompleted)} / {order.units}</span>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
-
-// ─── Floor Line ──────────────────────────────────────────────────────────────
 
 function FloorLine({
   lineId, line, workers, throughput, selectedWorkerId,
   onSelectWorker, onAssign, onUnassign,
 }: {
-  lineId: string; line: Line; workers: Record<string, Worker>;
-  throughput: number; selectedWorkerId: string | null;
+  lineId: string;
+  line: Line;
+  workers: Record<string, Worker>;
+  throughput: number;
+  selectedWorkerId: string | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
@@ -276,137 +413,284 @@ function FloorLine({
     s => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift
   ).length;
   const isBlocked = presentCount < line.stations.length;
-
   const selectedWorker = selectedWorkerId ? workers[selectedWorkerId] : null;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2.5">
-          <span className="font-semibold text-white text-sm">{line.name}</span>
-          {isBlocked ? (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-red-950 text-red-400">
-              BLOCKED — {presentCount}/{line.stations.length} staffed
-            </span>
-          ) : (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-green-950 text-green-400">
-              RUNNING ▶ {throughput.toFixed(2)} u/min
-            </span>
-          )}
+    <section className="game-panel p-4 sm:p-5">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="eyebrow">Production board</div>
+          <h2 className="text-2xl font-black text-white">{line.name}</h2>
+        </div>
+        <div className={`line-status ${isBlocked ? 'blocked' : 'running'}`}>
+          {isBlocked ? `Blocked ${presentCount}/${line.stations.length}` : `Running ${throughput.toFixed(2)}/min`}
         </div>
       </div>
 
-      {/* Conveyor */}
-      <div className="flex items-stretch gap-0">
-        {line.stations.map((station, i) => {
-          const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
-          const present = worker?.presentThisShift ?? false;
-          const hasTarget = selectedWorkerId !== null;
+      <div className="conveyor-wrap">
+        <div className="conveyor-belt" />
+        <div className="station-grid">
+          {line.stations.map((station, index) => {
+            const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
+            const present = worker?.presentThisShift ?? false;
+            const hasTarget = selectedWorkerId !== null;
+            const isSkillMatch = selectedWorker?.skills.some(sk => sk.stationId === station.id) ?? false;
+            const theme = STATION_THEMES[station.id] ?? STATION_THEMES.s1;
 
-          // Does the selected worker have a skill for THIS station?
-          const isSkillMatch = selectedWorker?.skills.some(sk => sk.stationId === station.id) ?? false;
-
-          let bg = 'bg-slate-900 border-slate-800';
-          let cursor = '';
-          let assignLabel = '—';
-
-          if (hasTarget) {
-            cursor = 'cursor-pointer';
-            if (isSkillMatch) {
-              bg = 'bg-yellow-950/60 border-yellow-500';
-              assignLabel = '★ match';
-            } else {
-              bg = 'bg-slate-800 border-yellow-700/50';
-              assignLabel = '+ assign';
-            }
-          } else if (worker && present) {
-            bg = 'bg-amber-950/50 border-amber-800/60';
-            cursor = 'cursor-pointer';
-          } else if (worker && !present) {
-            bg = 'bg-red-950/60 border-red-900/50';
-          }
-
-          return (
-            <React.Fragment key={station.id}>
-              {i > 0 && (
-                <div className="flex items-center shrink-0 px-1.5 text-slate-700 text-sm">›</div>
-              )}
-              <div
-                className={`flex-1 min-w-0 border rounded-lg transition-all select-none p-3 ${bg} ${cursor}`}
-                onClick={() => {
-                  if (hasTarget) {
-                    onAssign(selectedWorkerId!, lineId, station.id);
-                  } else if (worker) {
-                    onSelectWorker(worker.id);
-                  }
+            return (
+              <StationTile
+                key={station.id}
+                index={index}
+                stationName={station.name}
+                theme={theme}
+                worker={worker}
+                present={present}
+                hasTarget={hasTarget}
+                isSkillMatch={isSkillMatch}
+                selectedWorker={selectedWorker}
+                onAssign={() => selectedWorkerId && onAssign(selectedWorkerId, lineId, station.id)}
+                onSelect={() => worker && onSelectWorker(worker.id)}
+                onUnassign={(event) => {
+                  event.stopPropagation();
+                  onUnassign(lineId, station.id);
                 }}
-              >
-                <div className="text-xs text-slate-500 mb-2">{station.name}</div>
-                {worker ? (
-                  <>
-                    <div className={`text-sm font-semibold leading-none mb-2 ${present ? 'text-white' : 'text-red-400'}`}>
-                      {worker.name.split(' ')[0]}
-                      {!present && <span className="text-red-600 text-xs ml-1">no-show</span>}
-                    </div>
-                    <div className="h-1 bg-slate-800 rounded-full">
-                      <div
-                        className={`h-1 rounded-full ${present ? 'bg-yellow-400' : 'bg-red-800'}`}
-                        style={{ width: `${worker.morale * 100}%` }}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <div className={`text-xs font-medium ${
-                    isSkillMatch ? 'text-yellow-400' : hasTarget ? 'text-yellow-700' : 'text-slate-700'
-                  }`}>
-                    {assignLabel}
-                  </div>
-                )}
-              </div>
-            </React.Fragment>
-          );
-        })}
+              />
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-// ─── Bench Worker ────────────────────────────────────────────────────────────
+function StationTile({
+  index, stationName, theme, worker, present, hasTarget, isSkillMatch, selectedWorker,
+  onAssign, onSelect, onUnassign,
+}: {
+  index: number;
+  stationName: string;
+  theme: { icon: string; color: string; note: string };
+  worker: Worker | null;
+  present: boolean;
+  hasTarget: boolean;
+  isSkillMatch: boolean;
+  selectedWorker: Worker | null;
+  onAssign: () => void;
+  onSelect: () => void;
+  onUnassign: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  const profile = worker ? profileForWorker(worker) : null;
+  const selectedProfile = selectedWorker ? profileForWorker(selectedWorker) : null;
+  const stationClass = [
+    'station-card',
+    worker ? 'occupied' : 'empty',
+    present ? 'present' : '',
+    hasTarget ? 'targeting' : '',
+    isSkillMatch ? 'match' : '',
+    worker && !present ? 'absent' : '',
+  ].filter(Boolean).join(' ');
 
-const STATION_NAMES: Record<string, string> = { s1: 'Induct', s2: 'Pack', s3: 'Stage' };
+  return (
+    <button
+      type="button"
+      className={stationClass}
+      style={{ '--station-color': theme.color } as React.CSSProperties}
+      onClick={hasTarget ? onAssign : onSelect}
+    >
+      <div className="station-topline">
+        <span className="station-index">{String(index + 1).padStart(2, '0')}</span>
+        <span className="station-code">{theme.icon}</span>
+      </div>
+
+      <div className="station-body">
+        {worker && profile ? (
+          <>
+            <CharacterAvatar worker={worker} />
+            <div className="min-w-0 flex-1 text-left">
+              <div className="truncate text-lg font-black text-white">{profile.alias}</div>
+              <div className="truncate text-sm font-bold text-slate-300">{worker.name}</div>
+              <div className={`mt-2 inline-flex rounded px-2 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] ${present ? 'bg-emerald-300 text-slate-950' : 'bg-rose-400 text-white'}`}>
+                {present ? 'On deck' : 'No-show'}
+              </div>
+            </div>
+            <button type="button" className="station-clear" title="Unassign worker" onClick={onUnassign}>
+              X
+            </button>
+          </>
+        ) : (
+          <div className="empty-station">
+            <div className="empty-icon">{theme.note}</div>
+            <div className="text-lg font-black text-white">{stationName}</div>
+            <div className={isSkillMatch ? 'text-amber-200' : hasTarget ? 'text-slate-200' : 'text-slate-500'}>
+              {hasTarget
+                ? isSkillMatch
+                  ? `${selectedProfile?.alias ?? 'Crew'} match`
+                  : `Assign ${selectedProfile?.alias ?? 'crew'}`
+                : 'Open station'}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {worker ? (
+        <div className="station-bars">
+          <MiniBar label="Mood" value={worker.morale} />
+          <MiniBar label="Trust" value={worker.reliability} />
+        </div>
+      ) : (
+        <div className="station-hint">{hasTarget ? 'Click to place' : 'Select a crew card first'}</div>
+      )}
+    </button>
+  );
+}
+
+function CrewPanel({
+  benchWorkers, allAssigned, selectedWorkerId, cash, onHire, onSelectWorker,
+}: {
+  benchWorkers: Worker[];
+  allAssigned: boolean;
+  selectedWorkerId: string | null;
+  cash: number;
+  onHire: () => void;
+  onSelectWorker: (id: string | null) => void;
+}) {
+  return (
+    <section className="game-panel p-4">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <div className="eyebrow">Crew bench</div>
+          <h2 className="text-2xl font-black text-white">{allAssigned ? 'All Deployed' : 'Ready Crew'}</h2>
+        </div>
+        <button
+          type="button"
+          onClick={onHire}
+          disabled={cash < HIRE_COST}
+          className="game-button game-button-hire"
+        >
+          Hire {formatCurrency(HIRE_COST)}
+        </button>
+      </div>
+
+      {benchWorkers.length > 0 ? (
+        <div className="grid gap-3">
+          {benchWorkers.map(worker => (
+            <BenchWorker
+              key={worker.id}
+              worker={worker}
+              selectedWorkerId={selectedWorkerId}
+              onSelect={() => onSelectWorker(worker.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="empty-bench">
+          Every available worker is already on the floor.
+        </div>
+      )}
+    </section>
+  );
+}
 
 function BenchWorker({
   worker, selectedWorkerId, onSelect,
 }: { worker: Worker; selectedWorkerId: string | null; onSelect: () => void }) {
   const isSelected = selectedWorkerId === worker.id;
+  const profile = profileForWorker(worker);
 
   return (
-    <div
+    <button
+      type="button"
       onClick={onSelect}
-      className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all select-none ${
-        isSelected
-          ? 'bg-yellow-950 border-yellow-500'
-          : 'bg-slate-900 border-slate-800 hover:border-slate-600'
-      }`}
+      className={`crew-card ${isSelected ? 'selected' : ''}`}
+      style={{ '--crew-color': profile.palette } as React.CSSProperties}
     >
-      <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0 mt-0.5">
-        {worker.name[0]}
-      </div>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-white leading-none">{worker.name}</div>
-        <div className="text-xs text-slate-600 mt-0.5 mb-1.5">Day {worker.tenureDays} · {Math.round(worker.morale * 100)}% morale</div>
-        {/* Skill badges */}
-        <div className="flex flex-wrap gap-1">
+      <CharacterAvatar worker={worker} />
+      <div className="min-w-0 flex-1 text-left">
+        <div className="flex items-center justify-between gap-2">
+          <div className="truncate text-lg font-black text-white">{profile.alias}</div>
+          <div className="crew-level">D{worker.tenureDays}</div>
+        </div>
+        <div className="truncate text-sm font-bold text-slate-300">{worker.name} / {profile.role}</div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <MiniBar label="Mood" value={worker.morale} />
+          <MiniBar label="Trust" value={worker.reliability} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {worker.skills.map(sk => (
-            <span
-              key={sk.stationId}
-              className="text-xs bg-slate-800 text-yellow-500 px-1.5 py-0.5 rounded font-medium"
-            >
-              ★ {STATION_NAMES[sk.stationId] ?? sk.stationId}
+            <span key={sk.stationId} className="skill-chip">
+              {STATION_NAMES[sk.stationId] ?? sk.stationId} {pct(sk.proficiency)}
             </span>
           ))}
+          <span className="trait-chip">{profile.trait}</span>
         </div>
       </div>
+    </button>
+  );
+}
+
+function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?: 'sm' | 'md' }) {
+  const profile = profileForWorker(worker);
+  return (
+    <div
+      className={`character-avatar avatar-${size} avatar-${profile.shape}`}
+      style={{
+        '--avatar-color': profile.palette,
+        '--avatar-skin': profile.skin,
+        '--avatar-hair': profile.hair,
+        '--avatar-uniform': profile.uniform,
+      } as React.CSSProperties}
+      aria-hidden="true"
+    >
+      <div className="avatar-head">
+        <span className="avatar-hair" />
+        <span className="avatar-eye left" />
+        <span className="avatar-eye right" />
+        <span className="avatar-smile" />
+      </div>
+      <div className="avatar-body">
+        <span />
+      </div>
     </div>
+  );
+}
+
+function MiniBar({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="mini-stat">
+      <div className="flex items-center justify-between gap-2">
+        <span>{label}</span>
+        <strong>{pct(value)}</strong>
+      </div>
+      <div className="mini-rail">
+        <div style={{ width: `${Math.max(Math.min(value * 100, 100), 4)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function EventLog({ events }: { events: GameEvent[] }) {
+  return (
+    <section className="game-panel p-4">
+      <div className="mb-3">
+        <div className="eyebrow">Floor radio</div>
+        <h2 className="text-2xl font-black text-white">Shift Feed</h2>
+      </div>
+      {events.length > 0 ? (
+        <div className="space-y-2">
+          {events.map((event, index) => {
+            const { text, tone, tag } = formatEvent(event);
+            return (
+              <div key={`${event.tick}-${index}`} className={`event-row ${tone}`}>
+                <span className="event-tag">{tag}</span>
+                <span className="event-time">t{event.tick}</span>
+                <span className="min-w-0 flex-1">{text}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="empty-bench">No radio chatter yet. Start the belt.</div>
+      )}
+    </section>
   );
 }
