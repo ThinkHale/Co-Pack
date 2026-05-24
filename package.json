@@ -1,0 +1,12 @@
+{
+  "name": "copack",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev:web": "npm --workspace packages/web run dev",
+    "build:engine": "npm --workspace packages/engine run build",
+    "build:web": "npm --workspace packages/web run build",
+    "test:engine": "npm --workspace packages/engine run test"
+  }
+}
