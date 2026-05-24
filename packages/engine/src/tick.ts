@@ -6,28 +6,33 @@ import { rollEvents } from './events/random';
 
 export function tick(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
+  let s = state;
 
-  // Attendance check at shift start (every 480 ticks = 8-hour shift)
-  if (state.tick % 480 === 0) {
-    const { state: s1, events: e1 } = processAttendance(state);
-    Object.assign(state, s1);
-    events.push(...e1);
+  if (s.tick % 480 === 0) {
+    const r = processAttendance(s);
+    s = r.state;
+    events.push(...r.events);
   }
 
-  const { state: s2, events: e2 } = processThroughput(state);
-  Object.assign(state, s2);
-  events.push(...e2);
+  const r2 = processThroughput(s);
+  s = r2.state;
+  events.push(...r2.events);
 
-  const { state: s3, events: e3 } = processOrders(state);
-  Object.assign(state, s3);
-  events.push(...e3);
+  const r3 = processOrders(s);
+  s = r3.state;
+  events.push(...r3.events);
 
-  const { state: s4, events: e4 } = rollEvents(state);
-  Object.assign(state, s4);
-  events.push(...e4);
+  const r4 = rollEvents(s);
+  s = r4.state;
+  events.push(...r4.events);
 
-  const newTick = state.tick + 1;
-  const newDay = Math.floor(newTick / 1440); // 1440 ticks = 1 game day
+  const newTick = s.tick + 1;
+  const newDay = Math.floor(newTick / 1440);
 
-  return { state: { ...state, tick: newTick, day: newDay }, events };
+  // Increment tenure for all workers at the day boundary
+  const workers = newDay > s.day
+    ? Object.fromEntries(Object.entries(s.workers).map(([id, w]) => [id, { ...w, tenureDays: w.tenureDays + 1 }]))
+    : s.workers;
+
+  return { state: { ...s, tick: newTick, day: newDay, workers }, events };
 }

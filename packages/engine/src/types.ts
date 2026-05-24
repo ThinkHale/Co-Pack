@@ -7,6 +7,7 @@ export interface Worker {
   morale: number;        // 0-1, affects speed and retention
   skills: StationSkill[];
   referredBy?: string;
+  presentThisShift: boolean;
 }
 
 export type StationSkill = {
@@ -72,6 +73,7 @@ export interface GameState {
   tick: number;      // 1 tick = 1 game-minute
   day: number;
   cash: number;
+  orderCount: number;
   workers: Record<string, Worker>;
   lines: Record<string, Line>;
   clients: Record<string, Client>;

@@ -5,16 +5,19 @@ export function createInitialState(): GameState {
     id: 'w1', name: 'Marcus T.', tenureDays: 0,
     reliability: 0.85, morale: 0.7,
     skills: [{ stationId: 's1', proficiency: 0.6 }],
+    presentThisShift: true,
   };
   const worker2: Worker = {
     id: 'w2', name: 'Diana R.', tenureDays: 45,
     reliability: 0.92, morale: 0.8,
     skills: [{ stationId: 's2', proficiency: 0.8 }],
+    presentThisShift: true,
   };
   const worker3: Worker = {
     id: 'w3', name: 'Jerome K.', tenureDays: 12,
     reliability: 0.75, morale: 0.6,
     skills: [{ stationId: 's1', proficiency: 0.5 }],
+    presentThisShift: true,
   };
 
   const line1: Line = {
@@ -41,7 +44,7 @@ export function createInitialState(): GameState {
   };
 
   return {
-    tick: 0, day: 0, cash: 5000,
+    tick: 0, day: 0, cash: 5000, orderCount: 1,
     workers: { w1: worker1, w2: worker2, w3: worker3 },
     lines: { line1 },
     clients: { c1: client1 },

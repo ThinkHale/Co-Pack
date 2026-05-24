@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(./node_modules/.bin/tsc --project packages/engine/tsconfig.json --noEmit)",
+      "Bash(npm install *)",
+      "Bash(/Users/Cody.Hale/ThinkHale/Co-Pack/packages/engine/node_modules/.bin/tsc --project /Users/Cody.Hale/ThinkHale/Co-Pack/packages/engine/tsconfig.json --noEmit)",
+      "Bash(node_modules/.bin/tsc --project packages/engine/tsconfig.json --noEmit)",
+      "Bash(node_modules/.bin/tsc --project packages/web/tsconfig.json --noEmit)"
+    ]
+  }
+}
