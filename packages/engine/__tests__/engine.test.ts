@@ -21,6 +21,11 @@ import {
   provideMeal,
   runIncentive,
   mealCost,
+  incentiveCost,
+  mealReady,
+  incentiveReady,
+  mealCooldownRemaining,
+  MEAL_COOLDOWN_DAYS,
   generateWorker,
   hireWorker,
   moraleBreakdown,
@@ -315,6 +320,43 @@ describe('daily conditions & attendance boosters', () => {
     expect(after.day).toBe(1);
     expect(after.mealToday).toBe(false);
     expect(events.some(e => e.type === 'DAY_CONDITION')).toBe(true);
+  });
+});
+
+describe('emergency levers are not routine (cooldown + cost)', () => {
+  it('a meal puts the lever on a multi-day cooldown', () => {
+    const state = { ...createInitialState(), cash: 100000, day: 2 };
+    expect(mealReady(state)).toBe(true);
+    const { state: after } = provideMeal(state);
+    expect(after.mealCooldownUntil).toBe(2 + MEAL_COOLDOWN_DAYS);
+    // Even on a fresh day, it stays locked until the cooldown elapses.
+    expect(mealReady({ ...after, day: 3, mealToday: false })).toBe(false);
+    expect(mealReady({ ...after, day: 2 + MEAL_COOLDOWN_DAYS, mealToday: false })).toBe(true);
+  });
+
+  it('costs a flat hit plus per-head, scaling with roster size', () => {
+    const small = { ...createInitialState(), cash: 100000 };
+    const big = {
+      ...small,
+      workers: { ...small.workers, w4: { ...small.workers.w1, id: 'w4' }, w5: { ...small.workers.w1, id: 'w5' } },
+    };
+    expect(mealCost(big)).toBeGreaterThan(mealCost(small));
+    // The incentive is the pricier, heavier lever.
+    expect(incentiveCost(small)).toBeGreaterThan(mealCost(small));
+  });
+
+  it('will not fire while on cooldown', () => {
+    const state = { ...createInitialState(), cash: 100000, mealCooldownUntil: 5, day: 2 };
+    expect(mealReady(state)).toBe(false);
+    const { state: after, events } = provideMeal(state);
+    expect(events.length).toBe(0);
+    expect(after.cash).toBe(state.cash);
+  });
+
+  it('cooldown counts down as days pass', () => {
+    const state = { ...createInitialState(), mealCooldownUntil: 6, day: 2 };
+    expect(mealCooldownRemaining(state)).toBe(4);
+    expect(incentiveReady({ ...createInitialState(), day: 0 })).toBe(true);
   });
 });
 

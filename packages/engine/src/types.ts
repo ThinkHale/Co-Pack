@@ -108,8 +108,10 @@ export interface GameState {
   lineCount: number;        // how many lines have been purchased (for cost scaling)
   overtime: boolean;        // global overtime: faster now, morale cost at shift end
   shoutoutReadyTick: number;// tick at which the recognition action is available again
-  mealToday: boolean;       // employee meal bought today — lifts attendance + morale
-  incentiveToday: boolean;  // attendance incentive running today — bigger lift
+  mealToday: boolean;       // emergency meal pulled today — lifts attendance + morale
+  incentiveToday: boolean;  // emergency incentive pulled today — bigger lift
+  mealCooldownUntil: number;     // day the meal lever can be pulled again
+  incentiveCooldownUntil: number;// day the incentive lever can be pulled again
   payPolicy: PayPolicy;     // how generously the agency is paid (Staffing tab)
   skillRequest: string[];   // station ids the agency prioritizes when sending new hires
   programs: StaffingPrograms;

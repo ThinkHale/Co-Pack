@@ -357,6 +357,14 @@ button {
   white-space: nowrap;
 }
 
+.lever-label {
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
 .worker-action {
   border: 2px solid rgba(255, 230, 108, 0.5);
   border-radius: 8px;

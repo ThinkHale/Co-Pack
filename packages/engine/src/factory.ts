@@ -51,6 +51,7 @@ export function createInitialState(): GameState {
     tick: 0, day: 0, cash: 6500, orderCount: 1, completedOrders: 0, missedOrders: 0,
     lineCount: 1, overtime: false, shoutoutReadyTick: 0,
     mealToday: false, incentiveToday: false,
+    mealCooldownUntil: 0, incentiveCooldownUntil: 0,
     payPolicy: { perSkill: false, globalRate: 1.0, skillRates: { s1: 1.0, s2: 1.0, s3: 1.0 } },
     skillRequest: [],
     programs: { attendance: false, referral: false },

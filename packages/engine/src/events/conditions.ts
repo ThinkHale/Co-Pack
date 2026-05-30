@@ -25,25 +25,53 @@ export function dayCondition(day: number): DayCondition {
   return { key: 'normal', label: 'Normal day', note: 'Typical turnout', modifier: 0, tone: 'neutral' };
 }
 
-// --- Player-controlled boosters (a meal or an incentive pulls people in) ---
+// --- Emergency levers (a meal or an incentive to rescue a bad day) ---
+// These are NOT routine. They're what you pull when a storm lands on a big order:
+// a real morale + attendance jolt, but expensive (a flat hit plus per-head) and on
+// a cooldown so you can't lean on them every day. Frequent small morale nudges are
+// the free Shout-out's job; this is the break-glass button.
 
-const MEAL_PER_HEAD = 12;
-const MEAL_ATTENDANCE = 0.10;
-const MEAL_MORALE = 0.02;
+const MEAL_FLAT = 600;
+const MEAL_PER_HEAD = 35;
+const MEAL_ATTENDANCE = 0.14;
+const MEAL_MORALE = 0.06;
+const MEAL_COOLDOWN_DAYS = 4;
 
-const INCENTIVE_PER_HEAD = 28;
-const INCENTIVE_ATTENDANCE = 0.18;
-const INCENTIVE_MORALE = 0.03;
+const INCENTIVE_FLAT = 1200;
+const INCENTIVE_PER_HEAD = 70;
+const INCENTIVE_ATTENDANCE = 0.24;
+const INCENTIVE_MORALE = 0.10;
+const INCENTIVE_COOLDOWN_DAYS = 6;
+
+export { MEAL_COOLDOWN_DAYS, INCENTIVE_COOLDOWN_DAYS };
 
 export function mealCost(state: GameState): number {
-  return Object.keys(state.workers).length * MEAL_PER_HEAD;
+  return MEAL_FLAT + Object.keys(state.workers).length * MEAL_PER_HEAD;
 }
 
 export function incentiveCost(state: GameState): number {
-  return Object.keys(state.workers).length * INCENTIVE_PER_HEAD;
+  return INCENTIVE_FLAT + Object.keys(state.workers).length * INCENTIVE_PER_HEAD;
 }
 
-// Total bump to attendance probability for today, from condition + active boosters.
+// Is each lever available right now (off cooldown and not already pulled today)?
+export function mealReady(state: GameState): boolean {
+  return !state.mealToday && state.day >= state.mealCooldownUntil;
+}
+
+export function incentiveReady(state: GameState): boolean {
+  return !state.incentiveToday && state.day >= state.incentiveCooldownUntil;
+}
+
+// Days until each lever recharges (0 = available now).
+export function mealCooldownRemaining(state: GameState): number {
+  return Math.max(0, state.mealCooldownUntil - state.day);
+}
+
+export function incentiveCooldownRemaining(state: GameState): number {
+  return Math.max(0, state.incentiveCooldownUntil - state.day);
+}
+
+// Total bump to attendance probability for today, from condition + active levers.
 export function dayAttendanceModifier(state: GameState): number {
   return dayCondition(state.day).modifier
     + (state.mealToday ? MEAL_ATTENDANCE : 0)
@@ -57,7 +85,7 @@ function bumpMorale(workers: Record<string, Worker>, delta: number): Record<stri
 }
 
 export function provideMeal(state: GameState): { state: GameState; events: GameEvent[] } {
-  if (state.mealToday) return { state, events: [] };
+  if (!mealReady(state)) return { state, events: [] };
   const cost = mealCost(state);
   if (state.cash < cost) return { state, events: [] };
   const events: GameEvent[] = [{
@@ -65,13 +93,19 @@ export function provideMeal(state: GameState): { state: GameState; events: GameE
     payload: { kind: 'meal', cost, attendance: MEAL_ATTENDANCE },
   }];
   return {
-    state: { ...state, cash: state.cash - cost, mealToday: true, workers: bumpMorale(state.workers, MEAL_MORALE) },
+    state: {
+      ...state,
+      cash: state.cash - cost,
+      mealToday: true,
+      mealCooldownUntil: state.day + MEAL_COOLDOWN_DAYS,
+      workers: bumpMorale(state.workers, MEAL_MORALE),
+    },
     events,
   };
 }
 
 export function runIncentive(state: GameState): { state: GameState; events: GameEvent[] } {
-  if (state.incentiveToday) return { state, events: [] };
+  if (!incentiveReady(state)) return { state, events: [] };
   const cost = incentiveCost(state);
   if (state.cash < cost) return { state, events: [] };
   const events: GameEvent[] = [{
@@ -79,7 +113,13 @@ export function runIncentive(state: GameState): { state: GameState; events: Game
     payload: { kind: 'incentive', cost, attendance: INCENTIVE_ATTENDANCE },
   }];
   return {
-    state: { ...state, cash: state.cash - cost, incentiveToday: true, workers: bumpMorale(state.workers, INCENTIVE_MORALE) },
+    state: {
+      ...state,
+      cash: state.cash - cost,
+      incentiveToday: true,
+      incentiveCooldownUntil: state.day + INCENTIVE_COOLDOWN_DAYS,
+      workers: bumpMorale(state.workers, INCENTIVE_MORALE),
+    },
     events,
   };
 }

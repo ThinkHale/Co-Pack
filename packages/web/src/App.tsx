@@ -5,6 +5,7 @@ import {
   reputationPayMultiplier, OVERTIME_MULTIPLIER,
   fillRate, FILL_RATE_TARGET, flightRisk, trainingCost, canTrain,
   dayCondition, dayAttendanceModifier, mealCost, incentiveCost,
+  mealReady, incentiveReady, mealCooldownRemaining, incentiveCooldownRemaining,
   moraleBreakdown, effectiveWage, workerPayRate,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
@@ -387,6 +388,10 @@ export default function App() {
                 swing={attendanceSwing}
                 mealActive={state.mealToday}
                 incentiveActive={state.incentiveToday}
+                mealReady={mealReady(state)}
+                incentiveReady={incentiveReady(state)}
+                mealCooldown={mealCooldownRemaining(state)}
+                incentiveCooldown={incentiveCooldownRemaining(state)}
                 mealCost={mealCost(state)}
                 incentiveCost={incentiveCost(state)}
                 cash={state.cash}
@@ -721,12 +726,17 @@ function StationTile({
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 
 function ConditionsBar({
-  condition, swing, mealActive, incentiveActive, mealCost, incentiveCost, cash, onMeal, onIncentive,
+  condition, swing, mealActive, incentiveActive, mealReady, incentiveReady,
+  mealCooldown, incentiveCooldown, mealCost, incentiveCost, cash, onMeal, onIncentive,
 }: {
   condition: DayConditionInfo;
   swing: number;
   mealActive: boolean;
   incentiveActive: boolean;
+  mealReady: boolean;
+  incentiveReady: boolean;
+  mealCooldown: number;
+  incentiveCooldown: number;
   mealCost: number;
   incentiveCost: number;
   cash: number;
@@ -734,6 +744,13 @@ function ConditionsBar({
   onIncentive: () => void;
 }) {
   const swingPct = Math.round(swing * 100);
+
+  const leverLabel = (active: boolean, ready: boolean, cooldown: number, name: string, cost: number) => {
+    if (active) return `${name} on today`;
+    if (cooldown > 0) return `${name} · ${cooldown}d`;
+    return `${name} ${formatCurrency(cost)}`;
+  };
+
   return (
     <section className={`conditions-bar tone-${condition.tone}`}>
       <div className="flex min-w-0 items-center gap-3">
@@ -748,25 +765,28 @@ function ConditionsBar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={onMeal}
-          disabled={mealActive || cash < mealCost}
-          title="Provide an employee meal — more crew show up today, small morale lift"
-          className={`game-button ${mealActive ? 'game-button-pull-on' : 'game-button-pull'}`}
-        >
-          {mealActive ? 'Meal on' : `Meal ${formatCurrency(mealCost)}`}
-        </button>
-        <button
-          type="button"
-          onClick={onIncentive}
-          disabled={incentiveActive || cash < incentiveCost}
-          title="Run an attendance incentive — bigger turnout boost today"
-          className={`game-button ${incentiveActive ? 'game-button-pull-on' : 'game-button-pull'}`}
-        >
-          {incentiveActive ? 'Incentive on' : `Incentive ${formatCurrency(incentiveCost)}`}
-        </button>
+      <div className="flex flex-col items-end gap-1">
+        <div className="lever-label">Break-glass · big cost, then cools down</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onMeal}
+            disabled={!mealReady || cash < mealCost}
+            title="Emergency meal — a real morale + attendance jolt for one day. Expensive, then on cooldown."
+            className={`game-button ${mealActive ? 'game-button-pull-on' : 'game-button-pull'}`}
+          >
+            {leverLabel(mealActive, mealReady, mealCooldown, 'Meal', mealCost)}
+          </button>
+          <button
+            type="button"
+            onClick={onIncentive}
+            disabled={!incentiveReady || cash < incentiveCost}
+            title="Emergency incentive — the biggest one-day turnout boost. Pricey, longer cooldown."
+            className={`game-button ${incentiveActive ? 'game-button-pull-on' : 'game-button-pull'}`}
+          >
+            {leverLabel(incentiveActive, incentiveReady, incentiveCooldown, 'Incentive', incentiveCost)}
+          </button>
+        </div>
       </div>
     </section>
   );
