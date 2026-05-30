@@ -6,6 +6,7 @@ export interface Worker {
   reliability: number;   // 0-1, affects attendance probability
   morale: number;        // 0-1, affects speed and retention
   skills: StationSkill[];
+  wage: number;          // dollars paid per shift (deducted every 480 ticks)
   referredBy?: string;
   presentThisShift: boolean;
 }
@@ -57,6 +58,10 @@ export type GameEventType =
   | 'ORDER_COMPLETED'
   | 'ORDER_MISSED'
   | 'MORALE_SHIFT'
+  | 'REPUTATION_SHIFT'
+  | 'PAYROLL'
+  | 'LINE_PURCHASED'
+  | 'OVERTIME_TOGGLED'
   | 'INCIDENT'
   | 'WORKER_QUIT'
   | 'SHIFT_START'
@@ -73,7 +78,11 @@ export interface GameState {
   tick: number;      // 1 tick = 1 game-minute
   day: number;
   cash: number;
-  orderCount: number;
+  orderCount: number;       // total orders generated (used for unique ids)
+  completedOrders: number;  // orders actually fulfilled — drives difficulty scaling
+  lineCount: number;        // how many lines have been purchased (for cost scaling)
+  overtime: boolean;        // global overtime: faster now, morale cost at shift end
+  shoutoutReadyTick: number;// tick at which the recognition action is available again
   workers: Record<string, Worker>;
   lines: Record<string, Line>;
   clients: Record<string, Client>;

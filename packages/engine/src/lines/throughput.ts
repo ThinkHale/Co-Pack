@@ -1,7 +1,8 @@
 import { GameState, GameEvent } from '../types';
 
 const BASE_UNITS_PER_TICK = 0.6;
-const UNTRAINED_PROFICIENCY = 0.30;
+const UNTRAINED_PROFICIENCY = 0.40;     // a generalist on the wrong station still works, just slower
+export const OVERTIME_MULTIPLIER = 1.4; // push output now, pay for it in morale at shift end
 
 export function processThroughput(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
@@ -14,8 +15,13 @@ export function processThroughput(state: GameState): { state: GameState; events:
       s => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift
     );
 
-    // Pipeline rule: every stage must be covered — an empty station blocks the line
-    if (staffedStations.length < line.stations.length) continue;
+    // A line with nobody on it produces nothing.
+    if (staffedStations.length === 0) continue;
+
+    // Pipeline rule (softened): an unstaffed stage is a bottleneck, not a full stop.
+    // A short-staffed line runs at a reduced rate proportional to coverage, so a
+    // single no-show costs you a slice of that line — not the whole shift.
+    const staffingRatio = staffedStations.length / line.stations.length;
 
     const workers = staffedStations.map(s => state.workers[s.assignedWorkerId!]);
 
@@ -29,7 +35,9 @@ export function processThroughput(state: GameState): { state: GameState; events:
     }, 0) / staffedStations.length;
 
     const skillMultiplier = 0.5 + avgSkill * 0.8;
-    const throughput = BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier;
+    const overtimeMultiplier = state.overtime ? OVERTIME_MULTIPLIER : 1;
+    const throughput =
+      BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier * overtimeMultiplier * staffingRatio;
 
     const orderIndex = updatedOrders.findIndex(o => o.unitsCompleted < o.units);
     if (orderIndex >= 0) {

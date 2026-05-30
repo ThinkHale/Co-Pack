@@ -214,6 +214,50 @@ button {
   white-space: nowrap;
 }
 
+.game-button-shout {
+  border-color: rgba(255, 230, 108, 0.55);
+  background: #ffe66c;
+  color: #07131b;
+  white-space: nowrap;
+}
+
+.game-button-ot-on {
+  border-color: rgba(255, 122, 69, 0.62);
+  background: #ff7a45;
+  color: #1b0c05;
+  white-space: nowrap;
+  box-shadow: 0 0 0 3px rgba(255, 122, 69, 0.2);
+}
+
+.game-button-line {
+  border-color: rgba(125, 211, 252, 0.5);
+  background: #2a3a5e;
+  color: #e0f2fe;
+}
+
+.game-button-line:hover:not(:disabled) {
+  background: #34507f;
+}
+
+.rep-chip {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
+  background: rgba(18, 24, 39, 0.78);
+  color: #bae6fd;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rep-chip.low {
+  background: #ff4666;
+  color: #fff;
+}
+
 .selection-banner {
   display: flex;
   align-items: center;
@@ -306,6 +350,10 @@ button {
 
 .line-status.blocked {
   background: #ff7a6e;
+}
+
+.line-status.short {
+  background: #ffb02e;
 }
 
 .conveyor-wrap {

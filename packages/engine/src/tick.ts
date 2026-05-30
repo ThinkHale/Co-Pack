@@ -1,14 +1,28 @@
 import { GameState, GameEvent } from './types';
 import { processAttendance } from './workers/attendance';
+import { processMorale } from './workers/morale';
 import { processThroughput } from './lines/throughput';
 import { processOrders } from './clients/orders';
+import { processPayroll } from './economy/payroll';
 import { rollEvents } from './events/random';
 
 export function tick(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
   let s = state;
 
+  // Shift boundary: morale settles & overtime fatigue lands (on the shift just
+  // worked), payroll is paid, then the new shift's attendance is rolled.
   if (s.tick % 480 === 0) {
+    if (s.tick > 0) {
+      const rm = processMorale(s);
+      s = rm.state;
+      events.push(...rm.events);
+
+      const rp = processPayroll(s);
+      s = rp.state;
+      events.push(...rp.events);
+    }
+
     const r = processAttendance(s);
     s = r.state;
     events.push(...r.events);

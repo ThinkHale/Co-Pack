@@ -4,19 +4,19 @@ export function createInitialState(): GameState {
   // Workers start on the bench — the player's first job is to assign them
   const worker1: Worker = {
     id: 'w1', name: 'Marcus T.', tenureDays: 0,
-    reliability: 0.85, morale: 0.7,
+    reliability: 0.85, morale: 0.7, wage: 90,
     skills: [{ stationId: 's1', proficiency: 0.70 }], // trained: Induct
     presentThisShift: true,
   };
   const worker2: Worker = {
     id: 'w2', name: 'Diana R.', tenureDays: 45,
-    reliability: 0.92, morale: 0.8,
+    reliability: 0.92, morale: 0.8, wage: 110,
     skills: [{ stationId: 's2', proficiency: 0.85 }], // trained: Pack
     presentThisShift: true,
   };
   const worker3: Worker = {
     id: 'w3', name: 'Jerome K.', tenureDays: 12,
-    reliability: 0.75, morale: 0.6,
+    reliability: 0.75, morale: 0.6, wage: 85,
     skills: [{ stationId: 's3', proficiency: 0.65 }], // trained: Stage
     presentThisShift: true,
   };
@@ -45,7 +45,8 @@ export function createInitialState(): GameState {
   };
 
   return {
-    tick: 0, day: 0, cash: 5000, orderCount: 1,
+    tick: 0, day: 0, cash: 6500, orderCount: 1, completedOrders: 0,
+    lineCount: 1, overtime: false, shoutoutReadyTick: 0,
     workers: { w1: worker1, w2: worker2, w3: worker3 },
     lines: { line1 },
     clients: { c1: client1 },

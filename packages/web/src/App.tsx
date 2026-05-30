@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { GameState, GameEvent, Line, Order, Worker } from '@copack/engine';
+import {
+  GameState, GameEvent, Line, Order, Worker,
+  nextLineCost, canBuyLine, shoutoutReady, totalPayroll,
+  reputationPayMultiplier, OVERTIME_MULTIPLIER,
+} from '@copack/engine';
 import { useGameStore, SpeedSetting, HIRE_COST } from './hooks/useGameStore';
 
 type CharacterProfile = {
@@ -14,7 +18,7 @@ type CharacterProfile = {
 };
 
 const BASE_UNITS_PER_TICK = 0.6;
-const UNTRAINED_PROFICIENCY = 0.30;
+const UNTRAINED_PROFICIENCY = 0.40;
 
 const STATION_NAMES: Record<string, string> = { s1: 'Induct', s2: 'Pack', s3: 'Stage' };
 const STATION_THEMES: Record<string, { icon: string; color: string; note: string }> = {
@@ -141,7 +145,8 @@ function computeThroughput(state: GameState): number {
     const staffed = line.stations.filter(
       s => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift
     );
-    if (staffed.length < line.stations.length) continue;
+    if (staffed.length === 0) continue;
+    const staffingRatio = staffed.length / line.stations.length;
     const workers = staffed.map(s => state.workers[s.assignedWorkerId!]);
     const avgMorale = workers.reduce((sum, w) => sum + w.morale, 0) / workers.length;
     const avgSkill = staffed.reduce((sum, s) => {
@@ -150,7 +155,8 @@ function computeThroughput(state: GameState): number {
       return sum + (skill?.proficiency ?? UNTRAINED_PROFICIENCY);
     }, 0) / staffed.length;
     const skillMultiplier = 0.5 + avgSkill * 0.8;
-    total += BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier;
+    const overtimeMultiplier = state.overtime ? OVERTIME_MULTIPLIER : 1;
+    total += BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier * overtimeMultiplier * staffingRatio;
   }
   return total;
 }
@@ -175,6 +181,21 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         tag: 'MOOD',
       };
     }
+    case 'REPUTATION_SHIFT': {
+      const delta = p.delta as number;
+      const sign = delta > 0 ? '+' : '';
+      return {
+        text: `${p.clientName}: reputation ${sign}${(delta * 100).toFixed(0)}% (now ${Math.round((p.reputation as number) * 100)}%)`,
+        tone: delta > 0 ? 'event-good' : 'event-bad',
+        tag: 'REP',
+      };
+    }
+    case 'PAYROLL':
+      return { text: `Payroll run: -$${(p.amount as number).toFixed(0)} for ${p.headcount} crew`, tone: 'event-alert', tag: 'PAY' };
+    case 'LINE_PURCHASED':
+      return { text: `${p.lineName} opened. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'BUILD' };
+    case 'OVERTIME_TOGGLED':
+      return { text: `Overtime ${p.overtime ? 'ON — pushing output' : 'off'}.`, tone: p.overtime ? 'event-warm' : 'event-neutral', tag: 'OT' };
     case 'SHIFT_START': {
       const day = Math.floor(e.tick / 1440) + 1;
       const shift = Math.floor((e.tick % 1440) / 480) + 1;
@@ -190,6 +211,7 @@ export default function App() {
     state, paused, speed,
     runTick, reset, togglePause, setSpeed,
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
+    buyLine, toggleOvertime, shoutout,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -225,6 +247,12 @@ export default function App() {
     0
   );
   const totalStations = Object.values(state.lines).reduce((sum, line) => sum + line.stations.length, 0);
+  const lineCost = nextLineCost(state);
+  const canAffordLine = canBuyLine(state);
+  const canShoutout = shoutoutReady(state) && !paused;
+  const payroll = totalPayroll(state);
+  const primaryClient = firstOrder ? state.clients[firstOrder.clientId] : Object.values(state.clients)[0];
+  const reputation = primaryClient?.reputation ?? 1;
 
   return (
     <div className="game-shell min-h-screen text-white">
@@ -270,12 +298,29 @@ export default function App() {
               <button type="button" onClick={togglePause} className="game-button game-button-primary">
                 {paused ? 'Resume' : 'Pause'}
               </button>
+              <button
+                type="button"
+                onClick={shoutout}
+                disabled={!canShoutout}
+                title="Recognize the crew on the floor — a free morale boost on cooldown"
+                className="game-button game-button-shout"
+              >
+                {canShoutout ? 'Shout-out' : 'Shout-out · cooling'}
+              </button>
+              <button
+                type="button"
+                onClick={toggleOvertime}
+                title="Overtime: more output now, morale cost at shift end"
+                className={`game-button ${state.overtime ? 'game-button-ot-on' : 'game-button-muted'}`}
+              >
+                {state.overtime ? 'Overtime ON' : 'Overtime'}
+              </button>
               <button type="button" onClick={reset} className="game-button game-button-muted">
                 Reset
               </button>
             </div>
             <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">
-              Assign crew, keep the belt moving, cash the order.
+              Payroll {formatCurrency(payroll)}/shift
             </div>
           </div>
         </header>
@@ -283,7 +328,13 @@ export default function App() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="space-y-4">
             {firstOrder ? (
-              <OrderHero order={firstOrder} tick={state.tick} throughput={throughput} />
+              <OrderHero
+                order={firstOrder}
+                tick={state.tick}
+                throughput={throughput}
+                reputation={reputation}
+                clientName={primaryClient?.name ?? firstOrder.clientId}
+              />
             ) : (
               <div className="game-panel flex min-h-[180px] items-center justify-center p-5 text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
                 No active orders
@@ -328,7 +379,11 @@ export default function App() {
               allAssigned={benchWorkers.length === 0}
               selectedWorkerId={selectedWorkerId}
               cash={state.cash}
+              lineCost={lineCost}
+              canAffordLine={canAffordLine}
+              lineCount={state.lineCount}
               onHire={hireWorker}
+              onBuyLine={buyLine}
               onSelectWorker={selectWorker}
             />
             <EventLog events={recentEvents} />
@@ -348,12 +403,17 @@ function HudStat({ label, value, tone }: { label: string; value: string; tone: '
   );
 }
 
-function OrderHero({ order, tick, throughput }: { order: Order; tick: number; throughput: number }) {
+function OrderHero({
+  order, tick, throughput, reputation, clientName,
+}: { order: Order; tick: number; throughput: number; reputation: number; clientName: string }) {
   const progress = order.unitsCompleted / order.units;
   const remaining = order.deadline - tick;
   const isUrgent = remaining < 480;
   const isOverdue = remaining <= 0;
   const unitsLeft = Math.max(order.units - order.unitsCompleted, 0);
+  const payMultiplier = reputationPayMultiplier(reputation);
+  const effectivePay = order.revenuePerUnit * payMultiplier;
+  const repLow = reputation < 0.5;
 
   return (
     <section className="order-panel overflow-hidden">
@@ -365,9 +425,14 @@ function OrderHero({ order, tick, throughput }: { order: Order; tick: number; th
             <span className={`deadline-chip ${isOverdue ? 'danger' : isUrgent ? 'warn' : ''}`}>
               {ticksToTimeRemaining(remaining)}
             </span>
+            <span className={`rep-chip ${repLow ? 'low' : ''}`}>
+              {clientName} · Rep {pct(reputation)}
+            </span>
           </div>
           <p className="mt-3 max-w-2xl text-sm font-semibold text-slate-900/70">
-            Client {order.clientId} pays ${order.revenuePerUnit.toFixed(2)} per unit. Keep the crew aligned and push boxes through the belt.
+            Pays <strong>${effectivePay.toFixed(2)}</strong>/unit at current reputation
+            {' '}(base ${order.revenuePerUnit.toFixed(2)} × {Math.round(payMultiplier * 100)}%).
+            Miss the deadline and reputation — and your pay rate — drop.
           </p>
         </div>
 
@@ -412,7 +477,8 @@ function FloorLine({
   const presentCount = line.stations.filter(
     s => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift
   ).length;
-  const isBlocked = presentCount < line.stations.length;
+  const isStopped = presentCount === 0;
+  const isShort = presentCount > 0 && presentCount < line.stations.length;
   const selectedWorker = selectedWorkerId ? workers[selectedWorkerId] : null;
 
   return (
@@ -422,8 +488,12 @@ function FloorLine({
           <div className="eyebrow">Production board</div>
           <h2 className="text-2xl font-black text-white">{line.name}</h2>
         </div>
-        <div className={`line-status ${isBlocked ? 'blocked' : 'running'}`}>
-          {isBlocked ? `Blocked ${presentCount}/${line.stations.length}` : `Running ${throughput.toFixed(2)}/min`}
+        <div className={`line-status ${isStopped ? 'blocked' : isShort ? 'short' : 'running'}`}>
+          {isStopped
+            ? 'Idle 0/' + line.stations.length
+            : isShort
+              ? `Short-staffed ${presentCount}/${line.stations.length}`
+              : `Running ${throughput.toFixed(2)}/min`}
         </div>
       </div>
 
@@ -545,13 +615,18 @@ function StationTile({
 }
 
 function CrewPanel({
-  benchWorkers, allAssigned, selectedWorkerId, cash, onHire, onSelectWorker,
+  benchWorkers, allAssigned, selectedWorkerId, cash,
+  lineCost, canAffordLine, lineCount, onHire, onBuyLine, onSelectWorker,
 }: {
   benchWorkers: Worker[];
   allAssigned: boolean;
   selectedWorkerId: string | null;
   cash: number;
+  lineCost: number;
+  canAffordLine: boolean;
+  lineCount: number;
   onHire: () => void;
+  onBuyLine: () => void;
   onSelectWorker: (id: string | null) => void;
 }) {
   return (
@@ -570,6 +645,16 @@ function CrewPanel({
           Hire {formatCurrency(HIRE_COST)}
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={onBuyLine}
+        disabled={!canAffordLine}
+        title="Open another production line so bench crew can run it"
+        className="game-button game-button-line mb-4 w-full"
+      >
+        Open Line {String.fromCharCode(64 + lineCount + 1)} · {formatCurrency(lineCost)}
+      </button>
 
       {benchWorkers.length > 0 ? (
         <div className="grid gap-3">

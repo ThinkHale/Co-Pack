@@ -1,9 +1,13 @@
 import { create } from 'zustand';
-import { GameState, GameEvent, tick, createInitialState, generateWorker } from '@copack/engine';
+import {
+  GameState, GameEvent, tick, createInitialState, generateWorker,
+  purchaseLine, applyShoutout,
+} from '@copack/engine';
 
 export type SpeedSetting = 1 | 4 | 16;
 
 const HIRE_COST = 500;
+const DEFAULT_SPEED: SpeedSetting = 4;
 
 interface GameStore {
   state: GameState;
@@ -19,16 +23,25 @@ interface GameStore {
   togglePause: () => void;
   setSpeed: (s: SpeedSetting) => void;
   hireWorker: () => void;
+  buyLine: () => void;
+  toggleOvertime: () => void;
+  shoutout: () => void;
 }
 
 export { HIRE_COST };
+
+// Fold engine output (new state + events) back into the store, capping the log.
+function applyEngineResult(store: GameStore, result: { state: GameState; events: GameEvent[] }) {
+  const eventLog = [...store.state.eventLog, ...result.events].slice(-100);
+  return { state: { ...result.state, eventLog }, events: result.events };
+}
 
 export const useGameStore = create<GameStore>((set) => ({
   state: createInitialState(),
   events: [],
   selectedWorkerId: null,
   paused: false,
-  speed: 4,
+  speed: DEFAULT_SPEED,
 
   runTick: () =>
     set((store) => {
@@ -37,7 +50,10 @@ export const useGameStore = create<GameStore>((set) => ({
       return { state: { ...newState, eventLog }, events: newEvents };
     }),
 
-  reset: () => set({ state: createInitialState(), events: [], selectedWorkerId: null, paused: false }),
+  reset: () => set({
+    state: createInitialState(), events: [],
+    selectedWorkerId: null, paused: false, speed: DEFAULT_SPEED,
+  }),
 
   selectWorker: (id) =>
     set((store) => ({ selectedWorkerId: store.selectedWorkerId === id ? null : id })),
@@ -103,4 +119,23 @@ export const useGameStore = create<GameStore>((set) => ({
         },
       };
     }),
+
+  buyLine: () => set((store) => applyEngineResult(store, purchaseLine(store.state))),
+
+  toggleOvertime: () =>
+    set((store) => {
+      const overtime = !store.state.overtime;
+      const event: GameEvent = {
+        type: 'OVERTIME_TOGGLED', tick: store.state.tick, payload: { overtime },
+      };
+      return {
+        state: {
+          ...store.state,
+          overtime,
+          eventLog: [...store.state.eventLog, event].slice(-100),
+        },
+      };
+    }),
+
+  shoutout: () => set((store) => applyEngineResult(store, applyShoutout(store.state))),
 }));
