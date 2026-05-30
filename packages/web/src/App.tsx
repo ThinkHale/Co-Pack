@@ -5,8 +5,13 @@ import {
   reputationPayMultiplier, OVERTIME_MULTIPLIER,
   fillRate, FILL_RATE_TARGET, flightRisk, trainingCost, canTrain,
   dayCondition, dayAttendanceModifier, mealCost, incentiveCost,
+  moraleBreakdown, effectiveWage, workerPayRate,
+  PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
+  ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
+  automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
+  LEAD_COST, conversionCost,
 } from '@copack/engine';
-import { useGameStore, SpeedSetting, HIRE_COST } from './hooks/useGameStore';
+import { useGameStore, SpeedSetting, TabKey, HIRE_COST } from './hooks/useGameStore';
 
 type CharacterProfile = {
   alias: string;
@@ -202,6 +207,14 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         text: `${p.workerName} trained on ${STATION_NAMES[p.stationId as string] ?? p.stationId} → ${pct(p.proficiency as number)}`,
         tone: 'event-good', tag: 'TRAIN',
       };
+    case 'WORKER_HIRED':
+      return { text: `${p.workerName} hired${p.referred ? ' (referral)' : ''}. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'HIRE' };
+    case 'WORKER_CONVERTED':
+      return { text: `${p.workerName} converted to company employee.`, tone: 'event-good', tag: 'PERM' };
+    case 'LEAD_PROMOTED':
+      return { text: `${p.workerName} promoted to lead on ${p.lineName}.`, tone: 'event-good', tag: 'LEAD' };
+    case 'AUTOMATION_UPGRADED':
+      return { text: `${p.lineName} automation → L${p.level}. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'AUTO' };
     case 'PAYROLL':
       return { text: `Payroll run: -$${(p.amount as number).toFixed(0)} for ${p.headcount} crew`, tone: 'event-alert', tag: 'PAY' };
     case 'LINE_PURCHASED':
@@ -234,10 +247,11 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
 
 export default function App() {
   const {
-    state, paused, speed,
-    runTick, reset, togglePause, setSpeed,
+    state, paused, speed, tab,
+    runTick, reset, togglePause, setSpeed, setTab,
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive,
+    setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -283,6 +297,7 @@ export default function App() {
   const fillBelowTarget = fill < FILL_RATE_TARGET;
   const condition = dayCondition(state.day);
   const attendanceSwing = dayAttendanceModifier(state);
+  const breakdown = moraleBreakdown(state.workers);
 
   return (
     <div className="game-shell min-h-screen text-white">
@@ -312,7 +327,11 @@ export default function App() {
               />
               <HudStat label="Output" value={`${throughput.toFixed(2)}/min`} tone="cyan" />
               <HudStat label="Crew" value={`${staffedStations}/${totalStations}`} tone="pink" />
-              <HudStat label="Morale" value={pct(averageMorale(workers))} tone="gold" />
+              <HudStat
+                label={`Morale · ${breakdown.thriving}↑ ${breakdown.struggling}↓`}
+                value={pct(averageMorale(workers))}
+                tone="gold"
+              />
             </div>
           </div>
 
@@ -360,76 +379,122 @@ export default function App() {
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="space-y-4">
-            <ConditionsBar
-              condition={condition}
-              swing={attendanceSwing}
-              mealActive={state.mealToday}
-              incentiveActive={state.incentiveToday}
-              mealCost={mealCost(state)}
-              incentiveCost={incentiveCost(state)}
-              cash={state.cash}
-              onMeal={buyMeal}
-              onIncentive={runIncentive}
-            />
-
-            {firstOrder ? (
-              <OrderHero
-                order={firstOrder}
-                tick={state.tick}
-                throughput={throughput}
-                reputation={reputation}
-                clientName={primaryClient?.name ?? firstOrder.clientId}
-              />
-            ) : (
-              <div className="game-panel flex min-h-[180px] items-center justify-center p-5 text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
-                No active orders
-              </div>
-            )}
-
-            {selectedWorker && (
-              <WorkerActionBar
-                worker={selectedWorker}
+        {tab === 'floor' && (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <section className="space-y-4">
+              <ConditionsBar
+                condition={condition}
+                swing={attendanceSwing}
+                mealActive={state.mealToday}
+                incentiveActive={state.incentiveToday}
+                mealCost={mealCost(state)}
+                incentiveCost={incentiveCost(state)}
                 cash={state.cash}
-                onTrain={train}
-                onCancel={() => selectWorker(null)}
+                onMeal={buyMeal}
+                onIncentive={runIncentive}
               />
-            )}
 
-            {Object.entries(state.lines).map(([lineId, line]) => (
-              <FloorLine
-                key={lineId}
-                lineId={lineId}
-                line={line}
-                workers={state.workers}
-                throughput={throughput}
+              {firstOrder ? (
+                <OrderHero
+                  order={firstOrder}
+                  tick={state.tick}
+                  throughput={throughput}
+                  reputation={reputation}
+                  clientName={primaryClient?.name ?? firstOrder.clientId}
+                />
+              ) : (
+                <div className="game-panel flex min-h-[180px] items-center justify-center p-5 text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
+                  No active orders
+                </div>
+              )}
+
+              {selectedWorker && (
+                <WorkerActionBar
+                  worker={selectedWorker}
+                  cash={state.cash}
+                  payPolicy={state.payPolicy}
+                  onTrain={train}
+                  onCancel={() => selectWorker(null)}
+                />
+              )}
+
+              {Object.entries(state.lines).map(([lineId, line]) => (
+                <FloorLine
+                  key={lineId}
+                  lineId={lineId}
+                  line={line}
+                  workers={state.workers}
+                  throughput={throughput}
+                  selectedWorkerId={selectedWorkerId}
+                  onSelectWorker={selectWorker}
+                  onAssign={assignWorker}
+                  onUnassign={unassignStation}
+                />
+              ))}
+            </section>
+
+            <aside className="space-y-4">
+              <CrewPanel
+                benchWorkers={benchWorkers}
+                allAssigned={benchWorkers.length === 0}
                 selectedWorkerId={selectedWorkerId}
+                onHire={hireWorker}
+                cash={state.cash}
                 onSelectWorker={selectWorker}
-                onAssign={assignWorker}
-                onUnassign={unassignStation}
               />
-            ))}
-          </section>
+              <EventLog events={recentEvents} />
+            </aside>
+          </div>
+        )}
 
-          <aside className="space-y-4">
-            <CrewPanel
-              benchWorkers={benchWorkers}
-              allAssigned={benchWorkers.length === 0}
-              selectedWorkerId={selectedWorkerId}
-              cash={state.cash}
-              lineCost={lineCost}
-              canAffordLine={canAffordLine}
-              lineCount={state.lineCount}
-              onHire={hireWorker}
-              onBuyLine={buyLine}
-              onSelectWorker={selectWorker}
-            />
-            <EventLog events={recentEvents} />
-          </aside>
-        </div>
+        {tab === 'staffing' && (
+          <StaffingTab
+            state={state}
+            onSetPayRate={setPayRate}
+            onToggleSkill={toggleSkill}
+            onToggleProgram={toggleProgram}
+          />
+        )}
+
+        {tab === 'office' && (
+          <FrontOfficeTab
+            state={state}
+            lineCost={lineCost}
+            canAffordLine={canAffordLine}
+            onBuyLine={buyLine}
+            onUpgradeAutomation={upgradeAutomation}
+            onPromoteLead={promoteLead}
+            onConvert={convertWorker}
+          />
+        )}
       </main>
+
+      <TabBar tab={tab} onTab={setTab} fillBelowTarget={fillBelowTarget} />
     </div>
+  );
+}
+
+function TabBar({ tab, onTab, fillBelowTarget }: { tab: TabKey; onTab: (t: TabKey) => void; fillBelowTarget: boolean }) {
+  const tabs: { key: TabKey; label: string; icon: string }[] = [
+    { key: 'floor', label: 'The Floor', icon: '▚' },
+    { key: 'staffing', label: 'Staffing', icon: '☰' },
+    { key: 'office', label: 'Front Office', icon: '★' },
+  ];
+  return (
+    <nav className="tab-bar" aria-label="Main sections">
+      {tabs.map(t => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => onTab(t.key)}
+          className={`tab-button ${tab === t.key ? 'active' : ''}`}
+        >
+          <span className="tab-icon" aria-hidden="true">{t.icon}</span>
+          <span>{t.label}</span>
+          {t.key === 'staffing' && fillBelowTarget && <span className="tab-dot" aria-label="needs attention" />}
+        </button>
+      ))}
+    </nav>
   );
 }
 
@@ -710,15 +775,16 @@ function ConditionsBar({
 const TRAINABLE_STATIONS = ['s1', 's2', 's3'];
 
 function WorkerActionBar({
-  worker, cash, onTrain, onCancel,
+  worker, cash, payPolicy, onTrain, onCancel,
 }: {
   worker: Worker;
   cash: number;
+  payPolicy: GameState['payPolicy'];
   onTrain: (workerId: string, stationId: string) => void;
   onCancel: () => void;
 }) {
   const profile = profileForWorker(worker);
-  const risk = flightRisk(worker);
+  const risk = flightRisk(worker, payPolicy);
   const riskCopy = risk === 'high'
     ? 'Flight risk — morale is low'
     : risk === 'watch'
@@ -731,9 +797,14 @@ function WorkerActionBar({
         <div className="flex items-center gap-3">
           <CharacterAvatar worker={worker} size="sm" />
           <div>
-            <div className="text-sm font-black text-white">{profile.alias} · {worker.name}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-white">{profile.alias} · {worker.name}</span>
+              {worker.isLead && <span className="tag-lead">LEAD</span>}
+              {worker.permanent && <span className="tag-perm">COMPANY</span>}
+            </div>
             <div className="text-xs text-amber-100/80">
               Click a station to assign · <span className={`risk-${risk}`}>{riskCopy}</span>
+              {' '}· {formatCurrency(effectiveWage(worker, payPolicy))}/shift
             </div>
           </div>
         </div>
@@ -768,18 +839,13 @@ function WorkerActionBar({
 }
 
 function CrewPanel({
-  benchWorkers, allAssigned, selectedWorkerId, cash,
-  lineCost, canAffordLine, lineCount, onHire, onBuyLine, onSelectWorker,
+  benchWorkers, allAssigned, selectedWorkerId, cash, onHire, onSelectWorker,
 }: {
   benchWorkers: Worker[];
   allAssigned: boolean;
   selectedWorkerId: string | null;
   cash: number;
-  lineCost: number;
-  canAffordLine: boolean;
-  lineCount: number;
   onHire: () => void;
-  onBuyLine: () => void;
   onSelectWorker: (id: string | null) => void;
 }) {
   return (
@@ -798,16 +864,6 @@ function CrewPanel({
           Hire {formatCurrency(HIRE_COST)}
         </button>
       </div>
-
-      <button
-        type="button"
-        onClick={onBuyLine}
-        disabled={!canAffordLine}
-        title="Open another production line so bench crew can run it"
-        className="game-button game-button-line mb-4 w-full"
-      >
-        Open Line {String.fromCharCode(64 + lineCount + 1)} · {formatCurrency(lineCost)}
-      </button>
 
       {benchWorkers.length > 0 ? (
         <div className="grid gap-3">
@@ -937,5 +993,255 @@ function EventLog({ events }: { events: GameEvent[] }) {
         <div className="empty-bench">No radio chatter yet. Start the belt.</div>
       )}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STAFFING TAB — the dials you set with the staffing agency
+// ---------------------------------------------------------------------------
+
+function StaffingTab({
+  state, onSetPayRate, onToggleSkill, onToggleProgram,
+}: {
+  state: GameState;
+  onSetPayRate: (rate: number) => void;
+  onToggleSkill: (stationId: string) => void;
+  onToggleProgram: (program: 'attendance' | 'referral') => void;
+}) {
+  const rate = state.payPolicy.globalRate;
+  const headcount = Object.keys(state.workers).length;
+  const ratePct = Math.round(rate * 100);
+  const rateLabel = rate > 1.02 ? 'Above market' : rate < 0.98 ? 'Below market' : 'At market';
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="game-panel p-4 sm:p-5">
+        <div className="eyebrow">Pay rate</div>
+        <h2 className="text-2xl font-black text-white">Agency Pay</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-300">
+          The single biggest dial. Pay above market and the agency sends people who show up more
+          and stick around — but your payroll climbs.
+        </p>
+
+        <div className="mt-4 flex items-end justify-between">
+          <div className={`pay-readout ${rate > 1.02 ? 'up' : rate < 0.98 ? 'down' : ''}`}>{ratePct}%</div>
+          <div className="text-sm font-black uppercase tracking-[0.12em] text-slate-300">{rateLabel}</div>
+        </div>
+        <input
+          type="range"
+          className="pay-slider mt-3 w-full"
+          min={PAY_RATE_MIN}
+          max={PAY_RATE_MAX}
+          step={PAY_RATE_STEP}
+          value={rate}
+          onChange={e => onSetPayRate(Number(e.target.value))}
+        />
+        <div className="mt-1 flex justify-between text-xs font-bold text-slate-400">
+          <span>{Math.round(PAY_RATE_MIN * 100)}%</span>
+          <button type="button" className="pay-reset" onClick={() => onSetPayRate(PAY_RATE_DEFAULT)}>Reset to market</button>
+          <span>{Math.round(PAY_RATE_MAX * 100)}%</span>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="staffing-stat">
+            <span>Roster payroll</span>
+            <strong>{formatCurrency(Object.values(state.workers).reduce((s, w) => s + effectiveWage(w, state.payPolicy), 0))}/shift</strong>
+          </div>
+          <div className="staffing-stat">
+            <span>Headcount</span>
+            <strong>{headcount}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="game-panel p-4 sm:p-5">
+        <div className="eyebrow">Skill request</div>
+        <h2 className="text-2xl font-black text-white">What to Send</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-300">
+          Tell the agency which roles you're short on. New hires skew toward the skills you flag.
+        </p>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {['s1', 's2', 's3'].map(sid => {
+            const active = state.skillRequest.includes(sid);
+            return (
+              <button
+                key={sid}
+                type="button"
+                onClick={() => onToggleSkill(sid)}
+                className={`skill-request ${active ? 'active' : ''}`}
+              >
+                <span className="text-base font-black">{STATION_NAMES[sid]}</span>
+                <span className="text-xs font-bold">{active ? 'Prioritized' : 'Tap to flag'}</span>
+              </button>
+            );
+          })}
+        </div>
+        {state.skillRequest.length === 0 && (
+          <div className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+            No request — agency sends a random mix.
+          </div>
+        )}
+      </section>
+
+      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+        <div className="eyebrow">Standing programs</div>
+        <h2 className="text-2xl font-black text-white">Ongoing Incentives</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-300">
+          Always-on programs billed per head every shift. They run in the background, unlike the
+          one-day meal or incentive on the Floor.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <ProgramToggle
+            title="Attendance program"
+            note={`Crew-wide turnout boost. ${formatCurrency(ATTENDANCE_PROGRAM_PER_HEAD)}/head/shift`}
+            cost={ATTENDANCE_PROGRAM_PER_HEAD * headcount}
+            active={state.programs.attendance}
+            onToggle={() => onToggleProgram('attendance')}
+          />
+          <ProgramToggle
+            title="Referral program"
+            note={`New hires arrive referred — happier & stickier. ${formatCurrency(REFERRAL_PROGRAM_PER_HEAD)}/head/shift`}
+            cost={REFERRAL_PROGRAM_PER_HEAD * headcount}
+            active={state.programs.referral}
+            onToggle={() => onToggleProgram('referral')}
+          />
+        </div>
+        <div className="mt-3 text-sm font-black uppercase tracking-[0.12em] text-slate-300">
+          Programs cost {formatCurrency(programsPerShiftCost(state))}/shift
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ProgramToggle({
+  title, note, cost, active, onToggle,
+}: { title: string; note: string; cost: number; active: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} className={`program-toggle ${active ? 'active' : ''}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-base font-black text-white">{title}</span>
+        <span className={`program-pill ${active ? 'on' : ''}`}>{active ? 'ON' : 'OFF'}</span>
+      </div>
+      <div className="mt-1 text-xs font-semibold text-slate-300">{note}</div>
+      {active && <div className="mt-1 text-xs font-black text-amber-200">-{formatCurrency(cost)}/shift</div>}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FRONT OFFICE TAB — capital decisions: lines, automation, leads, conversions
+// ---------------------------------------------------------------------------
+
+function FrontOfficeTab({
+  state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onPromoteLead, onConvert,
+}: {
+  state: GameState;
+  lineCost: number;
+  canAffordLine: boolean;
+  onBuyLine: () => void;
+  onUpgradeAutomation: (lineId: string) => void;
+  onPromoteLead: (workerId: string, lineId: string) => void;
+  onConvert: (workerId: string) => void;
+}) {
+  const lines = Object.entries(state.lines);
+  const temps = Object.values(state.workers).filter(w => !w.permanent);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="game-panel p-4 sm:p-5">
+        <div className="eyebrow">Capacity</div>
+        <h2 className="text-2xl font-black text-white">Production Lines</h2>
+        <button
+          type="button"
+          onClick={onBuyLine}
+          disabled={!canAffordLine}
+          className="game-button game-button-line mt-3 w-full"
+        >
+          Open Line {String.fromCharCode(64 + state.lineCount + 1)} · {formatCurrency(lineCost)}
+        </button>
+
+        <div className="mt-4 space-y-3">
+          {lines.map(([lineId, line]) => {
+            const cost = automationCost(line);
+            const upgradable = canAutomate(line) && state.cash >= cost;
+            return (
+              <div key={lineId} className="office-line">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-base font-black text-white">{line.name}</span>
+                  <span className="auto-chip">+{Math.round((automationMultiplier(line) - 1) * 100)}% output</span>
+                </div>
+                <div className="mt-1 text-xs font-bold text-slate-300">
+                  Automation L{line.automation}/{AUTOMATION_MAX_LEVEL}
+                  {line.leadId && state.workers[line.leadId] ? ` · Lead: ${state.workers[line.leadId].name}` : ' · No lead'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUpgradeAutomation(lineId)}
+                  disabled={!upgradable}
+                  className="game-button game-button-auto mt-2 w-full"
+                >
+                  {canAutomate(line) ? `Upgrade automation · ${formatCurrency(cost)}` : 'Fully automated'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="game-panel p-4 sm:p-5">
+        <div className="eyebrow">People moves</div>
+        <h2 className="text-2xl font-black text-white">Leads & Conversions</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-300">
+          Promote a lead to lift a line's morale and output. Convert a temp to a company employee for a
+          steadier, stickier worker — at a permanent wage bump.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          {Object.values(state.workers).length === 0 && (
+            <div className="empty-bench">No crew yet. Hire on the Floor first.</div>
+          )}
+          {Object.values(state.workers).map(worker => {
+            // Which line is this worker assigned to (for lead promotion)?
+            const assignedLine = lines.find(([, l]) => l.stations.some(s => s.assignedWorkerId === worker.id));
+            const convertCost = conversionCost(worker);
+            return (
+              <div key={worker.id} className="office-worker">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black text-white">
+                    {worker.name}
+                    {worker.isLead && <span className="tag-lead ml-2">LEAD</span>}
+                    {worker.permanent && <span className="tag-perm ml-2">COMPANY</span>}
+                  </span>
+                  <span className="text-xs font-bold text-slate-300">D{worker.tenureDays}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={!assignedLine || worker.isLead || state.cash < LEAD_COST}
+                    onClick={() => assignedLine && onPromoteLead(worker.id, assignedLine[0])}
+                    className="game-button game-button-small"
+                    title={assignedLine ? 'Promote to lead on their line' : 'Assign to a line first'}
+                  >
+                    {worker.isLead ? 'Lead' : `Make lead · ${formatCurrency(LEAD_COST)}`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={worker.permanent || state.cash < convertCost}
+                    onClick={() => onConvert(worker.id)}
+                    className="game-button game-button-small"
+                    title="Convert temp to company employee"
+                  >
+                    {worker.permanent ? 'Company' : `Convert · ${formatCurrency(convertCost)}`}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+          {temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert
+        </div>
+      </section>
+    </div>
   );
 }

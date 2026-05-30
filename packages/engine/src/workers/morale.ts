@@ -1,7 +1,7 @@
 import { GameState, GameEvent, Worker } from '../types';
+import { LEAD_MORALE_BONUS } from '../economy/frontoffice';
 
-const MORALE_BASELINE = 0.65;   // where morale naturally settles over time
-const MORALE_DRIFT = 0.02;      // per-shift pull toward baseline (recovery or cool-down)
+const MORALE_DRIFT = 0.02;      // per-shift pull toward the worker's personal set-point
 const OVERTIME_FATIGUE = 0.05;  // morale lost per shift while overtime is on
 const SHOUTOUT_BOOST = 0.08;    // morale gained by present crew from a recognition
 const SHOUTOUT_COOLDOWN = 240;  // ticks (half a shift) before recognition recharges
@@ -10,21 +10,50 @@ const MORALE_MAX = 1;
 
 const clamp = (v: number) => Math.max(MORALE_MIN, Math.min(MORALE_MAX, v));
 
+// Morale's breakdown is more honest than its average: a crew of two who love the
+// work and two you can't please reads as a bland mid-average otherwise.
+export function moraleBreakdown(workers: Record<string, Worker>): {
+  thriving: number; steady: number; struggling: number;
+} {
+  let thriving = 0, steady = 0, struggling = 0;
+  for (const w of Object.values(workers)) {
+    if (w.morale >= 0.7) thriving++;
+    else if (w.morale < 0.45) struggling++;
+    else steady++;
+  }
+  return { thriving, steady, struggling };
+}
+
 /**
- * Runs at each shift boundary. Morale drifts toward a baseline (so neglected
- * crews cool off and recovered ones settle), and overtime burns morale on top.
- * This is what gives overtime its "borrow speed now, pay later" character.
+ * Runs at each shift boundary. Morale drifts toward each worker's own disposition
+ * (their personal set-point) — so the chronically hard-to-please slide back down
+ * and the naturally upbeat recover on their own — and overtime burns morale on top.
  */
 export function processMorale(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
   const workers: Record<string, Worker> = {};
 
+  // Which workers are on a line that has a lead? A good lead lifts the room.
+  const ledWorkerIds = new Set<string>();
+  for (const line of Object.values(state.lines)) {
+    if (!line.leadId) continue;
+    for (const station of line.stations) {
+      if (station.assignedWorkerId) ledWorkerIds.add(station.assignedWorkerId);
+    }
+  }
+
   for (const [id, worker] of Object.entries(state.workers)) {
     let morale = worker.morale;
+    const target = worker.disposition;
 
-    // Natural drift toward the baseline.
-    if (morale > MORALE_BASELINE) morale -= MORALE_DRIFT;
-    else if (morale < MORALE_BASELINE) morale += MORALE_DRIFT;
+    // Drift toward this worker's set-point (snap if within one step).
+    if (Math.abs(morale - target) <= MORALE_DRIFT) morale = target;
+    else morale += Math.sign(target - morale) * MORALE_DRIFT;
+
+    // A lead on the line lifts the crew (the lead themselves doesn't self-boost).
+    if (ledWorkerIds.has(id) && !worker.isLead && worker.presentThisShift) {
+      morale += LEAD_MORALE_BONUS;
+    }
 
     // Overtime fatigue stacks on anyone who actually worked the shift.
     if (state.overtime && worker.presentThisShift) {

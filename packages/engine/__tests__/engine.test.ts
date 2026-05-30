@@ -22,6 +22,20 @@ import {
   runIncentive,
   mealCost,
   generateWorker,
+  hireWorker,
+  moraleBreakdown,
+  effectiveWage,
+  payAttendanceBonus,
+  payRetentionFactor,
+  setGlobalPayRate,
+  toggleSkillRequest,
+  toggleProgram,
+  programsPerShiftCost,
+  upgradeAutomation,
+  automationMultiplier,
+  automationCost,
+  promoteLead,
+  convertToPermanent,
   GameState,
   Worker,
 } from '../src';
@@ -65,7 +79,8 @@ describe('attendance independence (regression: shared-RNG bug)', () => {
       const id = `w${i}`;
       workers[id] = {
         id, name: `Worker ${i}`, tenureDays: 0,
-        reliability: 0.6, morale: 0.5, wage: 100,
+        reliability: 0.6, morale: 0.5, disposition: 0.6, wage: 100,
+        permanent: false, isLead: false,
         skills: [{ stationId: 's1', proficiency: 0.5 }],
         presentThisShift: true,
       };
@@ -182,7 +197,8 @@ describe('partial-line operation (regression: no-show no longer flat-stops a lin
 describe('retention / quitting', () => {
   const base: Worker = {
     id: 'x', name: 'Test', tenureDays: 0, reliability: 0.6, morale: 0.5,
-    wage: 100, skills: [{ stationId: 's1', proficiency: 0.5 }], presentThisShift: true,
+    disposition: 0.6, wage: 100, permanent: false, isLead: false,
+    skills: [{ stationId: 's1', proficiency: 0.5 }], presentThisShift: true,
   };
 
   it('makes unhappy new hires far more likely to quit than loyal veterans', () => {
@@ -315,5 +331,117 @@ describe('difficulty scales with success, not misses', () => {
     for (const o of b.activeOrders) {
       expect(o.units).toBeLessThan(baseUnits + 200);
     }
+  });
+});
+
+describe('morale breakdown', () => {
+  it('buckets workers into thriving / steady / struggling', () => {
+    const state = createInitialState();
+    const workers = {
+      a: { ...state.workers.w1, id: 'a', morale: 0.9 },
+      b: { ...state.workers.w1, id: 'b', morale: 0.55 },
+      c: { ...state.workers.w1, id: 'c', morale: 0.2 },
+    };
+    const bd = moraleBreakdown(workers);
+    expect(bd.thriving).toBe(1);
+    expect(bd.steady).toBe(1);
+    expect(bd.struggling).toBe(1);
+  });
+});
+
+describe('disposition-driven morale drift', () => {
+  it('pulls a worker toward their own set-point, not a shared baseline', () => {
+    let state = createInitialState();
+    // One worker above their set-point, one below.
+    state = {
+      ...state,
+      workers: {
+        hi: { ...state.workers.w1, id: 'hi', morale: 0.95, disposition: 0.5 },
+        lo: { ...state.workers.w1, id: 'lo', morale: 0.30, disposition: 0.8 },
+      },
+    };
+    const { state: after } = processMorale(state);
+    expect(after.workers.hi.morale).toBeLessThan(0.95);  // drifts down toward 0.5
+    expect(after.workers.lo.morale).toBeGreaterThan(0.30); // drifts up toward 0.8
+  });
+});
+
+describe('pay policy', () => {
+  it('raising pay increases wages, attendance odds, and retention', () => {
+    const lo = setGlobalPayRate(createInitialState(), 0.9);
+    const hi = setGlobalPayRate(createInitialState(), 1.4);
+    const w = createInitialState().workers.w1;
+    expect(effectiveWage(w, hi.payPolicy)).toBeGreaterThan(effectiveWage(w, lo.payPolicy));
+    expect(payAttendanceBonus(w, hi.payPolicy)).toBeGreaterThan(payAttendanceBonus(w, lo.payPolicy));
+    // Higher pay => lower retention factor (less flight risk).
+    expect(payRetentionFactor(w, hi.payPolicy)).toBeLessThan(payRetentionFactor(w, lo.payPolicy));
+  });
+
+  it('clamps the rate within bounds', () => {
+    const tooHigh = setGlobalPayRate(createInitialState(), 99);
+    expect(tooHigh.payPolicy.globalRate).toBeLessThanOrEqual(1.5);
+  });
+});
+
+describe('skill request & referral program', () => {
+  it('toggles a station in and out of the request', () => {
+    let s = createInitialState();
+    s = toggleSkillRequest(s, 's2');
+    expect(s.skillRequest).toContain('s2');
+    s = toggleSkillRequest(s, 's2');
+    expect(s.skillRequest).not.toContain('s2');
+  });
+
+  it('referral program makes new hires arrive referred', () => {
+    let s = createInitialState();
+    s = toggleProgram(s, 'referral');
+    expect(programsPerShiftCost(s)).toBeGreaterThan(0);
+    const { state: after } = hireWorker(s);
+    const newest = Object.values(after.workers).find(w => !['w1', 'w2', 'w3'].includes(w.id))!;
+    expect(newest.referredBy).toBeDefined();
+  });
+});
+
+describe('automation', () => {
+  it('raises a line output multiplier and charges a climbing cost', () => {
+    const state = { ...createInitialState(), cash: 50000 };
+    const before = automationMultiplier(state.lines.line1);
+    const firstCost = automationCost(state.lines.line1);
+    const { state: a, events } = upgradeAutomation(state, 'line1');
+    expect(automationMultiplier(a.lines.line1)).toBeGreaterThan(before);
+    expect(a.cash).toBe(state.cash - firstCost);
+    expect(events[0].type).toBe('AUTOMATION_UPGRADED');
+    // Next upgrade costs more.
+    expect(automationCost(a.lines.line1)).toBeGreaterThan(firstCost);
+  });
+});
+
+describe('leads & temp→company conversion', () => {
+  it('promotes a lead and flags the line', () => {
+    const state = { ...staffLineA(createInitialState()), cash: 5000 };
+    const { state: after, events } = promoteLead(state, 'w1', 'line1');
+    expect(after.workers.w1.isLead).toBe(true);
+    expect(after.lines.line1.leadId).toBe('w1');
+    expect(events[0].type).toBe('LEAD_PROMOTED');
+  });
+
+  it('converts a temp into a steadier, higher-paid company employee', () => {
+    const state = { ...createInitialState(), cash: 5000 };
+    const before = state.workers.w3;
+    const { state: after, events } = convertToPermanent(state, 'w3');
+    const w = after.workers.w3;
+    expect(w.permanent).toBe(true);
+    expect(w.wage).toBeGreaterThan(before.wage);
+    expect(w.reliability).toBeGreaterThan(before.reliability);
+    expect(after.cash).toBeLessThan(state.cash);
+    expect(events[0].type).toBe('WORKER_CONVERTED');
+  });
+
+  it('a present lead lifts their line throughput', () => {
+    const base = staffLineA(createInitialState());
+    const { state: led } = promoteLead(base, 'w1', 'line1');
+    const plain = processThroughput(base).state.activeOrders[0].unitsCompleted;
+    const boosted = processThroughput(led).state.activeOrders[0].unitsCompleted;
+    expect(boosted).toBeGreaterThan(plain);
   });
 });

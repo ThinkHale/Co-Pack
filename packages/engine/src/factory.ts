@@ -4,26 +4,29 @@ export function createInitialState(): GameState {
   // Workers start on the bench — the player's first job is to assign them
   const worker1: Worker = {
     id: 'w1', name: 'Marcus T.', tenureDays: 0,
-    reliability: 0.85, morale: 0.7, wage: 90,
+    reliability: 0.85, morale: 0.7, disposition: 0.70, wage: 90,
+    permanent: false, isLead: false,
     skills: [{ stationId: 's1', proficiency: 0.70 }], // trained: Induct
     presentThisShift: true,
   };
   const worker2: Worker = {
     id: 'w2', name: 'Diana R.', tenureDays: 45,
-    reliability: 0.92, morale: 0.8, wage: 110,
-    skills: [{ stationId: 's2', proficiency: 0.85 }], // trained: Pack
+    reliability: 0.92, morale: 0.8, disposition: 0.82, wage: 110,
+    permanent: false, isLead: false,
+    skills: [{ stationId: 's2', proficiency: 0.85 }], // trained: Pack — loves the work
     presentThisShift: true,
   };
   const worker3: Worker = {
     id: 'w3', name: 'Jerome K.', tenureDays: 12,
-    reliability: 0.75, morale: 0.6, wage: 85,
-    skills: [{ stationId: 's3', proficiency: 0.65 }], // trained: Stage
+    reliability: 0.75, morale: 0.6, disposition: 0.55, wage: 85,
+    permanent: false, isLead: false,
+    skills: [{ stationId: 's3', proficiency: 0.65 }], // trained: Stage — harder to please
     presentThisShift: true,
   };
 
   // 3-station line: all three stages must be staffed to produce finished units
   const line1: Line = {
-    id: 'line1', name: 'Line A', active: true,
+    id: 'line1', name: 'Line A', active: true, automation: 0,
     stations: [
       { id: 's1', name: 'Induct',  throughputMultiplier: 1 },
       { id: 's2', name: 'Pack',    throughputMultiplier: 1 },
@@ -48,6 +51,9 @@ export function createInitialState(): GameState {
     tick: 0, day: 0, cash: 6500, orderCount: 1, completedOrders: 0, missedOrders: 0,
     lineCount: 1, overtime: false, shoutoutReadyTick: 0,
     mealToday: false, incentiveToday: false,
+    payPolicy: { perSkill: false, globalRate: 1.0, skillRates: { s1: 1.0, s2: 1.0, s3: 1.0 } },
+    skillRequest: [],
+    programs: { attendance: false, referral: false },
     workers: { w1: worker1, w2: worker2, w3: worker3 },
     lines: { line1 },
     clients: { c1: client1 },

@@ -1,20 +1,24 @@
 import { GameState, GameEvent, Worker } from '../types';
 import { seededRandom, hashString } from '../utils/random';
 import { dayAttendanceModifier } from '../events/conditions';
+import { payAttendanceBonus, attendanceProgramBonus } from '../economy/staffing';
 
 export function processAttendance(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
   const updatedWorkers = { ...state.workers };
 
-  // Weather/holiday conditions plus any meal/incentive shift the whole crew today.
-  const dayModifier = dayAttendanceModifier(state);
+  // Weather/holiday conditions, meals/incentives, and the standing attendance
+  // program all shift the whole crew's odds of showing up today.
+  const dayModifier = dayAttendanceModifier(state) + attendanceProgramBonus(state);
 
   for (const worker of Object.values(state.workers)) {
     // Seed off a hash of the FULL worker id so every worker rolls independently.
     // (The old `id.charCodeAt(0)` was identical for w1/w2/w3 — all 'w' — so the
     //  whole crew shared one coin flip and attendance was perfectly correlated.)
     const rng = seededRandom(state.tick * 131 + hashString(worker.id));
-    const present = rng <= attendanceProbability(worker, dayModifier);
+    // Paying above market lifts each worker's own odds on top of the crew-wide swing.
+    const workerModifier = dayModifier + payAttendanceBonus(worker, state.payPolicy);
+    const present = rng <= attendanceProbability(worker, workerModifier);
     updatedWorkers[worker.id] = { ...worker, presentThisShift: present };
 
     if (!present) {

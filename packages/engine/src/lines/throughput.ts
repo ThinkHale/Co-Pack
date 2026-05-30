@@ -1,4 +1,5 @@
 import { GameState, GameEvent } from '../types';
+import { automationMultiplier, LEAD_OUTPUT_BONUS } from '../economy/frontoffice';
 
 const BASE_UNITS_PER_TICK = 0.6;
 const UNTRAINED_PROFICIENCY = 0.40;     // a generalist on the wrong station still works, just slower
@@ -36,8 +37,14 @@ export function processThroughput(state: GameState): { state: GameState; events:
 
     const skillMultiplier = 0.5 + avgSkill * 0.8;
     const overtimeMultiplier = state.overtime ? OVERTIME_MULTIPLIER : 1;
+    // A present lead on this line lifts its output; automation lifts it regardless of crew.
+    const leadPresent = line.leadId
+      && line.stations.some(s => s.assignedWorkerId === line.leadId)
+      && state.workers[line.leadId]?.presentThisShift;
+    const leadMultiplier = leadPresent ? 1 + LEAD_OUTPUT_BONUS : 1;
     const throughput =
-      BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier * overtimeMultiplier * staffingRatio;
+      BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier
+      * overtimeMultiplier * staffingRatio * leadMultiplier * automationMultiplier(line);
 
     const orderIndex = updatedOrders.findIndex(o => o.unitsCompleted < o.units);
     if (orderIndex >= 0) {

@@ -5,8 +5,11 @@ export interface Worker {
   tenureDays: number;
   reliability: number;   // 0-1, affects attendance probability
   morale: number;        // 0-1, affects speed and retention
+  disposition: number;   // 0-1, the personal morale set-point morale drifts toward
   skills: StationSkill[];
-  wage: number;          // dollars paid per shift (deducted every 480 ticks)
+  wage: number;          // base dollars per shift (scaled by the pay policy)
+  permanent: boolean;    // converted temp→company: steadier, but costs more
+  isLead: boolean;       // a line lead — lifts the morale/output of their line
   referredBy?: string;
   presentThisShift: boolean;
 }
@@ -29,6 +32,8 @@ export interface Line {
   name: string;
   stations: Station[];
   active: boolean;
+  automation: number;    // 0+ automation level; each level lifts the line's output
+  leadId?: string;       // worker assigned as this line's lead
 }
 
 // Order
@@ -63,6 +68,10 @@ export type GameEventType =
   | 'LINE_PURCHASED'
   | 'OVERTIME_TOGGLED'
   | 'WORKER_TRAINED'
+  | 'WORKER_HIRED'
+  | 'WORKER_CONVERTED'
+  | 'LEAD_PROMOTED'
+  | 'AUTOMATION_UPGRADED'
   | 'DAY_CONDITION'
   | 'ATTENDANCE_BOOST'
   | 'INCIDENT'
@@ -74,6 +83,18 @@ export interface GameEvent {
   type: GameEventType;
   tick: number;
   payload: Record<string, unknown>;
+}
+
+// Staffing-agency policy the player sets in the Staffing tab.
+export interface PayPolicy {
+  perSkill: boolean;                      // false = one global rate (Standard view)
+  globalRate: number;                     // pay multiplier, 1.0 = market rate
+  skillRates: Record<string, number>;     // per-station multipliers (Advanced view)
+}
+
+export interface StaffingPrograms {
+  attendance: boolean;  // standing attendance bonus program (ongoing cost, better turnout)
+  referral: boolean;    // referral program (ongoing cost, new hires arrive referred)
 }
 
 // Game State
@@ -89,6 +110,9 @@ export interface GameState {
   shoutoutReadyTick: number;// tick at which the recognition action is available again
   mealToday: boolean;       // employee meal bought today — lifts attendance + morale
   incentiveToday: boolean;  // attendance incentive running today — bigger lift
+  payPolicy: PayPolicy;     // how generously the agency is paid (Staffing tab)
+  skillRequest: string[];   // station ids the agency prioritizes when sending new hires
+  programs: StaffingPrograms;
   workers: Record<string, Worker>;
   lines: Record<string, Line>;
   clients: Record<string, Client>;
