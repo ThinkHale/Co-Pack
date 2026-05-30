@@ -4,6 +4,7 @@ import {
   nextLineCost, canBuyLine, shoutoutReady, totalPayroll,
   reputationPayMultiplier, OVERTIME_MULTIPLIER,
   fillRate, FILL_RATE_TARGET, flightRisk, trainingCost, canTrain,
+  dayCondition, dayAttendanceModifier, mealCost, incentiveCost,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, HIRE_COST } from './hooks/useGameStore';
 
@@ -207,6 +208,20 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
       return { text: `${p.lineName} opened. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'BUILD' };
     case 'OVERTIME_TOGGLED':
       return { text: `Overtime ${p.overtime ? 'ON — pushing output' : 'off'}.`, tone: p.overtime ? 'event-warm' : 'event-neutral', tag: 'OT' };
+    case 'DAY_CONDITION': {
+      const mod = p.modifier as number;
+      const modNote = mod !== 0 ? ` (attendance ${mod > 0 ? '+' : ''}${Math.round(mod * 100)}%)` : '';
+      return {
+        text: `${p.label}: ${p.note}${modNote}`,
+        tone: p.tone === 'bad' ? 'event-alert' : p.tone === 'good' ? 'event-good' : 'event-neutral',
+        tag: 'DAY',
+      };
+    }
+    case 'ATTENDANCE_BOOST':
+      return {
+        text: `${p.kind === 'meal' ? 'Employee meal' : 'Attendance incentive'} on — more crew show. -$${(p.cost as number).toFixed(0)}`,
+        tone: 'event-warm', tag: 'PULL',
+      };
     case 'SHIFT_START': {
       const day = Math.floor(e.tick / 1440) + 1;
       const shift = Math.floor((e.tick % 1440) / 480) + 1;
@@ -222,7 +237,7 @@ export default function App() {
     state, paused, speed,
     runTick, reset, togglePause, setSpeed,
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
-    buyLine, toggleOvertime, shoutout, train,
+    buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -266,6 +281,8 @@ export default function App() {
   const reputation = primaryClient?.reputation ?? 1;
   const fill = fillRate(state);
   const fillBelowTarget = fill < FILL_RATE_TARGET;
+  const condition = dayCondition(state.day);
+  const attendanceSwing = dayAttendanceModifier(state);
 
   return (
     <div className="game-shell min-h-screen text-white">
@@ -345,6 +362,18 @@ export default function App() {
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="space-y-4">
+            <ConditionsBar
+              condition={condition}
+              swing={attendanceSwing}
+              mealActive={state.mealToday}
+              incentiveActive={state.incentiveToday}
+              mealCost={mealCost(state)}
+              incentiveCost={incentiveCost(state)}
+              cash={state.cash}
+              onMeal={buyMeal}
+              onIncentive={runIncentive}
+            />
+
             {firstOrder ? (
               <OrderHero
                 order={firstOrder}
@@ -621,6 +650,60 @@ function StationTile({
         <div className="station-hint">{hasTarget ? 'Click to place' : 'Select a crew card first'}</div>
       )}
     </button>
+  );
+}
+
+type DayConditionInfo = ReturnType<typeof dayCondition>;
+
+function ConditionsBar({
+  condition, swing, mealActive, incentiveActive, mealCost, incentiveCost, cash, onMeal, onIncentive,
+}: {
+  condition: DayConditionInfo;
+  swing: number;
+  mealActive: boolean;
+  incentiveActive: boolean;
+  mealCost: number;
+  incentiveCost: number;
+  cash: number;
+  onMeal: () => void;
+  onIncentive: () => void;
+}) {
+  const swingPct = Math.round(swing * 100);
+  return (
+    <section className={`conditions-bar tone-${condition.tone}`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={`condition-orb tone-${condition.tone}`} aria-hidden="true" />
+        <div className="min-w-0">
+          <div className="eyebrow">Today on the floor</div>
+          <div className="truncate text-lg font-black text-white">{condition.label}</div>
+          <div className="truncate text-xs font-semibold text-slate-200">{condition.note}</div>
+        </div>
+        <div className={`attendance-swing ${swing < 0 ? 'down' : swing > 0 ? 'up' : ''}`}>
+          Attendance {swingPct > 0 ? '+' : ''}{swingPct}%
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onMeal}
+          disabled={mealActive || cash < mealCost}
+          title="Provide an employee meal — more crew show up today, small morale lift"
+          className={`game-button ${mealActive ? 'game-button-pull-on' : 'game-button-pull'}`}
+        >
+          {mealActive ? 'Meal on' : `Meal ${formatCurrency(mealCost)}`}
+        </button>
+        <button
+          type="button"
+          onClick={onIncentive}
+          disabled={incentiveActive || cash < incentiveCost}
+          title="Run an attendance incentive — bigger turnout boost today"
+          className={`game-button ${incentiveActive ? 'game-button-pull-on' : 'game-button-pull'}`}
+        >
+          {incentiveActive ? 'Incentive on' : `Incentive ${formatCurrency(incentiveCost)}`}
+        </button>
+      </div>
+    </section>
   );
 }
 

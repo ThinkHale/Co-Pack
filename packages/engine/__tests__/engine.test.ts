@@ -16,6 +16,11 @@ import {
   nextLineCost,
   reputationPayMultiplier,
   fillRate,
+  dayCondition,
+  dayAttendanceModifier,
+  provideMeal,
+  runIncentive,
+  mealCost,
   generateWorker,
   GameState,
   Worker,
@@ -255,6 +260,45 @@ describe('fill rate', () => {
 
   it('is 100% before any orders resolve', () => {
     expect(fillRate(createInitialState())).toBe(1);
+  });
+});
+
+describe('daily conditions & attendance boosters', () => {
+  it('is deterministic per day', () => {
+    expect(dayCondition(5).key).toBe(dayCondition(5).key);
+    expect(dayCondition(5).modifier).toBe(dayCondition(5).modifier);
+  });
+
+  it('a meal lifts the attendance modifier and costs cash', () => {
+    const state = { ...createInitialState(), day: 3 };
+    const before = dayAttendanceModifier(state);
+    const { state: after, events } = provideMeal(state);
+    expect(after.mealToday).toBe(true);
+    expect(after.cash).toBe(state.cash - mealCost(state));
+    expect(dayAttendanceModifier(after)).toBeGreaterThan(before);
+    expect(events[0].type).toBe('ATTENDANCE_BOOST');
+  });
+
+  it('does not double-charge for a meal already provided today', () => {
+    const fed = provideMeal(createInitialState()).state;
+    const { state: again, events } = provideMeal(fed);
+    expect(again.cash).toBe(fed.cash);
+    expect(events.length).toBe(0);
+  });
+
+  it('an incentive lifts attendance more than a meal', () => {
+    const meal = provideMeal(createInitialState()).state;
+    const incentive = runIncentive(createInitialState()).state;
+    expect(dayAttendanceModifier(incentive)).toBeGreaterThan(dayAttendanceModifier(meal));
+  });
+
+  it('resets boosters and announces a condition when the day rolls over', () => {
+    // One tick before a day boundary, with a meal active.
+    let state: GameState = { ...createInitialState(), tick: 1439, mealToday: true };
+    const { state: after, events } = tick(state);
+    expect(after.day).toBe(1);
+    expect(after.mealToday).toBe(false);
+    expect(events.some(e => e.type === 'DAY_CONDITION')).toBe(true);
   });
 });
 

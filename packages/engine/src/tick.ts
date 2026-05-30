@@ -6,6 +6,7 @@ import { processThroughput } from './lines/throughput';
 import { processOrders } from './clients/orders';
 import { processPayroll } from './economy/payroll';
 import { rollEvents } from './events/random';
+import { dayCondition } from './events/conditions';
 
 export function tick(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
@@ -48,11 +49,25 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
 
   const newTick = s.tick + 1;
   const newDay = Math.floor(newTick / 1440);
+  const dayRolled = newDay > s.day;
 
-  // Increment tenure for all workers at the day boundary
-  const workers = newDay > s.day
+  // At the day boundary: tenure ticks up, today's boosters reset, and the new
+  // day's condition (weather/holiday) is announced so the player can react.
+  const workers = dayRolled
     ? Object.fromEntries(Object.entries(s.workers).map(([id, w]) => [id, { ...w, tenureDays: w.tenureDays + 1 }]))
     : s.workers;
 
-  return { state: { ...s, tick: newTick, day: newDay, workers }, events };
+  let mealToday = s.mealToday;
+  let incentiveToday = s.incentiveToday;
+  if (dayRolled) {
+    mealToday = false;
+    incentiveToday = false;
+    const condition = dayCondition(newDay);
+    events.push({
+      type: 'DAY_CONDITION', tick: newTick,
+      payload: { day: newDay, key: condition.key, label: condition.label, note: condition.note, modifier: condition.modifier, tone: condition.tone },
+    });
+  }
+
+  return { state: { ...s, tick: newTick, day: newDay, workers, mealToday, incentiveToday }, events };
 }

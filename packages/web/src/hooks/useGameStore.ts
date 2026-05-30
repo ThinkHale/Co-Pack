@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import {
   GameState, GameEvent, tick, createInitialState, generateWorker,
-  purchaseLine, applyShoutout, trainWorker,
+  purchaseLine, applyShoutout, trainWorker, provideMeal, runIncentive,
 } from '@copack/engine';
 
 export type SpeedSetting = 1 | 4 | 16;
@@ -27,6 +27,8 @@ interface GameStore {
   toggleOvertime: () => void;
   shoutout: () => void;
   train: (workerId: string, stationId: string) => void;
+  buyMeal: () => void;
+  runIncentive: () => void;
 }
 
 export { HIRE_COST };
@@ -142,4 +144,8 @@ export const useGameStore = create<GameStore>((set) => ({
 
   train: (workerId, stationId) =>
     set((store) => applyEngineResult(store, trainWorker(store.state, workerId, stationId))),
+
+  buyMeal: () => set((store) => applyEngineResult(store, provideMeal(store.state))),
+
+  runIncentive: () => set((store) => applyEngineResult(store, runIncentive(store.state))),
 }));

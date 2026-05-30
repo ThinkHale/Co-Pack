@@ -63,6 +63,8 @@ export type GameEventType =
   | 'LINE_PURCHASED'
   | 'OVERTIME_TOGGLED'
   | 'WORKER_TRAINED'
+  | 'DAY_CONDITION'
+  | 'ATTENDANCE_BOOST'
   | 'INCIDENT'
   | 'WORKER_QUIT'
   | 'SHIFT_START'
@@ -85,6 +87,8 @@ export interface GameState {
   lineCount: number;        // how many lines have been purchased (for cost scaling)
   overtime: boolean;        // global overtime: faster now, morale cost at shift end
   shoutoutReadyTick: number;// tick at which the recognition action is available again
+  mealToday: boolean;       // employee meal bought today — lifts attendance + morale
+  incentiveToday: boolean;  // attendance incentive running today — bigger lift
   workers: Record<string, Worker>;
   lines: Record<string, Line>;
   clients: Record<string, Client>;
