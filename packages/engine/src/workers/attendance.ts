@@ -2,6 +2,7 @@ import { GameState, GameEvent, Worker } from '../types';
 import { seededRandom, hashString } from '../utils/random';
 import { dayAttendanceModifier } from '../events/conditions';
 import { payAttendanceBonus, attendanceProgramBonus } from '../economy/staffing';
+import { workerAttendanceMod } from './traits';
 
 export function processAttendance(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
@@ -16,8 +17,10 @@ export function processAttendance(state: GameState): { state: GameState; events:
     // (The old `id.charCodeAt(0)` was identical for w1/w2/w3 — all 'w' — so the
     //  whole crew shared one coin flip and attendance was perfectly correlated.)
     const rng = seededRandom(state.tick * 131 + hashString(worker.id));
-    // Paying above market lifts each worker's own odds on top of the crew-wide swing.
-    const workerModifier = dayModifier + payAttendanceBonus(worker, state.payPolicy);
+    // Paying above market lifts each worker's own odds; traits (perfect attendance,
+    // sickness prone, ...) push it further per person.
+    const workerModifier = dayModifier + payAttendanceBonus(worker, state.payPolicy)
+      + workerAttendanceMod(worker);
     const present = rng <= attendanceProbability(worker, workerModifier);
     updatedWorkers[worker.id] = { ...worker, presentThisShift: present };
 

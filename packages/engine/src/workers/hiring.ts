@@ -9,9 +9,10 @@ export const HIRE_COST = 500;
 export function hireWorker(state: GameState): { state: GameState; events: GameEvent[] } {
   if (state.cash < HIRE_COST) return { state, events: [] };
 
-  const workerCount = Object.keys(state.workers).length;
-  const newId = `w${workerCount + 1}`;
-  const seed = state.tick * 9999 + workerCount * 1337;
+  // Monotonic id so a hire never collides with a living worker after a quit
+  // (the old `w{count+1}` could clobber an existing worker once someone left).
+  const newId = `w${state.nextWorkerId}`;
+  const seed = state.tick * 9999 + state.nextWorkerId * 1337;
 
   let worker: Worker = generateWorker(newId, seed, state.skillRequest);
 
@@ -36,6 +37,7 @@ export function hireWorker(state: GameState): { state: GameState; events: GameEv
     state: {
       ...state,
       cash: state.cash - HIRE_COST,
+      nextWorkerId: state.nextWorkerId + 1,
       workers: { ...state.workers, [newId]: worker },
     },
     events,

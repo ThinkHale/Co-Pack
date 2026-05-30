@@ -2,6 +2,8 @@
 export interface Worker {
   id: string;
   name: string;
+  appearance: WorkerAppearance;  // structured, engine-owned look (portable to RN)
+  traits: string[];              // trait ids — what gives this worker soul
   tenureDays: number;
   reliability: number;   // 0-1, affects attendance probability
   morale: number;        // 0-1, affects speed and retention
@@ -12,6 +14,16 @@ export interface Worker {
   isLead: boolean;       // a line lead — lifts the morale/output of their line
   referredBy?: string;
   presentThisShift: boolean;
+}
+
+export interface WorkerAppearance {
+  skinTone: string;
+  hairColor: string;
+  hairStyle: 'short' | 'buzz' | 'curly' | 'long' | 'bun' | 'bald' | 'cap';
+  facialHair: 'none' | 'stubble' | 'mustache' | 'beard';
+  build: 'slim' | 'average' | 'broad';
+  accent: string;
+  ageBracket: 'young' | 'adult' | 'senior';
 }
 
 export type StationSkill = {
@@ -74,6 +86,7 @@ export type GameEventType =
   | 'AUTOMATION_UPGRADED'
   | 'DAY_CONDITION'
   | 'ATTENDANCE_BOOST'
+  | 'STAFFING_REPORT'
   | 'INCIDENT'
   | 'WORKER_QUIT'
   | 'SHIFT_START'
@@ -115,9 +128,19 @@ export interface GameState {
   payPolicy: PayPolicy;     // how generously the agency is paid (Staffing tab)
   skillRequest: string[];   // station ids the agency prioritizes when sending new hires
   programs: StaffingPrograms;
+  nextWorkerId: number;     // monotonic id counter so hires never collide after a quit
+  staffingHistory: StaffingDay[]; // per-day labor coverage vs the schedule (the board)
   workers: Record<string, Worker>;
   lines: Record<string, Line>;
   clients: Record<string, Client>;
   activeOrders: Order[];
   eventLog: GameEvent[];
+}
+
+// One day's labor scorecard: did you field enough bodies to cover the schedule?
+export interface StaffingDay {
+  day: number;
+  required: number;   // positions the schedule called for
+  covered: number;    // positions actually staffed by a present worker
+  fill: number;       // covered / required (0..1)
 }

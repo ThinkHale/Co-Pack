@@ -1,6 +1,7 @@
 import { GameState, GameEvent, Worker, Line, PayPolicy } from '../types';
 import { seededRandom, hashString } from '../utils/random';
 import { payRetentionFactor } from '../economy/staffing';
+import { workerRetentionMult } from './traits';
 
 /**
  * Per-shift chance a worker walks. The shape encodes real workforce truths:
@@ -25,8 +26,9 @@ export function quitProbability(worker: Worker, policy?: PayPolicy): number {
   risk *= 1 - tenureGuard * 0.8;
   if (worker.referredBy) risk *= 0.6;
   if (policy) risk *= payRetentionFactor(worker, policy);
+  risk *= workerRetentionMult(worker); // loyal/flaky/job-hopper/senior traits
 
-  return Math.max(0, Math.min(risk, 0.12));
+  return Math.max(0, Math.min(risk, 0.15));
 }
 
 // Returns a worker's quit risk as a coarse band, for telegraphing in the UI.

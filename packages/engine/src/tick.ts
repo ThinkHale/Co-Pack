@@ -5,8 +5,10 @@ import { processRetention } from './workers/retention';
 import { processThroughput } from './lines/throughput';
 import { processOrders } from './clients/orders';
 import { processPayroll } from './economy/payroll';
+import { processIncidents } from './events/incidents';
 import { rollEvents } from './events/random';
 import { dayCondition } from './events/conditions';
+import { recordStaffingDay } from './economy/staffing-board';
 
 export function tick(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
@@ -33,6 +35,11 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
     const r = processAttendance(s);
     s = r.state;
     events.push(...r.events);
+
+    // Incidents are evaluated against the crew that just clocked in for the shift.
+    const ri = processIncidents(s);
+    s = ri.state;
+    events.push(...ri.events);
   }
 
   const r2 = processThroughput(s);
@@ -60,6 +67,11 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
   let mealToday = s.mealToday;
   let incentiveToday = s.incentiveToday;
   if (dayRolled) {
+    // Score the day that just finished on the staffing board (labor coverage).
+    const rb = recordStaffingDay(s);
+    s = rb.state;
+    events.push(...rb.events);
+
     mealToday = false;
     incentiveToday = false;
     const condition = dayCondition(newDay);

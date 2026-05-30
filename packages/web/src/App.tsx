@@ -11,13 +11,15 @@ import {
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
   LEAD_COST, conversionCost,
+  workerTraits, getTrait, WorkerAppearance,
+  STAFFING_TARGET, requiredPositions, coveredPositions, staffingFill, rollingStaffingFill,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, TabKey, HIRE_COST } from './hooks/useGameStore';
 
 type CharacterProfile = {
-  alias: string;
-  role: string;
-  trait: string;
+  alias: string;      // the worker's first name — they're real people now
+  firstName: string;  // alias of alias, used by the station/bench cards
+  role: string;       // derived from their strongest station
   palette: string;
   skin: string;
   hair: string;
@@ -35,68 +37,10 @@ const STATION_THEMES: Record<string, { icon: string; color: string; note: string
   s3: { icon: 'ST', color: '#ff5f7e', note: 'Ship' },
 };
 
-const PROFILE_BANK: CharacterProfile[] = [
-  {
-    alias: 'Switch',
-    role: 'Induct specialist',
-    trait: 'Fast starts',
-    palette: '#35d0ba',
-    skin: '#c8895f',
-    hair: '#182033',
-    uniform: '#2fb8a8',
-    shape: 'round',
-  },
-  {
-    alias: 'Ribbon',
-    role: 'Pack captain',
-    trait: 'Clean hands',
-    palette: '#ffb02e',
-    skin: '#8f5f45',
-    hair: '#351f24',
-    uniform: '#ef8f2f',
-    shape: 'square',
-  },
-  {
-    alias: 'Docklight',
-    role: 'Stage runner',
-    trait: 'Cool under rush',
-    palette: '#ff5f7e',
-    skin: '#b56f53',
-    hair: '#522f8f',
-    uniform: '#d9557b',
-    shape: 'diamond',
-  },
-  {
-    alias: 'Torque',
-    role: 'Line flex',
-    trait: 'Steady tempo',
-    palette: '#7c6cff',
-    skin: '#d6a16f',
-    hair: '#24335f',
-    uniform: '#6b62e8',
-    shape: 'wide',
-  },
-  {
-    alias: 'Cricket',
-    role: 'Quality scout',
-    trait: 'Sharp eyes',
-    palette: '#6ee56e',
-    skin: '#a96f4f',
-    hair: '#1d2b1f',
-    uniform: '#34b96f',
-    shape: 'round',
-  },
-  {
-    alias: 'Nova',
-    role: 'Rush finisher',
-    trait: 'Late save',
-    palette: '#ff7a45',
-    skin: '#734a3b',
-    hair: '#111827',
-    uniform: '#e86b4f',
-    shape: 'square',
-  },
-];
+// Map the engine's structured build to an avatar silhouette.
+const BUILD_SHAPE: Record<WorkerAppearance['build'], CharacterProfile['shape']> = {
+  slim: 'diamond', average: 'round', broad: 'square',
+};
 
 function ticksToTimeRemaining(ticks: number): string {
   if (ticks <= 0) return 'OVERDUE';
@@ -127,17 +71,20 @@ function pct(value: number): string {
 }
 
 function profileForWorker(worker: Worker): CharacterProfile {
-  const idNumber = Number(worker.id.replace(/\D/g, ''));
-  const index = Number.isFinite(idNumber) && idNumber > 0
-    ? idNumber - 1
-    : worker.name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const base = PROFILE_BANK[index % PROFILE_BANK.length];
+  const a = worker.appearance;
   const strongestSkill = [...worker.skills].sort((a, b) => b.proficiency - a.proficiency)[0];
   const stationName = strongestSkill ? STATION_NAMES[strongestSkill.stationId] : 'Flex';
+  const firstName = worker.name.split(' ')[0];
 
   return {
-    ...base,
-    role: index >= PROFILE_BANK.length ? `${stationName} prospect` : base.role,
+    alias: firstName,
+    firstName,
+    role: `${stationName} crew`,
+    palette: a.accent,
+    skin: a.skinTone,
+    hair: a.hairColor,
+    uniform: a.accent,
+    shape: BUILD_SHAPE[a.build],
   };
 }
 
@@ -216,6 +163,11 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
       return { text: `${p.workerName} promoted to lead on ${p.lineName}.`, tone: 'event-good', tag: 'LEAD' };
     case 'AUTOMATION_UPGRADED':
       return { text: `${p.lineName} automation → L${p.level}. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'AUTO' };
+    case 'INCIDENT':
+      return {
+        text: `Incident involving ${p.workerName}${p.overtime ? ' (overtime)' : ''}. -$${(p.cost as number).toFixed(0)}`,
+        tone: 'event-bad', tag: 'SAFETY',
+      };
     case 'PAYROLL':
       return { text: `Payroll run: -$${(p.amount as number).toFixed(0)} for ${p.headcount} crew`, tone: 'event-alert', tag: 'PAY' };
     case 'LINE_PURCHASED':
@@ -236,6 +188,14 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         text: `${p.kind === 'meal' ? 'Employee meal' : 'Attendance incentive'} on — more crew show. -$${(p.cost as number).toFixed(0)}`,
         tone: 'event-warm', tag: 'PULL',
       };
+    case 'STAFFING_REPORT': {
+      const f = p.fill as number;
+      const met = p.met as boolean;
+      return {
+        text: `Day ${(p.day as number) + 1} staffing ${Math.round(f * 100)}% (${p.covered}/${p.required})${met ? '' : ' — below target'}`,
+        tone: met ? 'event-good' : 'event-alert', tag: 'BOARD',
+      };
+    }
     case 'SHIFT_START': {
       const day = Math.floor(e.tick / 1440) + 1;
       const shift = Math.floor((e.tick % 1440) / 480) + 1;
@@ -686,7 +646,7 @@ function StationTile({
           <>
             <CharacterAvatar worker={worker} />
             <div className="min-w-0 flex-1 text-left">
-              <div className="truncate text-lg font-black text-white">{profile.alias}</div>
+              <div className="truncate text-lg font-black text-white">{profile.firstName}</div>
               <div className="truncate text-sm font-bold text-slate-300">{worker.name}</div>
               <div className={`mt-2 inline-flex rounded px-2 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] ${present ? 'bg-emerald-300 text-slate-950' : 'bg-rose-400 text-white'}`}>
                 {present ? 'On deck' : 'No-show'}
@@ -703,8 +663,8 @@ function StationTile({
             <div className={isSkillMatch ? 'text-amber-200' : hasTarget ? 'text-slate-200' : 'text-slate-500'}>
               {hasTarget
                 ? isSkillMatch
-                  ? `${selectedProfile?.alias ?? 'Crew'} match`
-                  : `Assign ${selectedProfile?.alias ?? 'crew'}`
+                  ? `${selectedProfile?.firstName ?? 'Crew'} match`
+                  : `Assign ${selectedProfile?.firstName ?? 'crew'}`
                 : 'Open station'}
             </div>
           </div>
@@ -818,7 +778,7 @@ function WorkerActionBar({
           <CharacterAvatar worker={worker} size="sm" />
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-black text-white">{profile.alias} · {worker.name}</span>
+              <span className="text-sm font-black text-white">{profile.firstName} · {worker.name}</span>
               {worker.isLead && <span className="tag-lead">LEAD</span>}
               {worker.permanent && <span className="tag-perm">COMPANY</span>}
             </div>
@@ -832,6 +792,8 @@ function WorkerActionBar({
           Cancel
         </button>
       </div>
+
+      <TraitChips worker={worker} className="mt-3" />
 
       <div className="mt-3 grid grid-cols-3 gap-2">
         {TRAINABLE_STATIONS.map(stationId => {
@@ -922,7 +884,7 @@ function BenchWorker({
       <div className="min-w-0 flex-1 text-left">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <div className="truncate text-lg font-black text-white">{profile.alias}</div>
+            <div className="truncate text-lg font-black text-white">{profile.firstName}</div>
             {flightRisk(worker) !== 'low' && (
               <span className={`risk-badge risk-badge-${flightRisk(worker)}`}>
                 {flightRisk(worker) === 'high' ? 'Flight risk' : 'Watch'}
@@ -942,10 +904,25 @@ function BenchWorker({
               {STATION_NAMES[sk.stationId] ?? sk.stationId} {pct(sk.proficiency)}
             </span>
           ))}
-          <span className="trait-chip">{profile.trait}</span>
         </div>
+        <TraitChips worker={worker} className="mt-2" />
       </div>
     </button>
+  );
+}
+
+// Renders a worker's traits as tone-colored chips. This is where the soul shows.
+function TraitChips({ worker, className = '' }: { worker: Worker; className?: string }) {
+  const traits = workerTraits(worker);
+  if (traits.length === 0) return null;
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${className}`}>
+      {traits.map(t => (
+        <span key={t.id} className={`trait-pill trait-${t.tone}`} title={t.blurb}>
+          {t.label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -1020,6 +997,53 @@ function EventLog({ events }: { events: GameEvent[] }) {
 // STAFFING TAB — the dials you set with the staffing agency
 // ---------------------------------------------------------------------------
 
+function StaffingBoard({ state }: { state: GameState }) {
+  const required = requiredPositions(state);
+  const covered = coveredPositions(state);
+  const today = staffingFill(state);
+  const rolling = rollingStaffingFill(state);
+  const history = state.staffingHistory.slice(-14);
+  const belowTarget = rolling < STAFFING_TARGET;
+
+  return (
+    <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="eyebrow">Staffing board</div>
+          <h2 className="text-2xl font-black text-white">Labor Coverage</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-300">
+            The schedule calls for {required} position{required === 1 ? '' : 's'} today.
+            You're covering {covered}. Keep the rolling fill at or above {pct(STAFFING_TARGET)}.
+          </p>
+        </div>
+        <div className={`board-score ${belowTarget ? 'low' : 'ok'}`}>
+          <div className="board-score-value">{pct(rolling)}</div>
+          <div className="board-score-label">Rolling · goal {pct(STAFFING_TARGET)}</div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="staffing-stat"><span>Today</span><strong>{pct(today)}</strong></div>
+        <div className="staffing-stat"><span>Covered</span><strong>{covered}/{required}</strong></div>
+        <div className="staffing-stat"><span>Days logged</span><strong>{state.staffingHistory.length}</strong></div>
+      </div>
+
+      {history.length > 0 && (
+        <div className="board-history mt-4">
+          {history.map(d => (
+            <div key={d.day} className="board-bar-wrap" title={`Day ${d.day + 1}: ${pct(d.fill)} (${d.covered}/${d.required})`}>
+              <div
+                className={`board-bar ${d.fill >= STAFFING_TARGET ? 'ok' : 'low'}`}
+                style={{ height: `${Math.max(6, Math.round(d.fill * 100))}%` }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function StaffingTab({
   state, onSetPayRate, onToggleSkill, onToggleProgram,
 }: {
@@ -1035,6 +1059,7 @@ function StaffingTab({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <StaffingBoard state={state} />
       <section className="game-panel p-4 sm:p-5">
         <div className="eyebrow">Pay rate</div>
         <h2 className="text-2xl font-black text-white">Agency Pay</h2>

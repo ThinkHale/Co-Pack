@@ -764,6 +764,33 @@ button {
   color: #fde68a;
 }
 
+.trait-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  cursor: help;
+}
+.trait-good {
+  background: rgba(114, 239, 143, 0.16);
+  color: #9af0b4;
+  border-color: rgba(114, 239, 143, 0.35);
+}
+.trait-bad {
+  background: rgba(255, 107, 129, 0.16);
+  color: #ff9fb0;
+  border-color: rgba(255, 107, 129, 0.35);
+}
+.trait-mixed {
+  background: rgba(255, 199, 108, 0.16);
+  color: #ffd690;
+  border-color: rgba(255, 199, 108, 0.35);
+}
+
 .mini-stat {
   min-width: 0;
   color: #cbd5e1;
@@ -1211,3 +1238,13 @@ button {
 }
 .tag-lead { background: #ffe66c; color: #1b1405; }
 .tag-perm { background: #7c6cff; color: #0c0a1f; }
+
+/* Staffing board */
+.board-score { text-align: right; }
+.board-score-value { font-size: 2.2rem; font-weight: 900; line-height: 1; color: #72ef8f; }
+.board-score.low .board-score-value { color: #ff7a9a; }
+.board-score-label { font-size: 0.62rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; }
+.board-history { display: flex; align-items: flex-end; gap: 4px; height: 72px; padding: 6px; border-radius: 8px; background: rgba(13,20,36,0.6); }
+.board-bar-wrap { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.board-bar { width: 100%; border-radius: 3px 3px 0 0; background: #72ef8f; min-height: 4px; }
+.board-bar.low { background: #ff7a9a; }

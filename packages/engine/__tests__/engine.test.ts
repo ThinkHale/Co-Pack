@@ -41,6 +41,17 @@ import {
   automationCost,
   promoteLead,
   convertToPermanent,
+  TRAITS,
+  workerProductivityMult,
+  workerAttendanceMod,
+  workerRetentionMult,
+  generateAppearance,
+  processIncidents,
+  requiredPositions,
+  coveredPositions,
+  staffingFill,
+  recordStaffingDay,
+  STAFFING_TARGET,
   GameState,
   Worker,
 } from '../src';
@@ -84,6 +95,7 @@ describe('attendance independence (regression: shared-RNG bug)', () => {
       const id = `w${i}`;
       workers[id] = {
         id, name: `Worker ${i}`, tenureDays: 0,
+        appearance: generateAppearance(i), traits: [],
         reliability: 0.6, morale: 0.5, disposition: 0.6, wage: 100,
         permanent: false, isLead: false,
         skills: [{ stationId: 's1', proficiency: 0.5 }],
@@ -202,6 +214,7 @@ describe('partial-line operation (regression: no-show no longer flat-stops a lin
 describe('retention / quitting', () => {
   const base: Worker = {
     id: 'x', name: 'Test', tenureDays: 0, reliability: 0.6, morale: 0.5,
+    appearance: generateAppearance(1), traits: [],
     disposition: 0.6, wage: 100, permanent: false, isLead: false,
     skills: [{ stationId: 's1', proficiency: 0.5 }], presentThisShift: true,
   };
@@ -485,5 +498,120 @@ describe('leads & temp→company conversion', () => {
     const plain = processThroughput(base).state.activeOrders[0].unitsCompleted;
     const boosted = processThroughput(led).state.activeOrders[0].unitsCompleted;
     expect(boosted).toBeGreaterThan(plain);
+  });
+});
+
+describe('character generator', () => {
+  it('produces a name, appearance, and 3-5 non-conflicting traits', () => {
+    for (let i = 0; i < 50; i++) {
+      const w = generateWorker(`g${i}`, i * 1000 + 7);
+      expect(w.name).toMatch(/\S+ \S\./);
+      expect(w.appearance.skinTone).toMatch(/^#/);
+      expect(w.traits.length).toBeGreaterThanOrEqual(3);
+      expect(w.traits.length).toBeLessThanOrEqual(5);
+      expect(new Set(w.traits).size).toBe(w.traits.length); // no dupes
+      for (const t of w.traits) {
+        for (const c of (TRAITS[t].conflicts ?? [])) expect(w.traits).not.toContain(c);
+      }
+    }
+  });
+
+  it('is deterministic for a given seed', () => {
+    expect(JSON.stringify(generateWorker('w', 4242))).toBe(JSON.stringify(generateWorker('w', 4242)));
+  });
+});
+
+describe('trait effects feed the sim', () => {
+  const base = generateWorker('t', 1);
+  it('a hard worker out-produces a coaster', () => {
+    expect(workerProductivityMult({ ...base, traits: ['hard_worker'] }))
+      .toBeGreaterThan(workerProductivityMult({ ...base, traits: ['slacker'] }));
+  });
+  it('perfect attendance lifts the attendance mod; spotty lowers it', () => {
+    expect(workerAttendanceMod({ ...base, traits: ['perfect_attendance'] })).toBeGreaterThan(0);
+    expect(workerAttendanceMod({ ...base, traits: ['bad_attendance'] })).toBeLessThan(0);
+  });
+  it('loyal workers are stickier than job hoppers', () => {
+    expect(workerRetentionMult({ ...base, traits: ['loyal'] })).toBeLessThan(1);
+    expect(workerRetentionMult({ ...base, traits: ['job_hopper'] })).toBeGreaterThan(1);
+  });
+});
+
+describe('incidents', () => {
+  it('a checkered-past worker can trigger an incident over time', () => {
+    let s = staffLineA(createInitialState());
+    s = {
+      ...s,
+      activeOrders: [{ ...s.activeOrders[0], unitsCompleted: 100 }],
+      workers: { ...s.workers, w1: { ...s.workers.w1, traits: ['background_check', 'clumsy'], presentThisShift: true } },
+    };
+    let fired = false;
+    for (let t = 0; t < 4000 && !fired; t++) {
+      if (processIncidents({ ...s, tick: t }).events.some(e => e.type === 'INCIDENT')) fired = true;
+    }
+    expect(fired).toBe(true);
+  });
+
+  it('a clean crew never throws an incident', () => {
+    let s = staffLineA(createInitialState());
+    s = { ...s, workers: Object.fromEntries(Object.entries(s.workers).map(([id, w]) =>
+      [id, { ...w, traits: ['hard_worker'], presentThisShift: true }])) };
+    let any = false;
+    for (let t = 0; t < 2000; t++) if (processIncidents({ ...s, tick: t }).events.length) any = true;
+    expect(any).toBe(false);
+  });
+});
+
+describe('appearance', () => {
+  it('senior hint forces a senior age bracket', () => {
+    expect(generateAppearance(7, true).ageBracket).toBe('senior');
+  });
+});
+
+describe('staffing board (labor coverage)', () => {
+  it('counts required positions as all station slots on active lines', () => {
+    expect(requiredPositions(createInitialState())).toBe(3);
+  });
+
+  it('only counts a position covered when a present worker is assigned', () => {
+    let s = staffLineA(createInitialState());
+    expect(coveredPositions(s)).toBe(3);
+    s = { ...s, workers: { ...s.workers, w1: { ...s.workers.w1, presentThisShift: false } } };
+    expect(coveredPositions(s)).toBe(2);
+    expect(staffingFill(s)).toBeCloseTo(2 / 3, 5);
+  });
+
+  it('records a day and dings reputation below target', () => {
+    let s = staffLineA(createInitialState());
+    s = { ...s, workers: Object.fromEntries(Object.entries(s.workers).map(([id, w], idx) =>
+      [id, { ...w, presentThisShift: idx === 0 }])) };
+    const repBefore = s.clients.c1.reputation;
+    const { state: after, events } = recordStaffingDay(s);
+    expect(after.staffingHistory.length).toBe(1);
+    expect(after.staffingHistory[0].fill).toBeLessThan(STAFFING_TARGET);
+    expect(after.clients.c1.reputation).toBeLessThan(repBefore);
+    expect(events[0].type).toBe('STAFFING_REPORT');
+  });
+
+  it('does not ding reputation on a fully-staffed day', () => {
+    const s = staffLineA(createInitialState());
+    const repBefore = s.clients.c1.reputation;
+    const { state: after } = recordStaffingDay(s);
+    expect(after.staffingHistory[0].fill).toBe(1);
+    expect(after.clients.c1.reputation).toBe(repBefore);
+  });
+});
+
+describe('hiring id safety (regression: no reuse after a quit)', () => {
+  it('never reuses an id after a worker is removed', () => {
+    let s = { ...createInitialState(), cash: 100000 };
+    const { w2, ...rest } = s.workers;
+    s = { ...s, workers: rest };
+    const idsBefore = new Set(Object.keys(s.workers));
+    const { state: after } = hireWorker(s);
+    const newId = Object.keys(after.workers).find(id => !idsBefore.has(id))!;
+    expect(idsBefore.has(newId)).toBe(false);
+    expect(Object.keys(after.workers).length).toBe(3);
+    expect(after.nextWorkerId).toBe(s.nextWorkerId + 1);
   });
 });

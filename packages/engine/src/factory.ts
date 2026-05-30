@@ -1,23 +1,30 @@
 import { GameState, Worker, Line, Client, Order } from './types';
+import { generateAppearance } from './workers/appearance';
 
 export function createInitialState(): GameState {
-  // Workers start on the bench — the player's first job is to assign them
+  // The starting three are hand-cast so the player meets distinct people on day one.
   const worker1: Worker = {
-    id: 'w1', name: 'Marcus T.', tenureDays: 0,
+    id: 'w1', name: 'Marcus T.',
+    appearance: generateAppearance(101), traits: ['hard_worker', 'early_bird', 'quick_hands'],
+    tenureDays: 0,
     reliability: 0.85, morale: 0.7, disposition: 0.70, wage: 90,
     permanent: false, isLead: false,
     skills: [{ stationId: 's1', proficiency: 0.70 }], // trained: Induct
     presentThisShift: true,
   };
   const worker2: Worker = {
-    id: 'w2', name: 'Diana R.', tenureDays: 45,
+    id: 'w2', name: 'Diana R.',
+    appearance: generateAppearance(202), traits: ['mentor', 'loyal', 'perfect_attendance', 'optimist'],
+    tenureDays: 45,
     reliability: 0.92, morale: 0.8, disposition: 0.82, wage: 110,
     permanent: false, isLead: false,
     skills: [{ stationId: 's2', proficiency: 0.85 }], // trained: Pack — loves the work
     presentThisShift: true,
   };
   const worker3: Worker = {
-    id: 'w3', name: 'Jerome K.', tenureDays: 12,
+    id: 'w3', name: 'Jerome K.',
+    appearance: generateAppearance(303), traits: ['joker', 'sickness_prone', 'easygoing'],
+    tenureDays: 12,
     reliability: 0.75, morale: 0.6, disposition: 0.55, wage: 85,
     permanent: false, isLead: false,
     skills: [{ stationId: 's3', proficiency: 0.65 }], // trained: Stage — harder to please
@@ -55,6 +62,8 @@ export function createInitialState(): GameState {
     payPolicy: { perSkill: false, globalRate: 1.0, skillRates: { s1: 1.0, s2: 1.0, s3: 1.0 } },
     skillRequest: [],
     programs: { attendance: false, referral: false },
+    nextWorkerId: 4, // w1..w3 already taken
+    staffingHistory: [],
     workers: { w1: worker1, w2: worker2, w3: worker3 },
     lines: { line1 },
     clients: { c1: client1 },

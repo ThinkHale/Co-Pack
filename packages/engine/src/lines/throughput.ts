@@ -1,5 +1,6 @@
 import { GameState, GameEvent } from '../types';
 import { automationMultiplier, LEAD_OUTPUT_BONUS } from '../economy/frontoffice';
+import { workerProductivityMult, lineProductivityMult } from '../workers/traits';
 
 const BASE_UNITS_PER_TICK = 0.6;
 const UNTRAINED_PROFICIENCY = 0.40;     // a generalist on the wrong station still works, just slower
@@ -42,9 +43,16 @@ export function processThroughput(state: GameState): { state: GameState; events:
       && line.stations.some(s => s.assignedWorkerId === line.leadId)
       && state.workers[line.leadId]?.presentThisShift;
     const leadMultiplier = leadPresent ? 1 + LEAD_OUTPUT_BONUS : 1;
+
+    // Trait effects: each present worker's own productivity (hard worker, slacker,
+    // senior, ...) averaged across the crew, plus line-wide traits (joker, mentor).
+    const avgTraitMult = workers.reduce((m, w) => m + workerProductivityMult(w), 0) / workers.length;
+    const traitLineMult = lineProductivityMult(workers);
+
     const throughput =
       BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier
-      * overtimeMultiplier * staffingRatio * leadMultiplier * automationMultiplier(line);
+      * overtimeMultiplier * staffingRatio * leadMultiplier * automationMultiplier(line)
+      * avgTraitMult * traitLineMult;
 
     const orderIndex = updatedOrders.findIndex(o => o.unitsCompleted < o.units);
     if (orderIndex >= 0) {
