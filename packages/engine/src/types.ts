@@ -62,6 +62,7 @@ export type GameEventType =
   | 'PAYROLL'
   | 'LINE_PURCHASED'
   | 'OVERTIME_TOGGLED'
+  | 'WORKER_TRAINED'
   | 'INCIDENT'
   | 'WORKER_QUIT'
   | 'SHIFT_START'
@@ -80,6 +81,7 @@ export interface GameState {
   cash: number;
   orderCount: number;       // total orders generated (used for unique ids)
   completedOrders: number;  // orders actually fulfilled — drives difficulty scaling
+  missedOrders: number;     // orders blown past deadline — for the fill-rate scoreboard
   lineCount: number;        // how many lines have been purchased (for cost scaling)
   overtime: boolean;        // global overtime: faster now, morale cost at shift end
   shoutoutReadyTick: number;// tick at which the recognition action is available again

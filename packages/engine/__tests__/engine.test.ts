@@ -8,11 +8,17 @@ import {
   totalPayroll,
   applyShoutout,
   processMorale,
+  processRetention,
+  quitProbability,
+  trainWorker,
+  trainingCost,
   purchaseLine,
   nextLineCost,
   reputationPayMultiplier,
+  fillRate,
   generateWorker,
   GameState,
+  Worker,
 } from '../src';
 
 // Assign the three starting workers to the three stations so the line runs.
@@ -165,6 +171,90 @@ describe('partial-line operation (regression: no-show no longer flat-stops a lin
     expect(empty).toBe(0);
     expect(short).toBeGreaterThan(0);
     expect(short).toBeLessThan(full);
+  });
+});
+
+describe('retention / quitting', () => {
+  const base: Worker = {
+    id: 'x', name: 'Test', tenureDays: 0, reliability: 0.6, morale: 0.5,
+    wage: 100, skills: [{ stationId: 's1', proficiency: 0.5 }], presentThisShift: true,
+  };
+
+  it('makes unhappy new hires far more likely to quit than loyal veterans', () => {
+    const unhappyRookie = quitProbability({ ...base, morale: 0.2, tenureDays: 0 });
+    const happyVeteran = quitProbability({ ...base, morale: 0.8, tenureDays: 120 });
+    expect(unhappyRookie).toBeGreaterThan(happyVeteran);
+    expect(happyVeteran).toBeLessThan(0.01);
+  });
+
+  it('referrals reduce flight risk', () => {
+    const cold = quitProbability({ ...base, morale: 0.25 });
+    const referred = quitProbability({ ...base, morale: 0.25, referredBy: 'w2' });
+    expect(referred).toBeLessThan(cold);
+  });
+
+  it('removes a quitter from the roster and frees their station', () => {
+    // A miserable, untenured worker assigned to a station; force the shift tick.
+    let state = staffLineA(createInitialState());
+    state = {
+      ...state,
+      tick: 480,
+      workers: {
+        ...state.workers,
+        w1: { ...state.workers.w1, morale: 0.1, tenureDays: 0, reliability: 0.6 },
+      },
+    };
+    // Run retention repeatedly across shifts until the unhappy worker walks.
+    let quit = false;
+    for (let shift = 1; shift <= 60 && !quit; shift++) {
+      const r = processRetention({ ...state, tick: 480 * shift });
+      if (r.events.some(e => e.type === 'WORKER_QUIT' && (e.payload as any).workerId === 'w1')) {
+        quit = true;
+        expect(r.state.workers.w1).toBeUndefined();
+        const stillAssigned = Object.values(r.state.lines)
+          .some(l => l.stations.some(s => s.assignedWorkerId === 'w1'));
+        expect(stillAssigned).toBe(false);
+      }
+    }
+    expect(quit).toBe(true);
+  });
+});
+
+describe('training', () => {
+  it('cross-trains a new station skill and charges cash', () => {
+    const state = createInitialState();
+    const before = state.workers.w1; // trained only on s1
+    expect(before.skills.find(s => s.stationId === 's2')).toBeUndefined();
+    const { state: after, events } = trainWorker(state, 'w1', 's2');
+    expect(after.workers.w1.skills.find(s => s.stationId === 's2')).toBeDefined();
+    expect(after.cash).toBeLessThan(state.cash);
+    expect(after.workers.w1.morale).toBeGreaterThanOrEqual(before.morale);
+    expect(events[0].type).toBe('WORKER_TRAINED');
+  });
+
+  it('upskills an existing skill and costs more than a fresh cross-train', () => {
+    const state = createInitialState();
+    const { state: after } = trainWorker(state, 'w1', 's1'); // already has s1
+    const sk = after.workers.w1.skills.find(s => s.stationId === 's1')!;
+    expect(sk.proficiency).toBeGreaterThan(state.workers.w1.skills[0].proficiency);
+    expect(trainingCost(state.workers.w1, 's1')).toBeGreaterThan(trainingCost(state.workers.w1, 's2'));
+  });
+
+  it('refuses when the player is broke', () => {
+    const state = { ...createInitialState(), cash: 0 };
+    const { state: after } = trainWorker(state, 'w1', 's2');
+    expect(after.workers.w1.skills.find(s => s.stationId === 's2')).toBeUndefined();
+  });
+});
+
+describe('fill rate', () => {
+  it('is the completed share of resolved orders', () => {
+    const state = { ...createInitialState(), completedOrders: 19, missedOrders: 1 };
+    expect(fillRate(state)).toBeCloseTo(0.95, 5);
+  });
+
+  it('is 100% before any orders resolve', () => {
+    expect(fillRate(createInitialState())).toBe(1);
   });
 });
 

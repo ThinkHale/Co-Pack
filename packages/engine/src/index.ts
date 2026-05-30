@@ -3,6 +3,8 @@ export * from './tick';
 export * from './factory';
 export * from './workers/attendance';
 export * from './workers/morale';
+export * from './workers/retention';
+export * from './workers/training';
 export * from './workers/generator';
 export * from './lines/throughput';
 export * from './clients/orders';

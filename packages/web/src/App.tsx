@@ -3,6 +3,7 @@ import {
   GameState, GameEvent, Line, Order, Worker,
   nextLineCost, canBuyLine, shoutoutReady, totalPayroll,
   reputationPayMultiplier, OVERTIME_MULTIPLIER,
+  fillRate, FILL_RATE_TARGET, flightRisk, trainingCost, canTrain,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, HIRE_COST } from './hooks/useGameStore';
 
@@ -190,6 +191,16 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         tag: 'REP',
       };
     }
+    case 'WORKER_QUIT': {
+      const tenure = p.tenureDays as number;
+      const tenureNote = tenure >= 1 ? ` after ${tenure} day${tenure === 1 ? '' : 's'}` : '';
+      return { text: `${p.workerName} quit${tenureNote}.`, tone: 'event-bad', tag: 'QUIT' };
+    }
+    case 'WORKER_TRAINED':
+      return {
+        text: `${p.workerName} trained on ${STATION_NAMES[p.stationId as string] ?? p.stationId} → ${pct(p.proficiency as number)}`,
+        tone: 'event-good', tag: 'TRAIN',
+      };
     case 'PAYROLL':
       return { text: `Payroll run: -$${(p.amount as number).toFixed(0)} for ${p.headcount} crew`, tone: 'event-alert', tag: 'PAY' };
     case 'LINE_PURCHASED':
@@ -211,7 +222,7 @@ export default function App() {
     state, paused, speed,
     runTick, reset, togglePause, setSpeed,
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
-    buyLine, toggleOvertime, shoutout,
+    buyLine, toggleOvertime, shoutout, train,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -253,6 +264,8 @@ export default function App() {
   const payroll = totalPayroll(state);
   const primaryClient = firstOrder ? state.clients[firstOrder.clientId] : Object.values(state.clients)[0];
   const reputation = primaryClient?.reputation ?? 1;
+  const fill = fillRate(state);
+  const fillBelowTarget = fill < FILL_RATE_TARGET;
 
   return (
     <div className="game-shell min-h-screen text-white">
@@ -273,8 +286,13 @@ export default function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[560px]">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:min-w-[700px]">
               <HudStat label="Cash" value={formatCurrency(state.cash)} tone="green" />
+              <HudStat
+                label={`Fill · goal ${pct(FILL_RATE_TARGET)}`}
+                value={pct(fill)}
+                tone={fillBelowTarget ? 'red' : 'green'}
+              />
               <HudStat label="Output" value={`${throughput.toFixed(2)}/min`} tone="cyan" />
               <HudStat label="Crew" value={`${staffedStations}/${totalStations}`} tone="pink" />
               <HudStat label="Morale" value={pct(averageMorale(workers))} tone="gold" />
@@ -342,20 +360,12 @@ export default function App() {
             )}
 
             {selectedWorker && (
-              <div className="selection-banner">
-                <div className="flex items-center gap-3">
-                  <CharacterAvatar worker={selectedWorker} size="sm" />
-                  <div>
-                    <div className="text-sm font-black text-white">
-                      {profileForWorker(selectedWorker).alias} is ready to drop.
-                    </div>
-                    <div className="text-xs text-amber-100/80">Click any station tile to assign them.</div>
-                  </div>
-                </div>
-                <button type="button" onClick={() => selectWorker(null)}>
-                  Cancel
-                </button>
-              </div>
+              <WorkerActionBar
+                worker={selectedWorker}
+                cash={state.cash}
+                onTrain={train}
+                onCancel={() => selectWorker(null)}
+              />
             )}
 
             {Object.entries(state.lines).map(([lineId, line]) => (
@@ -394,7 +404,7 @@ export default function App() {
   );
 }
 
-function HudStat({ label, value, tone }: { label: string; value: string; tone: 'green' | 'cyan' | 'pink' | 'gold' }) {
+function HudStat({ label, value, tone }: { label: string; value: string; tone: 'green' | 'cyan' | 'pink' | 'gold' | 'red' }) {
   return (
     <div className={`hud-stat hud-stat-${tone}`}>
       <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-slate-950/60">{label}</div>
@@ -614,6 +624,66 @@ function StationTile({
   );
 }
 
+const TRAINABLE_STATIONS = ['s1', 's2', 's3'];
+
+function WorkerActionBar({
+  worker, cash, onTrain, onCancel,
+}: {
+  worker: Worker;
+  cash: number;
+  onTrain: (workerId: string, stationId: string) => void;
+  onCancel: () => void;
+}) {
+  const profile = profileForWorker(worker);
+  const risk = flightRisk(worker);
+  const riskCopy = risk === 'high'
+    ? 'Flight risk — morale is low'
+    : risk === 'watch'
+      ? 'Keep an eye on morale'
+      : 'Settled in';
+
+  return (
+    <div className="worker-action">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <CharacterAvatar worker={worker} size="sm" />
+          <div>
+            <div className="text-sm font-black text-white">{profile.alias} · {worker.name}</div>
+            <div className="text-xs text-amber-100/80">
+              Click a station to assign · <span className={`risk-${risk}`}>{riskCopy}</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" className="worker-action-cancel" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {TRAINABLE_STATIONS.map(stationId => {
+          const skill = worker.skills.find(s => s.stationId === stationId);
+          const cost = trainingCost(worker, stationId);
+          const trainable = canTrain(worker, stationId) && cash >= cost;
+          return (
+            <button
+              key={stationId}
+              type="button"
+              disabled={!trainable}
+              onClick={() => onTrain(worker.id, stationId)}
+              className="train-button"
+              title={skill ? `Upskill ${STATION_NAMES[stationId]}` : `Cross-train ${STATION_NAMES[stationId]}`}
+            >
+              <span className="train-station">{STATION_NAMES[stationId]}</span>
+              <span className="train-prof">{skill ? pct(skill.proficiency) : 'new'}</span>
+              <span className="train-cost">{formatCurrency(cost)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CrewPanel({
   benchWorkers, allAssigned, selectedWorkerId, cash,
   lineCost, canAffordLine, lineCount, onHire, onBuyLine, onSelectWorker,
@@ -692,7 +762,14 @@ function BenchWorker({
       <CharacterAvatar worker={worker} />
       <div className="min-w-0 flex-1 text-left">
         <div className="flex items-center justify-between gap-2">
-          <div className="truncate text-lg font-black text-white">{profile.alias}</div>
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="truncate text-lg font-black text-white">{profile.alias}</div>
+            {flightRisk(worker) !== 'low' && (
+              <span className={`risk-badge risk-badge-${flightRisk(worker)}`}>
+                {flightRisk(worker) === 'high' ? 'Flight risk' : 'Watch'}
+              </span>
+            )}
+          </div>
           <div className="crew-level">D{worker.tenureDays}</div>
         </div>
         <div className="truncate text-sm font-bold text-slate-300">{worker.name} / {profile.role}</div>

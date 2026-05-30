@@ -45,7 +45,7 @@ export function createInitialState(): GameState {
   };
 
   return {
-    tick: 0, day: 0, cash: 6500, orderCount: 1, completedOrders: 0,
+    tick: 0, day: 0, cash: 6500, orderCount: 1, completedOrders: 0, missedOrders: 0,
     lineCount: 1, overtime: false, shoutoutReadyTick: 0,
     workers: { w1: worker1, w2: worker2, w3: worker3 },
     lines: { line1 },

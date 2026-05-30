@@ -1,6 +1,7 @@
 import { GameState, GameEvent } from './types';
 import { processAttendance } from './workers/attendance';
 import { processMorale } from './workers/morale';
+import { processRetention } from './workers/retention';
 import { processThroughput } from './lines/throughput';
 import { processOrders } from './clients/orders';
 import { processPayroll } from './economy/payroll';
@@ -17,6 +18,11 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
       const rm = processMorale(s);
       s = rm.state;
       events.push(...rm.events);
+
+      // Quits land after morale settles — overtime fatigue can be the last straw.
+      const rr = processRetention(s);
+      s = rr.state;
+      events.push(...rr.events);
 
       const rp = processPayroll(s);
       s = rp.state;
