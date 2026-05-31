@@ -207,6 +207,12 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = React.useState(false);
+  if (!splashDone) return <SplashScreen onStart={() => setSplashDone(true)} />;
+  return <Game />;
+}
+
+function Game() {
   const {
     state, paused, speed, tab,
     runTick, reset, togglePause, setSpeed, setTab,
@@ -267,10 +273,7 @@ export default function App() {
         <header className="hud-panel mb-4 p-3 sm:p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <div className="eyebrow">Co-Pack Tactics</div>
-              <h1 className="text-3xl font-black tracking-normal text-white sm:text-5xl">
-                Floor Rush
-              </h1>
+              <img src="/logo.png" alt="Co-Pack" className="mb-1 h-10 sm:h-14 object-contain object-left" />
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                 <span className="status-pill status-time">{shiftLabel(state.tick)}</span>
                 <span className={`status-pill ${paused ? 'status-paused' : 'status-live'}`}>
@@ -1287,6 +1290,31 @@ function FrontOfficeTab({
           {temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert
         </div>
       </section>
+    </div>
+  );
+}
+
+function SplashScreen({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="game-shell flex min-h-screen flex-col items-center justify-center px-6">
+      <div className="game-grid-bg" />
+      <div className="relative flex flex-col items-center gap-8 text-center">
+        <img
+          src="/splash.png"
+          alt="Co-Pack"
+          className="w-full max-w-sm object-contain drop-shadow-2xl sm:max-w-md"
+        />
+        <p className="max-w-xs text-sm font-bold uppercase tracking-[0.2em] text-slate-400">
+          Idle contract packaging simulation
+        </p>
+        <button
+          type="button"
+          onClick={onStart}
+          className="game-button game-button-primary px-10 py-3 text-base"
+        >
+          Start Shift
+        </button>
+      </div>
     </div>
   );
 }
