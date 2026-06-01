@@ -90,7 +90,10 @@ export type GameEventType =
   | 'INCIDENT'
   | 'WORKER_QUIT'
   | 'SHIFT_START'
-  | 'SHIFT_END';
+  | 'SHIFT_END'
+  | 'OBJECTIVE_COMPLETED'
+  | 'CASH_WARNING'
+  | 'GAME_OVER';
 
 export interface GameEvent {
   type: GameEventType;
@@ -130,6 +133,11 @@ export interface GameState {
   programs: StaffingPrograms;
   nextWorkerId: number;     // monotonic id counter so hires never collide after a quit
   staffingHistory: StaffingDay[]; // per-day labor coverage vs the schedule (the board)
+  completedObjectives: string[];  // ids of progression goals already cleared (rewards paid once)
+  cashWarned: boolean;            // we've already flagged a low-cash warning this slide (de-dupe)
+  gameOver: boolean;              // the plant has shut down (bankrupt) — run is over
+  awaitingStaffing: boolean;      // shift boundary hit: stations cleared, clock held for the player to re-staff
+  previousAssignments: Record<string, string>; // "lineId::stationId" -> workerId from the shift just worked (for "Repeat yesterday")
   workers: Record<string, Worker>;
   lines: Record<string, Line>;
   clients: Record<string, Client>;

@@ -52,8 +52,25 @@ import {
   staffingFill,
   recordStaffingDay,
   STAFFING_TARGET,
+  lineThroughput,
+  totalThroughput,
+  targetOrderCount,
+  OBJECTIVES,
+  evaluateObjectives,
+  openObjectives,
+  checkSolvency,
+  BANKRUPTCY_FLOOR,
+  TICKS_PER_DAY,
+  TICKS_PER_SHIFT,
+  shiftRemainingTicks,
+  startShift,
+  repeatStaffing,
+  canRepeatStaffing,
+  assignWorker,
+  workingWorkers,
   GameState,
   Worker,
+  Order,
 } from '../src';
 
 // Assign the three starting workers to the three stations so the line runs.
@@ -68,9 +85,14 @@ function staffLineA(state: GameState): GameState {
   };
 }
 
+// Drive the daily-staffing loop: each morning (awaitingStaffing) re-seat the
+// crew on Line A and start the shift, then tick. Mirrors how the player plays.
 function run(state: GameState, ticks: number): GameState {
   let s = state;
-  for (let i = 0; i < ticks; i++) s = tick(s).state;
+  for (let i = 0; i < ticks; i++) {
+    if (s.awaitingStaffing) s = startShift(staffLineA(s)).state;
+    s = tick(s).state;
+  }
   return s;
 }
 
@@ -102,7 +124,9 @@ describe('attendance independence (regression: shared-RNG bug)', () => {
         presentThisShift: true,
       };
     }
-    state = { ...state, workers };
+    // A later shift (tick > 0) so the first-shift "everyone shows" guarantee
+    // doesn't mask the independent-roll behavior we're checking here.
+    state = { ...state, tick: 600, workers };
     const { state: after } = processAttendance(state);
     const present = Object.values(after.workers).filter(w => w.presentThisShift).length;
     // Some show, some don't — not 0 and not all 40.
@@ -132,13 +156,27 @@ describe('reputation & missed orders', () => {
   });
 });
 
-describe('payroll', () => {
-  it('deducts the full roster wage every shift', () => {
-    const state = createInitialState();
+describe('payroll (pay only present, working crew)', () => {
+  it('deducts wages for the crew that actually worked', () => {
+    const state = staffLineA(createInitialState()); // w1-3 assigned & present
     const expected = totalPayroll(state);
+    expect(expected).toBeGreaterThan(0);
     const { state: after, events } = processPayroll(state);
     expect(after.cash).toBe(state.cash - expected);
     expect(events[0].type).toBe('PAYROLL');
+  });
+
+  it('does not pay a no-show', () => {
+    const staffed = staffLineA(createInitialState());
+    const full = totalPayroll(staffed);
+    const absent = { ...staffed, workers: { ...staffed.workers, w1: { ...staffed.workers.w1, presentThisShift: false } } };
+    expect(totalPayroll(absent)).toBeLessThan(full);
+    expect(workingWorkers(absent).some(w => w.id === 'w1')).toBe(false);
+  });
+
+  it('does not pay a present worker left on the bench', () => {
+    // Unstaffed start state: everyone present, nobody assigned → zero wages.
+    expect(totalPayroll(createInitialState())).toBe(0);
   });
 });
 
@@ -328,7 +366,7 @@ describe('daily conditions & attendance boosters', () => {
 
   it('resets boosters and announces a condition when the day rolls over', () => {
     // One tick before a day boundary, with a meal active.
-    let state: GameState = { ...createInitialState(), tick: 1439, mealToday: true };
+    let state: GameState = { ...createInitialState(), tick: TICKS_PER_DAY - 1, mealToday: true };
     const { state: after, events } = tick(state);
     expect(after.day).toBe(1);
     expect(after.mealToday).toBe(false);
@@ -599,6 +637,213 @@ describe('staffing board (labor coverage)', () => {
     const { state: after } = recordStaffingDay(s);
     expect(after.staffingHistory[0].fill).toBe(1);
     expect(after.clients.c1.reputation).toBe(repBefore);
+  });
+});
+
+describe('throughput is engine-sourced (regression: HUD dropped leads/automation)', () => {
+  it('totalThroughput reflects a lead bonus the old UI formula ignored', () => {
+    const base = staffLineA(createInitialState());
+    const plain = totalThroughput(base);
+    const { state: led } = promoteLead(base, 'w1', 'line1');
+    expect(totalThroughput(led)).toBeGreaterThan(plain);
+  });
+
+  it('totalThroughput reflects automation the old UI formula ignored', () => {
+    const base = { ...staffLineA(createInitialState()), cash: 50000 };
+    const plain = totalThroughput(base);
+    const { state: auto } = upgradeAutomation(base, 'line1');
+    expect(totalThroughput(auto)).toBeGreaterThan(plain);
+  });
+
+  it('totalThroughput equals the units actually applied to the order in a tick', () => {
+    const base = staffLineA(createInitialState());
+    const tp = totalThroughput(base);
+    const { state: after } = processThroughput(base);
+    expect(after.activeOrders[0].unitsCompleted).toBeCloseTo(tp, 6);
+  });
+});
+
+describe('parallel lines work distinct orders', () => {
+  function twoStaffedLines(): GameState {
+    let s = createInitialState();
+    const mkWorker = (id: string): Worker => ({
+      ...s.workers.w1, id, name: `Crew ${id}`, presentThisShift: true,
+      skills: [{ stationId: 's1', proficiency: 0.7 }],
+    });
+    const workers: Record<string, Worker> = {};
+    for (let i = 1; i <= 6; i++) workers[`w${i}`] = mkWorker(`w${i}`);
+    const staff = (ids: string[]) => [
+      { id: 's1', name: 'Induct', throughputMultiplier: 1, assignedWorkerId: ids[0] },
+      { id: 's2', name: 'Pack', throughputMultiplier: 1, assignedWorkerId: ids[1] },
+      { id: 's3', name: 'Stage', throughputMultiplier: 1, assignedWorkerId: ids[2] },
+    ];
+    const orders: Order[] = [
+      { id: 'ordA', clientId: 'c1', sku: 'A', units: 5000, unitsCompleted: 0, deadline: 1000, revenuePerUnit: 2, qualityThreshold: 0.9 },
+      { id: 'ordB', clientId: 'c1', sku: 'B', units: 5000, unitsCompleted: 0, deadline: 2000, revenuePerUnit: 2, qualityThreshold: 0.9 },
+    ];
+    return {
+      ...s, lineCount: 2, workers, activeOrders: orders,
+      lines: {
+        line1: { id: 'line1', name: 'Line A', active: true, automation: 0, stations: staff(['w1', 'w2', 'w3']) },
+        line2: { id: 'line2', name: 'Line B', active: true, automation: 0, stations: staff(['w4', 'w5', 'w6']) },
+      },
+    };
+  }
+
+  it('advances two orders in a single tick rather than piling onto one', () => {
+    const { state: after } = processThroughput(twoStaffedLines());
+    expect(after.activeOrders[0].unitsCompleted).toBeGreaterThan(0);
+    expect(after.activeOrders[1].unitsCompleted).toBeGreaterThan(0);
+  });
+
+  it('keeps one open order per active line', () => {
+    expect(targetOrderCount(createInitialState())).toBe(1);
+    const bought = purchaseLine({ ...createInitialState(), cash: 10000 }).state;
+    expect(targetOrderCount(bought)).toBe(2);
+    // The board tops up to the new target on the next order pass.
+    const { state: refilled } = processOrders(bought);
+    expect(refilled.activeOrders.length).toBe(2);
+  });
+});
+
+describe('objectives progression', () => {
+  it('first contract pays out exactly once and emits an event', () => {
+    const state = { ...createInitialState(), completedOrders: 1 };
+    const { state: after, events } = evaluateObjectives(state);
+    expect(after.completedObjectives).toContain('first_order');
+    expect(after.cash).toBe(state.cash + OBJECTIVES.find(o => o.id === 'first_order')!.reward);
+    expect(events.some(e => e.type === 'OBJECTIVE_COMPLETED')).toBe(true);
+    // Re-evaluating grants nothing further.
+    const { state: again, events: noMore } = evaluateObjectives(after);
+    expect(again.cash).toBe(after.cash);
+    expect(noMore.length).toBe(0);
+  });
+
+  it('surfaces the first open goal first', () => {
+    expect(openObjectives(createInitialState(), 1)[0].id).toBe('first_order');
+  });
+
+  it('does not pay objectives after game over', () => {
+    const state = { ...createInitialState(), completedOrders: 99, gameOver: true };
+    const { state: after, events } = evaluateObjectives(state);
+    expect(after.completedObjectives.length).toBe(0);
+    expect(events.length).toBe(0);
+  });
+});
+
+describe('solvency / bankruptcy stakes', () => {
+  it('ends the run when cash sinks below the floor', () => {
+    const state = { ...createInitialState(), cash: BANKRUPTCY_FLOOR - 1 };
+    const { state: after, events } = checkSolvency(state);
+    expect(after.gameOver).toBe(true);
+    expect(events.some(e => e.type === 'GAME_OVER')).toBe(true);
+  });
+
+  it('warns once on the slide into the red, then re-arms in the black', () => {
+    const red = { ...createInitialState(), cash: -100 };
+    const { state: warned, events } = checkSolvency(red);
+    expect(warned.cashWarned).toBe(true);
+    expect(events.some(e => e.type === 'CASH_WARNING')).toBe(true);
+    // Still red, already warned: silent.
+    expect(checkSolvency(warned).events.length).toBe(0);
+    // Back in the black: warning re-arms.
+    expect(checkSolvency({ ...warned, cash: 50 }).state.cashWarned).toBe(false);
+  });
+
+  it('a tick on a game-over state is a no-op', () => {
+    const dead = { ...staffLineA(createInitialState()), gameOver: true };
+    const { state: after, events } = tick(dead);
+    expect(after.tick).toBe(dead.tick);
+    expect(events.length).toBe(0);
+  });
+});
+
+describe('clean opening (regression: day-0 storm + first-shift no-shows)', () => {
+  it('day 0 is always a good condition, never a storm', () => {
+    expect(dayCondition(0).tone).toBe('good');
+    expect(dayCondition(0).modifier).toBeGreaterThanOrEqual(0);
+  });
+
+  it('the whole starting crew shows up on the very first shift', () => {
+    const { state: after } = processAttendance(createInitialState());
+    const present = Object.values(after.workers).filter(w => w.presentThisShift).length;
+    expect(present).toBe(Object.keys(after.workers).length);
+  });
+
+  it('attendance can still vary on later shifts', () => {
+    let s = createInitialState();
+    // 40 average workers on a later shift — some should miss.
+    const workers: GameState['workers'] = {};
+    for (let i = 1; i <= 40; i++) {
+      workers[`w${i}`] = { ...s.workers.w1, id: `w${i}`, reliability: 0.6, morale: 0.5, traits: [] };
+    }
+    const { state: after } = processAttendance({ ...s, tick: TICKS_PER_SHIFT * 5, day: 5, workers });
+    const present = Object.values(after.workers).filter(w => w.presentThisShift).length;
+    expect(present).toBeGreaterThan(0);
+    expect(present).toBeLessThan(40);
+  });
+});
+
+describe('time model (10h shift = 1 day)', () => {
+  it('a shift is 600 ticks and one shift is one day', () => {
+    expect(TICKS_PER_SHIFT).toBe(600);
+    expect(TICKS_PER_DAY).toBe(600);
+  });
+
+  it('counts down the remaining shift minutes', () => {
+    expect(shiftRemainingTicks(0)).toBe(600);
+    expect(shiftRemainingTicks(60)).toBe(540);
+  });
+
+  it('runs a clean first day end-to-end: standup, output, day rollover', () => {
+    let s = createInitialState();
+    // Tick 0 rolls attendance (all show on opening day) and opens the standup.
+    s = tick(s).state;
+    expect(s.awaitingStaffing).toBe(true);
+    expect(Object.values(s.workers).every(w => w.presentThisShift)).toBe(true);
+    // Player staffs the line and starts the shift.
+    s = startShift(staffLineA(s)).state;
+    expect(s.awaitingStaffing).toBe(false);
+    // Run the shift out to the next morning.
+    for (let i = 0; i <= TICKS_PER_DAY; i++) s = tick(s).state;
+    expect(s.day).toBe(1);
+    expect(s.activeOrders[0].unitsCompleted).toBeGreaterThan(0);
+    expect(s.gameOver).toBe(false);
+  });
+});
+
+describe('daily re-staffing (sim loop)', () => {
+  it('clears the board and holds the clock at each shift boundary', () => {
+    let s = createInitialState();
+    s = tick(s).state;                 // tick 0 → standup
+    s = startShift(staffLineA(s)).state;
+    for (let i = 0; i < TICKS_PER_DAY; i++) s = tick(s).state; // reach next boundary
+    expect(s.awaitingStaffing).toBe(true);
+    const anyAssigned = Object.values(s.lines).some(l => l.stations.some(st => st.assignedWorkerId));
+    expect(anyAssigned).toBe(false);                 // board wiped
+    expect(Object.keys(s.previousAssignments).length).toBeGreaterThan(0); // yesterday remembered
+  });
+
+  it('"Repeat yesterday" re-seats present crew and skips no-shows', () => {
+    let s = createInitialState();
+    s = tick(s).state;                          // standup
+    s = startShift(staffLineA(s)).state;        // staff + start day 1
+    for (let i = 0; i < TICKS_PER_DAY; i++) s = tick(s).state; // to next morning
+    // Force w2 to be a no-show this new morning.
+    s = { ...s, workers: { ...s.workers, w2: { ...s.workers.w2, presentThisShift: false } } };
+    expect(canRepeatStaffing(s)).toBe(true);
+    const { state: repeated } = repeatStaffing(s);
+    const assignedIds = Object.values(repeated.lines).flatMap(l => l.stations.map(st => st.assignedWorkerId).filter(Boolean));
+    expect(assignedIds).toContain('w1');
+    expect(assignedIds).not.toContain('w2'); // no-show is not re-seated
+  });
+
+  it('startShift releases the morning hold and lets the clock advance', () => {
+    let s = createInitialState();
+    s = tick(s).state;
+    expect(tick(s).state.tick).toBe(s.tick); // frozen while awaiting staffing
+    s = startShift(s).state;
+    expect(tick(s).state.tick).toBe(s.tick + 1); // running again
   });
 });
 

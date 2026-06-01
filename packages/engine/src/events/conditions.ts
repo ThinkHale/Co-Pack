@@ -17,6 +17,11 @@ export interface DayCondition {
 }
 
 export function dayCondition(day: number): DayCondition {
+  // Day one is always a clean opening — no storm should ever greet a brand-new
+  // player before they've even staffed a line. The weather lottery starts day two.
+  if (day <= 0) {
+    return { key: 'clear', label: 'Opening day', note: 'Clear skies — full crew expected', modifier: 0.05, tone: 'good' };
+  }
   const r = seededRandom(day * 7919 + 17);
   if (r < 0.13) return { key: 'storm', label: 'Storm', note: 'Bad weather — fewer make it in', modifier: -0.16, tone: 'bad' };
   if (r < 0.23) return { key: 'holiday_adjacent', label: 'Holiday window', note: 'Around a holiday — call-outs climb', modifier: -0.13, tone: 'bad' };

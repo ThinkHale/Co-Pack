@@ -1,5 +1,6 @@
 import { GameState, GameEvent, Order, Client } from '../types';
 import { seededRandom } from '../utils/random';
+import { TICKS_PER_DAY } from '../time';
 
 // Reputation pays. A trusted shop earns full price; a struggling one gets squeezed.
 const REP_ON_COMPLETE = 0.03; // recover trust by delivering
@@ -60,16 +61,23 @@ export function processOrders(state: GameState): { state: GameState; events: Gam
     o => !completedIds.includes(o.id) && !missedIds.includes(o.id)
   );
 
-  // Replace each completed or missed order with a new one
-  const replacements = completedIds.length + missedIds.length;
-  for (let i = 0; i < replacements; i++) {
+  // Keep the contract board topped up: one open order per active line, so every
+  // line you buy has its own work and bench capacity actually pays off. Difficulty
+  // scales with orders *fulfilled*, not raw time — a player who falls behind isn't
+  // buried under ever-bigger orders they can never catch.
+  const target = targetOrderCount(state);
+  while (activeOrders.length < target) {
     orderCount++;
-    // Difficulty scales with orders *fulfilled*, not raw time — so a player who
-    // falls behind isn't buried under ever-bigger orders they can never catch.
     activeOrders = [...activeOrders, generateNextOrder(state, orderCount, completedOrders)];
   }
 
   return { state: { ...state, activeOrders, cash, orderCount, completedOrders, missedOrders, clients }, events };
+}
+
+// The contract board holds one open order per active line (always at least one),
+// so capacity you buy translates into work you can actually run in parallel.
+export function targetOrderCount(state: GameState): number {
+  return Math.max(1, Object.values(state.lines).filter(l => l.active).length);
 }
 
 // Lifetime order fill rate (0..1). The headline scoreboard — target is 0.95.
@@ -83,7 +91,7 @@ export const FILL_RATE_TARGET = 0.95;
 
 function generateNextOrder(state: GameState, count: number, level: number): Order {
   const rng = seededRandom(count * 31337 + state.tick);
-  // Volume grows with the player's track record; deadline stays at 960 ticks (2 shifts).
+  // Volume grows with the player's track record; deadline is two shifts out.
   const units = Math.round(260 + level * 45 + rng * 50);
   return {
     id: `ord${count}`,
@@ -91,7 +99,7 @@ function generateNextOrder(state: GameState, count: number, level: number): Orde
     sku: `SKU-${String(count).padStart(3, '0')}`,
     units,
     unitsCompleted: 0,
-    deadline: state.tick + 960,
+    deadline: state.tick + TICKS_PER_DAY * 2,
     revenuePerUnit: +(2.20 + seededRandom(count * 12345) * 0.60).toFixed(2),
     qualityThreshold: 0.9,
   };

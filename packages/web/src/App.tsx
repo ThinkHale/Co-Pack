@@ -1,20 +1,26 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   GameState, GameEvent, Line, Order, Worker,
   nextLineCost, canBuyLine, shoutoutReady, totalPayroll,
-  reputationPayMultiplier, OVERTIME_MULTIPLIER,
+  reputationPayMultiplier,
   fillRate, FILL_RATE_TARGET, flightRisk, trainingCost, canTrain,
   dayCondition, dayAttendanceModifier, mealCost, incentiveCost,
   mealReady, incentiveReady, mealCooldownRemaining, incentiveCooldownRemaining,
-  moraleBreakdown, effectiveWage, workerPayRate,
+  moraleBreakdown, effectiveWage,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
   LEAD_COST, conversionCost,
-  workerTraits, getTrait, WorkerAppearance,
+  workerTraits, WorkerAppearance,
   STAFFING_TARGET, requiredPositions, coveredPositions, staffingFill, rollingStaffingFill,
+  totalThroughput, lineThroughput,
+  openObjectives, OBJECTIVES, Objective,
+  TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
+  canRepeatStaffing,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, TabKey, HIRE_COST } from './hooks/useGameStore';
+import { playSound, unlockAudio, SoundKind } from './lib/sound';
+import type { OfflineSummary } from './lib/persistence';
 
 type CharacterProfile = {
   alias: string;      // the worker's first name — they're real people now
@@ -26,9 +32,6 @@ type CharacterProfile = {
   uniform: string;
   shape: 'round' | 'square' | 'diamond' | 'wide';
 };
-
-const BASE_UNITS_PER_TICK = 0.6;
-const UNTRAINED_PROFICIENCY = 0.40;
 
 const STATION_NAMES: Record<string, string> = { s1: 'Induct', s2: 'Pack', s3: 'Stage' };
 const STATION_THEMES: Record<string, { icon: string; color: string; note: string }> = {
@@ -44,17 +47,25 @@ const BUILD_SHAPE: Record<WorkerAppearance['build'], CharacterProfile['shape']> 
 
 function ticksToTimeRemaining(ticks: number): string {
   if (ticks <= 0) return 'OVERDUE';
-  const days = Math.floor(ticks / 1440);
-  const hours = Math.floor((ticks % 1440) / 60);
+  const days = Math.floor(ticks / TICKS_PER_DAY);
+  const hours = Math.floor((ticks % TICKS_PER_DAY) / 60);
   const mins = ticks % 60;
   if (days > 0) return `${days}d ${hours}h`;
   return `${hours}h ${mins}m`;
 }
 
+// "Day 3 · Wed" — one operating shift per day, so day and shift are the same unit.
 function shiftLabel(tick: number): string {
-  const day = Math.floor(tick / 1440) + 1;
-  const shift = Math.floor((tick % 1440) / 480) + 1;
-  return `Day ${day} / Shift ${shift}`;
+  const day = dayOfTick(tick);
+  return `Day ${day + 1} · ${weekday(day)}`;
+}
+
+// Time left in the current 10-hour shift, as H:MM counting down.
+function shiftClock(tick: number): string {
+  const rem = shiftRemainingTicks(tick);
+  const h = Math.floor(rem / 60);
+  const m = rem % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
 }
 
 function formatCurrency(value: number): string {
@@ -93,27 +104,14 @@ function averageMorale(workers: Worker[]): number {
   return workers.reduce((sum, worker) => sum + worker.morale, 0) / workers.length;
 }
 
-function computeThroughput(state: GameState): number {
-  let total = 0;
-  for (const line of Object.values(state.lines)) {
-    if (!line.active) continue;
-    const staffed = line.stations.filter(
-      s => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift
-    );
-    if (staffed.length === 0) continue;
-    const staffingRatio = staffed.length / line.stations.length;
-    const workers = staffed.map(s => state.workers[s.assignedWorkerId!]);
-    const avgMorale = workers.reduce((sum, w) => sum + w.morale, 0) / workers.length;
-    const avgSkill = staffed.reduce((sum, s) => {
-      const worker = state.workers[s.assignedWorkerId!];
-      const skill = worker.skills.find(sk => sk.stationId === s.id);
-      return sum + (skill?.proficiency ?? UNTRAINED_PROFICIENCY);
-    }, 0) / staffed.length;
-    const skillMultiplier = 0.5 + avgSkill * 0.8;
-    const overtimeMultiplier = state.overtime ? OVERTIME_MULTIPLIER : 1;
-    total += BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier * overtimeMultiplier * staffingRatio;
-  }
-  return total;
+function formatAwayTime(ms: number): string {
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  const rem = mins % 60;
+  if (hours < 24) return rem ? `${hours}h ${rem}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
 }
 
 function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } {
@@ -197,34 +195,45 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
       };
     }
     case 'SHIFT_START': {
-      const day = Math.floor(e.tick / 1440) + 1;
-      const shift = Math.floor((e.tick % 1440) / 480) + 1;
-      return { text: `Day ${day}, Shift ${shift} starting.`, tone: 'event-neutral', tag: 'TIME' };
+      const day = Math.floor(e.tick / TICKS_PER_DAY) + 1;
+      return { text: `Day ${day} starting.`, tone: 'event-neutral', tag: 'TIME' };
     }
+    case 'OBJECTIVE_COMPLETED':
+      return { text: `Goal cleared: ${p.label} +$${(p.reward as number).toFixed(0)}`, tone: 'event-good', tag: 'GOAL' };
+    case 'CASH_WARNING':
+      return { text: `Cash in the red ($${Math.round(p.cash as number).toLocaleString()}). Deliver orders or cut costs.`, tone: 'event-alert', tag: 'CASH' };
+    case 'GAME_OVER':
+      return { text: `The plant shut down — out of cash.`, tone: 'event-bad', tag: 'OVER' };
     default:
       return { text: e.type, tone: 'event-neutral', tag: 'LOG' };
   }
 }
 
 export default function App() {
-  const [splashDone, setSplashDone] = React.useState(false);
-  if (!splashDone) return <SplashScreen onStart={() => setSplashDone(true)} />;
+  const bootedFromSave = useGameStore(s => s.bootedFromSave);
+  const [splashDone, setSplashDone] = useState(bootedFromSave);
+  if (!splashDone) {
+    return <SplashScreen onStart={() => { unlockAudio(); setSplashDone(true); }} />;
+  }
   return <Game />;
 }
 
 function Game() {
   const {
-    state, paused, speed, tab,
-    runTick, reset, togglePause, setSpeed, setTab,
+    state, events, paused, speed, tab, soundOn, offlineSummary,
+    runTick, reset, togglePause, setSpeed, setTab, toggleSound, dismissOffline, save,
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
-    buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive,
+    buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
     setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gameOver = state.gameOver;
+  const awaitingStaffing = state.awaitingStaffing;
 
+  // The sim clock. Stops when paused, during the morning standup, or after a shutdown.
   useEffect(() => {
-    if (paused) {
+    if (paused || gameOver || awaitingStaffing) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
@@ -233,10 +242,46 @@ function Game() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [runTick, paused, speed]);
+  }, [runTick, paused, speed, gameOver, awaitingStaffing]);
 
-  const throughput = computeThroughput(state);
-  const firstOrder = state.activeOrders[0];
+  // Autosave: every few seconds and whenever the tab is hidden or closed, so a
+  // refresh or a backgrounded phone never loses the run.
+  useEffect(() => {
+    const id = setInterval(save, 3000);
+    const onHide = () => save();
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('pagehide', onHide);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [save]);
+
+  // Toasts + sound: react to the latest batch of engine events exactly once.
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const lastEventsRef = useRef<GameEvent[] | null>(null);
+  useEffect(() => {
+    if (events === lastEventsRef.current || !events || events.length === 0) return;
+    lastEventsRef.current = events;
+    const fresh: ToastItem[] = [];
+    for (const e of events) {
+      const spec = toastForEvent(e);
+      if (!spec) continue;
+      if (soundOn && spec.sound) playSound(spec.sound);
+      fresh.push({ id: `${e.tick}-${e.type}-${fresh.length}-${Date.now()}`, ...spec });
+    }
+    if (fresh.length) setToasts(prev => [...prev, ...fresh].slice(-4));
+  }, [events, soundOn]);
+
+  const removeToast = useCallback((id: string) => setToasts(prev => prev.filter(t => t.id !== id)), []);
+
+  const throughput = totalThroughput(state);
+  const sortedOrders = useMemo(
+    () => [...state.activeOrders].sort((a, b) => (a.deadline - state.tick) - (b.deadline - state.tick)),
+    [state.activeOrders, state.tick]
+  );
+  const firstOrder = sortedOrders[0];
   const recentEvents = [...state.eventLog].reverse().slice(0, 7);
   const workers = Object.values(state.workers);
   const assignedIds = useMemo(
@@ -276,9 +321,15 @@ function Game() {
               <img src="/logo.png" alt="Co-Pack" className="mb-1 h-10 sm:h-14 object-contain object-left" />
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                 <span className="status-pill status-time">{shiftLabel(state.tick)}</span>
-                <span className={`status-pill ${paused ? 'status-paused' : 'status-live'}`}>
-                  {paused ? 'Paused' : 'Live run'}
+                <span className="status-pill status-clock" title="Time left in the current 10-hour shift">
+                  ⏱ {shiftClock(state.tick)} left
                 </span>
+                <span className={`status-pill ${awaitingStaffing ? 'status-standup' : paused ? 'status-paused' : 'status-live'}`}>
+                  {awaitingStaffing ? 'Morning standup' : paused ? 'Paused' : 'Live run'}
+                </span>
+              </div>
+              <div className="shift-progress mt-2" title="Shift progress">
+                <div style={{ width: `${(shiftElapsedTicks(state.tick) / TICKS_PER_SHIFT) * 100}%` }} />
               </div>
             </div>
 
@@ -333,7 +384,19 @@ function Game() {
               >
                 {state.overtime ? 'Overtime ON' : 'Overtime'}
               </button>
-              <button type="button" onClick={reset} className="game-button game-button-muted">
+              <button
+                type="button"
+                onClick={toggleSound}
+                title={soundOn ? 'Mute sound effects' : 'Unmute sound effects'}
+                className="game-button game-button-muted"
+              >
+                {soundOn ? '♪ Sound' : '✕ Muted'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { if (window.confirm('Reset the run? This wipes your save and starts a fresh shift.')) reset(); }}
+                className="game-button game-button-muted"
+              >
                 Reset
               </button>
             </div>
@@ -343,8 +406,18 @@ function Game() {
           </div>
         </header>
 
+        {tab === 'floor' && awaitingStaffing && (
+          <MorningBanner
+            state={state}
+            condition={condition}
+            canRepeat={canRepeatStaffing(state)}
+            onRepeat={repeatStaffing}
+            onStart={() => { if (soundOn) playSound('click'); startShift(); }}
+          />
+        )}
+
         {tab === 'floor' && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_360px]">
             <section className="space-y-4">
               <ConditionsBar
                 condition={condition}
@@ -363,13 +436,18 @@ function Game() {
               />
 
               {firstOrder ? (
-                <OrderHero
-                  order={firstOrder}
-                  tick={state.tick}
-                  throughput={throughput}
-                  reputation={reputation}
-                  clientName={primaryClient?.name ?? firstOrder.clientId}
-                />
+                <>
+                  <OrderHero
+                    order={firstOrder}
+                    tick={state.tick}
+                    throughput={throughput}
+                    reputation={reputation}
+                    clientName={primaryClient?.name ?? firstOrder.clientId}
+                  />
+                  {sortedOrders.length > 1 && (
+                    <OrdersStrip orders={sortedOrders.slice(1)} tick={state.tick} />
+                  )}
+                </>
               ) : (
                 <div className="game-panel flex min-h-[180px] items-center justify-center p-5 text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
                   No active orders
@@ -392,7 +470,7 @@ function Game() {
                   lineId={lineId}
                   line={line}
                   workers={state.workers}
-                  throughput={throughput}
+                  lineRate={lineThroughput(state, line)}
                   selectedWorkerId={selectedWorkerId}
                   onSelectWorker={selectWorker}
                   onAssign={assignWorker}
@@ -402,6 +480,7 @@ function Game() {
             </section>
 
             <aside className="space-y-4">
+              <ObjectivesPanel state={state} />
               <CrewPanel
                 benchWorkers={benchWorkers}
                 allAssigned={benchWorkers.length === 0}
@@ -438,6 +517,18 @@ function Game() {
       </main>
 
       <TabBar tab={tab} onTab={setTab} fillBelowTarget={fillBelowTarget} />
+
+      {selectedWorker && tab === 'floor' && (
+        <PlacingBar worker={selectedWorker} onCancel={() => selectWorker(null)} />
+      )}
+      <Toasts toasts={toasts} onDone={removeToast} />
+      {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
+      {gameOver && (
+        <GameOverOverlay
+          state={state}
+          onRestart={() => { if (soundOn) playSound('click'); reset(); }}
+        />
+      )}
     </div>
   );
 }
@@ -480,7 +571,7 @@ function OrderHero({
 }: { order: Order; tick: number; throughput: number; reputation: number; clientName: string }) {
   const progress = order.unitsCompleted / order.units;
   const remaining = order.deadline - tick;
-  const isUrgent = remaining < 480;
+  const isUrgent = remaining < TICKS_PER_SHIFT;
   const isOverdue = remaining <= 0;
   const unitsLeft = Math.max(order.units - order.unitsCompleted, 0);
   const payMultiplier = reputationPayMultiplier(reputation);
@@ -533,14 +624,16 @@ function OrderHero({
   );
 }
 
+const WORKER_DND_MIME = 'application/x-copack-worker';
+
 function FloorLine({
-  lineId, line, workers, throughput, selectedWorkerId,
+  lineId, line, workers, lineRate, selectedWorkerId,
   onSelectWorker, onAssign, onUnassign,
 }: {
   lineId: string;
   line: Line;
   workers: Record<string, Worker>;
-  throughput: number;
+  lineRate: number;
   selectedWorkerId: string | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
@@ -551,26 +644,40 @@ function FloorLine({
   ).length;
   const isStopped = presentCount === 0;
   const isShort = presentCount > 0 && presentCount < line.stations.length;
+  const running = !isStopped;
   const selectedWorker = selectedWorkerId ? workers[selectedWorkerId] : null;
 
+  // Belt speed scales with output so a humming line visibly moves faster.
+  const beltDuration = running ? Math.max(1.1, 3.4 - lineRate * 0.9) : 0;
+
   return (
-    <section className="game-panel p-4 sm:p-5">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="eyebrow">Production board</div>
-          <h2 className="text-2xl font-black text-white">{line.name}</h2>
+    <section className="game-panel p-3 sm:p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="line-tag" style={{ '--station-color': '#7dd3fc' } as React.CSSProperties}>{line.name}</span>
+          {line.automation > 0 && <span className="auto-chip">⚙ L{line.automation}</span>}
+          {line.leadId && workers[line.leadId] && <span className="tag-lead">LEAD</span>}
         </div>
         <div className={`line-status ${isStopped ? 'blocked' : isShort ? 'short' : 'running'}`}>
           {isStopped
-            ? 'Idle 0/' + line.stations.length
+            ? `Idle · 0/${line.stations.length}`
             : isShort
-              ? `Short-staffed ${presentCount}/${line.stations.length}`
-              : `Running ${throughput.toFixed(2)}/min`}
+              ? `Short ${presentCount}/${line.stations.length} · ${lineRate.toFixed(1)}/min`
+              : `Running · ${lineRate.toFixed(1)}/min`}
         </div>
       </div>
 
-      <div className="conveyor-wrap">
+      <div className={`conveyor-wrap ${running ? 'running' : 'stopped'}`}>
         <div className="conveyor-belt" />
+        <div className="conveyor-flow" aria-hidden="true">
+          {running && Array.from({ length: 7 }).map((_, i) => (
+            <span
+              key={i}
+              className="belt-package"
+              style={{ animationDuration: `${beltDuration}s`, animationDelay: `${(-beltDuration / 7) * i}s` }}
+            />
+          ))}
+        </div>
         <div className="station-grid">
           {line.stations.map((station, index) => {
             const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
@@ -587,10 +694,11 @@ function FloorLine({
                 theme={theme}
                 worker={worker}
                 present={present}
+                working={present && running}
                 hasTarget={hasTarget}
                 isSkillMatch={isSkillMatch}
                 selectedWorker={selectedWorker}
-                onAssign={() => selectedWorkerId && onAssign(selectedWorkerId, lineId, station.id)}
+                onPlace={(wid) => onAssign(wid, lineId, station.id)}
                 onSelect={() => worker && onSelectWorker(worker.id)}
                 onUnassign={(event) => {
                   event.stopPropagation();
@@ -606,69 +714,82 @@ function FloorLine({
 }
 
 function StationTile({
-  index, stationName, theme, worker, present, hasTarget, isSkillMatch, selectedWorker,
-  onAssign, onSelect, onUnassign,
+  index, stationName, theme, worker, present, working, hasTarget, isSkillMatch, selectedWorker,
+  onPlace, onSelect, onUnassign,
 }: {
   index: number;
   stationName: string;
   theme: { icon: string; color: string; note: string };
   worker: Worker | null;
   present: boolean;
+  working: boolean;
   hasTarget: boolean;
   isSkillMatch: boolean;
   selectedWorker: Worker | null;
-  onAssign: () => void;
+  onPlace: (workerId: string) => void;
   onSelect: () => void;
   onUnassign: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
   const profile = worker ? profileForWorker(worker) : null;
   const selectedProfile = selectedWorker ? profileForWorker(selectedWorker) : null;
   const stationClass = [
     'station-card',
     worker ? 'occupied' : 'empty',
     present ? 'present' : '',
+    working ? 'working' : '',
     hasTarget ? 'targeting' : '',
     isSkillMatch ? 'match' : '',
+    dragOver ? 'drag-over' : '',
     worker && !present ? 'absent' : '',
   ].filter(Boolean).join(' ');
+
+  const handleClick = () => {
+    if (hasTarget && selectedWorker) onPlace(selectedWorker.id);
+    else onSelect();
+  };
 
   return (
     <button
       type="button"
       className={stationClass}
       style={{ '--station-color': theme.color } as React.CSSProperties}
-      onClick={hasTarget ? onAssign : onSelect}
+      onClick={handleClick}
+      onDragOver={e => { if (e.dataTransfer.types.includes(WORKER_DND_MIME)) { e.preventDefault(); setDragOver(true); } }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={e => {
+        e.preventDefault();
+        setDragOver(false);
+        const wid = e.dataTransfer.getData(WORKER_DND_MIME);
+        if (wid) onPlace(wid);
+      }}
     >
       <div className="station-topline">
-        <span className="station-index">{String(index + 1).padStart(2, '0')}</span>
-        <span className="station-code">{theme.icon}</span>
+        <span className="station-code" style={{ background: theme.color }}>{theme.icon}</span>
+        <span className="station-name-tag">{stationName}</span>
+        {worker && (
+          <button type="button" className="station-clear" title="Unassign worker" onClick={onUnassign}>✕</button>
+        )}
       </div>
 
       <div className="station-body">
         {worker && profile ? (
           <>
             <CharacterAvatar worker={worker} />
-            <div className="min-w-0 flex-1 text-left">
-              <div className="truncate text-lg font-black text-white">{profile.firstName}</div>
-              <div className="truncate text-sm font-bold text-slate-300">{worker.name}</div>
-              <div className={`mt-2 inline-flex rounded px-2 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] ${present ? 'bg-emerald-300 text-slate-950' : 'bg-rose-400 text-white'}`}>
-                {present ? 'On deck' : 'No-show'}
-              </div>
+            <div className="station-name truncate">{profile.firstName}</div>
+            <div className={`station-status ${present ? 'on' : 'off'}`}>
+              {present ? (working ? 'Working' : 'On deck') : 'No-show'}
             </div>
-            <button type="button" className="station-clear" title="Unassign worker" onClick={onUnassign}>
-              X
-            </button>
           </>
         ) : (
           <div className="empty-station">
             <div className="empty-icon">{theme.note}</div>
-            <div className="text-lg font-black text-white">{stationName}</div>
-            <div className={isSkillMatch ? 'text-amber-200' : hasTarget ? 'text-slate-200' : 'text-slate-500'}>
+            <div className={`empty-prompt ${isSkillMatch ? 'match' : hasTarget ? 'ready' : ''}`}>
               {hasTarget
                 ? isSkillMatch
-                  ? `${selectedProfile?.firstName ?? 'Crew'} match`
-                  : `Assign ${selectedProfile?.firstName ?? 'crew'}`
-                : 'Open station'}
+                  ? `${selectedProfile?.firstName ?? 'Crew'} fits`
+                  : `Place ${selectedProfile?.firstName ?? 'crew'}`
+                : 'Open'}
             </div>
           </div>
         )}
@@ -677,10 +798,9 @@ function StationTile({
       {worker ? (
         <div className="station-bars">
           <MiniBar label="Mood" value={worker.morale} />
-          <MiniBar label="Trust" value={worker.reliability} />
         </div>
       ) : (
-        <div className="station-hint">{hasTarget ? 'Click to place' : 'Select a crew card first'}</div>
+        <div className="station-hint">{hasTarget ? 'Tap / drop here' : 'Pick a worker'}</div>
       )}
     </button>
   );
@@ -875,12 +995,19 @@ function BenchWorker({
 }: { worker: Worker; selectedWorkerId: string | null; onSelect: () => void }) {
   const isSelected = selectedWorkerId === worker.id;
   const profile = profileForWorker(worker);
+  const absent = !worker.presentThisShift;
 
   return (
     <button
       type="button"
-      onClick={onSelect}
-      className={`crew-card ${isSelected ? 'selected' : ''}`}
+      onClick={absent ? undefined : onSelect}
+      disabled={absent}
+      draggable={!absent}
+      onDragStart={absent ? undefined : (e => {
+        e.dataTransfer.setData(WORKER_DND_MIME, worker.id);
+        e.dataTransfer.effectAllowed = 'move';
+      })}
+      className={`crew-card ${isSelected ? 'selected' : ''} ${absent ? 'absent' : ''}`}
       style={{ '--crew-color': profile.palette } as React.CSSProperties}
     >
       <CharacterAvatar worker={worker} />
@@ -888,7 +1015,9 @@ function BenchWorker({
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <div className="truncate text-lg font-black text-white">{profile.firstName}</div>
-            {flightRisk(worker) !== 'low' && (
+            {absent ? (
+              <span className="risk-badge risk-badge-absent">No-show</span>
+            ) : flightRisk(worker) !== 'low' && (
               <span className={`risk-badge risk-badge-${flightRisk(worker)}`}>
                 {flightRisk(worker) === 'high' ? 'Flight risk' : 'Watch'}
               </span>
@@ -1290,6 +1419,284 @@ function FrontOfficeTab({
           {temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert
         </div>
       </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// OBJECTIVES — the progression ladder, surfaced on the Floor
+// ---------------------------------------------------------------------------
+
+function ObjectivesPanel({ state }: { state: GameState }) {
+  const open = openObjectives(state, 3);
+  const cleared = state.completedObjectives.length;
+  return (
+    <section className="game-panel p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="eyebrow">Career goals</div>
+          <h2 className="text-2xl font-black text-white">Objectives</h2>
+        </div>
+        <div className="objective-count">{cleared}/{OBJECTIVES.length}</div>
+      </div>
+      {open.length > 0 ? (
+        <div className="space-y-2">
+          {open.map(o => <ObjectiveRow key={o.id} obj={o} state={state} />)}
+        </div>
+      ) : (
+        <div className="empty-bench">Every goal cleared. You run a hell of a floor.</div>
+      )}
+    </section>
+  );
+}
+
+function ObjectiveRow({ obj, state }: { obj: Objective; state: GameState }) {
+  const prog = obj.progress?.(state);
+  const ratio = prog ? Math.min(1, prog.current / prog.target) : 0;
+  const progText = prog
+    ? prog.target >= 1000
+      ? `${formatCurrency(prog.current)} / ${formatCurrency(prog.target)}`
+      : `${prog.current}/${prog.target}`
+    : '';
+  return (
+    <div className="objective-row">
+      <div className="flex items-center justify-between gap-2">
+        <span className="objective-label">{obj.label}</span>
+        <span className="objective-reward">+{formatCurrency(obj.reward)}</span>
+      </div>
+      <div className="objective-hint">{obj.hint}</div>
+      {prog && (
+        <div className="objective-rail">
+          <div style={{ width: `${Math.max(4, ratio * 100)}%` }} />
+          <span className="objective-progress-text">{progText}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Compact list of the orders behind the hero contract — the visible backlog.
+function OrdersStrip({ orders, tick }: { orders: Order[]; tick: number }) {
+  return (
+    <section className="game-panel p-4">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="eyebrow">Contract board</div>
+        <span className="text-xs font-bold text-slate-400">{orders.length} more queued</span>
+      </div>
+      <div className="orders-strip">
+        {orders.map(o => {
+          const remaining = o.deadline - tick;
+          const progress = o.unitsCompleted / o.units;
+          const urgent = remaining < TICKS_PER_SHIFT;
+          return (
+            <div key={o.id} className="order-mini">
+              <div className="flex items-center justify-between gap-2">
+                <span className="order-mini-sku">{o.sku}</span>
+                <span className={`order-mini-clock ${remaining <= 0 ? 'danger' : urgent ? 'warn' : ''}`}>
+                  {ticksToTimeRemaining(remaining)}
+                </span>
+              </div>
+              <div className="order-mini-rail">
+                <div style={{ width: `${Math.min(100, Math.max(2, progress * 100))}%` }} />
+              </div>
+              <div className="order-mini-meta">{Math.round(o.unitsCompleted)} / {o.units}</div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// JUICE — toasts, offline welcome-back, and the game-over wall
+// ---------------------------------------------------------------------------
+
+interface ToastSpec { text: string; tone: string; tag: string; sound?: SoundKind }
+interface ToastItem extends ToastSpec { id: string }
+
+// Which events earn a pop-up + sound. Deliberately a subset — payroll, morale
+// drift, and per-worker attendance would be noise.
+function toastForEvent(e: GameEvent): ToastSpec | null {
+  const p = e.payload as Record<string, unknown>;
+  switch (e.type) {
+    case 'ORDER_COMPLETED':
+      return { text: `Order ${p.sku} shipped · +$${Math.round(p.revenue as number).toLocaleString()}`, tone: 'toast-good', tag: 'WIN', sound: 'cash' };
+    case 'OBJECTIVE_COMPLETED':
+      return { text: `Goal cleared: ${p.label} · +$${(p.reward as number).toLocaleString()}`, tone: 'toast-gold', tag: 'GOAL', sound: 'win' };
+    case 'WORKER_HIRED':
+      return { text: `${p.workerName} joined the crew`, tone: 'toast-good', tag: 'HIRE', sound: 'hire' };
+    case 'WORKER_CONVERTED':
+      return { text: `${p.workerName} is now a company employee`, tone: 'toast-good', tag: 'PERM', sound: 'hire' };
+    case 'LEAD_PROMOTED':
+      return { text: `${p.workerName} promoted to lead`, tone: 'toast-good', tag: 'LEAD', sound: 'click' };
+    case 'LINE_PURCHASED':
+      return { text: `${p.lineName} opened`, tone: 'toast-good', tag: 'BUILD', sound: 'win' };
+    case 'WORKER_QUIT':
+      return { text: `${p.workerName} quit`, tone: 'toast-bad', tag: 'QUIT', sound: 'bad' };
+    case 'INCIDENT':
+      return { text: `Floor incident · -$${Math.round(p.cost as number).toLocaleString()}`, tone: 'toast-bad', tag: 'SAFETY', sound: 'bad' };
+    case 'ORDER_MISSED':
+      return { text: `Order ${p.sku} blew its deadline`, tone: 'toast-bad', tag: 'LATE', sound: 'alert' };
+    case 'CASH_WARNING':
+      return { text: `Cash in the red — deliver orders or cut costs`, tone: 'toast-alert', tag: 'CASH', sound: 'alert' };
+    case 'GAME_OVER':
+      return { text: `The plant shut down`, tone: 'toast-bad', tag: 'OVER', sound: 'over' };
+    default:
+      return null;
+  }
+}
+
+function Toasts({ toasts, onDone }: { toasts: ToastItem[]; onDone: (id: string) => void }) {
+  return (
+    <div className="toast-stack" aria-live="polite">
+      {toasts.map(t => <Toast key={t.id} toast={t} onDone={onDone} />)}
+    </div>
+  );
+}
+
+function Toast({ toast, onDone }: { toast: ToastItem; onDone: (id: string) => void }) {
+  useEffect(() => {
+    const id = setTimeout(() => onDone(toast.id), 3400);
+    return () => clearTimeout(id);
+  }, [toast.id, onDone]);
+  return (
+    <button type="button" className={`toast ${toast.tone}`} onClick={() => onDone(toast.id)}>
+      <span className="toast-tag">{toast.tag}</span>
+      <span className="min-w-0 flex-1 text-left">{toast.text}</span>
+    </button>
+  );
+}
+
+function SummaryStat({ label, value, good }: { label: string; value: string; good: boolean }) {
+  return (
+    <div className={`summary-stat ${good ? 'good' : 'bad'}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function OfflineModal({ summary, onClose }: { summary: OfflineSummary; onClose: () => void }) {
+  const gain = summary.cashDelta;
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="overlay-card" onClick={e => e.stopPropagation()}>
+        <div className="eyebrow">While you were away</div>
+        <h2 className="mt-1 text-3xl font-black text-white">{formatAwayTime(summary.awayMs)} off the clock</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-300">
+          The crew kept the belt moving{summary.capped ? ' — credited up to the offline cap' : ''}.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <SummaryStat label="Net cash" value={`${gain >= 0 ? '+' : '-'}${formatCurrency(Math.abs(gain))}`} good={gain >= 0} />
+          <SummaryStat label="Orders shipped" value={`${summary.ordersCompleted}`} good />
+          {summary.ordersMissed > 0 && <SummaryStat label="Orders missed" value={`${summary.ordersMissed}`} good={false} />}
+          {summary.quits > 0 && <SummaryStat label="Walked off" value={`${summary.quits}`} good={false} />}
+          {summary.incidents > 0 && <SummaryStat label="Incidents" value={`${summary.incidents}`} good={false} />}
+          {summary.objectives > 0 && <SummaryStat label="Goals cleared" value={`${summary.objectives}`} good />}
+        </div>
+        {summary.gameOver && <p className="mt-3 text-sm font-black text-rose-300">The plant went under while you were gone.</p>}
+        <button type="button" onClick={onClose} className="game-button game-button-primary mt-5 w-full">
+          Back to the floor
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GameOverOverlay({ state, onRestart }: { state: GameState; onRestart: () => void }) {
+  return (
+    <div className="overlay">
+      <div className="overlay-card text-center">
+        <div className="eyebrow">Run over</div>
+        <h2 className="mt-1 text-4xl font-black text-white">Plant Shut Down</h2>
+        <p className="mt-2 text-sm font-semibold text-slate-300">
+          You ran out of cash on Day {state.day + 1}. Payroll waits for no one — keep a cushion next run.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-left">
+          <SummaryStat label="Orders shipped" value={`${state.completedOrders}`} good />
+          <SummaryStat label="Orders missed" value={`${state.missedOrders}`} good={false} />
+          <SummaryStat label="Goals cleared" value={`${state.completedObjectives.length}/${OBJECTIVES.length}`} good />
+          <SummaryStat label="Days run" value={`${state.day + 1}`} good />
+        </div>
+        <button type="button" onClick={onRestart} className="game-button game-button-primary mt-5 w-full">
+          Start a new plant
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// The morning standup: the clock is held while the player staffs from whoever
+// showed up. This is the core sim beat — every day you re-staff the lines.
+function MorningBanner({
+  state, condition, canRepeat, onRepeat, onStart,
+}: {
+  state: GameState;
+  condition: DayConditionInfo;
+  canRepeat: boolean;
+  onRepeat: () => void;
+  onStart: () => void;
+}) {
+  const workers = Object.values(state.workers);
+  const present = workers.filter(w => w.presentThisShift);
+  const absent = workers.filter(w => !w.presentThisShift);
+  const totalStations = Object.values(state.lines).reduce((n, l) => n + l.stations.length, 0);
+  const staffed = Object.values(state.lines).reduce(
+    (n, l) => n + l.stations.filter(s => s.assignedWorkerId).length, 0
+  );
+  const day = dayOfTick(state.tick);
+
+  return (
+    <section className={`morning-banner tone-${condition.tone} mb-4`}>
+      <div className="min-w-0">
+        <div className="eyebrow">Day {day + 1} · {weekday(day)} — Morning standup</div>
+        <h2 className="text-2xl font-black text-white">Who showed up today?</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-200">
+          <strong className="text-emerald-300">{present.length}</strong> of {workers.length} clocked in
+          {absent.length > 0 && <> · <strong className="text-rose-300">{absent.length}</strong> no-show{absent.length > 1 ? 's' : ''}</>}.
+          {' '}{condition.label}: {condition.note}.
+        </p>
+        {absent.length > 0 && (
+          <p className="mt-1 text-xs font-bold text-rose-200/90">
+            Out today: {absent.map(w => w.name.split(' ')[0]).join(', ')}
+          </p>
+        )}
+        <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-slate-300">
+          {staffed}/{totalStations} stations staffed
+        </p>
+      </div>
+      <div className="morning-actions">
+        <button
+          type="button"
+          onClick={onRepeat}
+          disabled={!canRepeat}
+          title={canRepeat ? "Re-seat everyone who's back to their old station" : 'No prior lineup to repeat yet'}
+          className="game-button game-button-muted"
+        >
+          Repeat yesterday
+        </button>
+        <button type="button" onClick={onStart} className="game-button game-button-primary">
+          Start shift ▸
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// Fixed bottom prompt (above the tab bar) once a worker is picked — the
+// mobile-friendly half of "tap a worker, tap a station" so the cue never
+// scrolls off-screen while the stations sit higher up the page.
+function PlacingBar({ worker, onCancel }: { worker: Worker; onCancel: () => void }) {
+  const profile = profileForWorker(worker);
+  return (
+    <div className="placing-bar">
+      <CharacterAvatar worker={worker} size="sm" />
+      <div className="min-w-0 flex-1">
+        <div className="placing-title">Placing {profile.firstName}</div>
+        <div className="placing-sub">Tap a station — or drag the card onto a slot</div>
+      </div>
+      <button type="button" className="placing-cancel" onClick={onCancel}>Cancel</button>
     </div>
   );
 }

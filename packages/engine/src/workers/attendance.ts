@@ -8,6 +8,11 @@ export function processAttendance(state: GameState): { state: GameState; events:
   const events: GameEvent[] = [];
   const updatedWorkers = { ...state.workers };
 
+  // The very first shift, the hand-cast starting crew always shows — a no-show
+  // before the player has done anything is a terrible first impression, not a
+  // meaningful gameplay beat. The attendance lottery starts on shift two.
+  const firstShift = state.tick === 0;
+
   // Weather/holiday conditions, meals/incentives, and the standing attendance
   // program all shift the whole crew's odds of showing up today.
   const dayModifier = dayAttendanceModifier(state) + attendanceProgramBonus(state);
@@ -21,7 +26,7 @@ export function processAttendance(state: GameState): { state: GameState; events:
     // sickness prone, ...) push it further per person.
     const workerModifier = dayModifier + payAttendanceBonus(worker, state.payPolicy)
       + workerAttendanceMod(worker);
-    const present = rng <= attendanceProbability(worker, workerModifier);
+    const present = firstShift || rng <= attendanceProbability(worker, workerModifier);
     updatedWorkers[worker.id] = { ...worker, presentThisShift: present };
 
     if (!present) {

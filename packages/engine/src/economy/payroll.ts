@@ -1,12 +1,23 @@
-import { GameState, GameEvent } from '../types';
+import { GameState, GameEvent, Worker } from '../types';
 import { effectiveWage, programsPerShiftCost } from './staffing';
 
-// You pay everyone on the roster each shift, bench or not — scaled by your pay
-// policy — plus the cost of any standing programs. This is the spend pressure
-// that makes "should I hire another body / pay up / run a program?" a real call.
+// The set of workers actually on the clock: present AND seated at a station. A
+// no-show isn't paid, and neither is someone left on the bench — you pay for
+// hours worked on the floor, the way temp labor actually bills.
+export function workingWorkers(state: GameState): Worker[] {
+  const assigned = new Set<string>();
+  for (const line of Object.values(state.lines)) {
+    for (const st of line.stations) {
+      if (st.assignedWorkerId) assigned.add(st.assignedWorkerId);
+    }
+  }
+  return Object.values(state.workers).filter(w => w.presentThisShift && assigned.has(w.id));
+}
+
+// Payroll = wages for the crew that actually worked + any standing program costs.
+// This is the spend pressure that makes "who do I deploy today?" a real call.
 export function totalPayroll(state: GameState): number {
-  const wages = Object.values(state.workers)
-    .reduce((sum, w) => sum + effectiveWage(w, state.payPolicy), 0);
+  const wages = workingWorkers(state).reduce((sum, w) => sum + effectiveWage(w, state.payPolicy), 0);
   return wages + programsPerShiftCost(state);
 }
 

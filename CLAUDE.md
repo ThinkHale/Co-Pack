@@ -9,7 +9,7 @@ Co-Pack is a contract packaging idle/simulation game. Two builds share one engin
 ## Key Conventions
 - Engine is the source of truth. UI packages consume it; they never contain game logic.
 - All game state lives in `GameState` (see `packages/engine/src/types.ts`)
-- 1 tick = 1 game-minute. 480 ticks = 1 shift. 1440 ticks = 1 game-day.
+- 1 tick = 1 game-minute. 1 shift = 1 operating day = 600 ticks (10 hours). `packages/engine/src/time.ts` is the single source of truth (`TICKS_PER_SHIFT`/`TICKS_PER_DAY`); attendance/payroll/morale fire at `tick % TICKS_PER_SHIFT === 0`.
 - `seededRandom()` must be used for all in-engine randomness so scenarios are deterministic.
 - Events flow outward from the engine. UI subscribes to events; it never mutates state directly.
 

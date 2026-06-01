@@ -5,7 +5,13 @@ import {
   hireWorker as engineHire, HIRE_COST,
   setGlobalPayRate, toggleSkillRequest, toggleProgram,
   upgradeAutomation, promoteLead, convertToPermanent,
+  assignWorker as engineAssign, unassignStation as engineUnassign,
+  repeatStaffing as engineRepeat, startShift as engineStartShift,
 } from '@copack/engine';
+import {
+  loadGame, saveGame, clearSave, runOfflineCatchUp,
+  type OfflineSummary, type UiPrefs,
+} from '../lib/persistence';
 
 export type SpeedSetting = 1 | 4 | 16;
 export type TabKey = 'floor' | 'staffing' | 'office';
@@ -19,6 +25,9 @@ interface GameStore {
   paused: boolean;
   speed: SpeedSetting;
   tab: TabKey;
+  soundOn: boolean;
+  offlineSummary: OfflineSummary | null;
+  bootedFromSave: boolean;
   runTick: () => void;
   reset: () => void;
   setTab: (tab: TabKey) => void;
@@ -27,6 +36,11 @@ interface GameStore {
   unassignStation: (lineId: string, stationId: string) => void;
   togglePause: () => void;
   setSpeed: (s: SpeedSetting) => void;
+  toggleSound: () => void;
+  dismissOffline: () => void;
+  save: () => void;
+  repeatStaffing: () => void;
+  startShift: () => void;
   hireWorker: () => void;
   buyLine: () => void;
   toggleOvertime: () => void;
@@ -46,81 +60,80 @@ interface GameStore {
 
 export { HIRE_COST };
 
+// --- Boot: load any save and fast-forward through the time away ---
+const loaded = loadGame();
+const boot = (() => {
+  if (loaded) {
+    const { state, summary } = runOfflineCatchUp(loaded.state, loaded.savedAt, loaded.prefs.paused);
+    return { state, prefs: loaded.prefs, offlineSummary: summary, bootedFromSave: true };
+  }
+  const prefs: UiPrefs = { speed: DEFAULT_SPEED, paused: false, tab: 'floor', soundOn: true };
+  return { state: createInitialState(), prefs, offlineSummary: null, bootedFromSave: false };
+})();
+
 // Fold engine output (new state + events) back into the store, capping the log.
 function applyEngineResult(store: GameStore, result: { state: GameState; events: GameEvent[] }) {
   const eventLog = [...store.state.eventLog, ...result.events].slice(-100);
   return { state: { ...result.state, eventLog }, events: result.events };
 }
 
-export const useGameStore = create<GameStore>((set) => ({
-  state: createInitialState(),
+export const useGameStore = create<GameStore>((set, get) => ({
+  state: boot.state,
   events: [],
   selectedWorkerId: null,
-  paused: false,
-  speed: DEFAULT_SPEED,
-  tab: 'floor',
+  paused: boot.prefs.paused,
+  speed: boot.prefs.speed,
+  tab: boot.prefs.tab,
+  soundOn: boot.prefs.soundOn,
+  offlineSummary: boot.offlineSummary,
+  bootedFromSave: boot.bootedFromSave,
 
   runTick: () =>
     set((store) => {
+      // The clock holds during the morning standup and after a shutdown.
+      if (store.state.gameOver || store.state.awaitingStaffing) return {};
       const { state: newState, events: newEvents } = tick(store.state);
       const eventLog = [...store.state.eventLog, ...newEvents].slice(-100);
       return { state: { ...newState, eventLog }, events: newEvents };
     }),
 
-  reset: () => set({
-    state: createInitialState(), events: [],
-    selectedWorkerId: null, paused: false, speed: DEFAULT_SPEED, tab: 'floor',
-  }),
+  reset: () => {
+    clearSave();
+    set({
+      state: createInitialState(), events: [],
+      selectedWorkerId: null, paused: false, speed: DEFAULT_SPEED, tab: 'floor',
+      offlineSummary: null, bootedFromSave: false,
+    });
+  },
 
   setTab: (tab) => set({ tab }),
 
   selectWorker: (id) =>
     set((store) => ({ selectedWorkerId: store.selectedWorkerId === id ? null : id })),
 
+  // Assignment lives in the engine now (source of truth); the store just calls it.
   assignWorker: (workerId, lineId, stationId) =>
-    set((store) => {
-      const lines = { ...store.state.lines };
-
-      // Remove worker from any station they're currently on (across all lines)
-      const cleanedLines = Object.fromEntries(
-        Object.entries(lines).map(([lid, l]) => [
-          lid,
-          {
-            ...l,
-            stations: l.stations.map(s =>
-              s.assignedWorkerId === workerId ? { ...s, assignedWorkerId: undefined } : s
-            ),
-          },
-        ])
-      );
-
-      // Assign to new station
-      cleanedLines[lineId] = {
-        ...cleanedLines[lineId],
-        stations: cleanedLines[lineId].stations.map(s =>
-          s.id === stationId ? { ...s, assignedWorkerId: workerId } : s
-        ),
-      };
-
-      return { state: { ...store.state, lines: cleanedLines }, selectedWorkerId: null };
-    }),
+    set((store) => ({
+      state: engineAssign(store.state, workerId, lineId, stationId),
+      selectedWorkerId: null,
+    })),
 
   unassignStation: (lineId, stationId) =>
-    set((store) => {
-      const lines = {
-        ...store.state.lines,
-        [lineId]: {
-          ...store.state.lines[lineId],
-          stations: store.state.lines[lineId].stations.map(s =>
-            s.id === stationId ? { ...s, assignedWorkerId: undefined } : s
-          ),
-        },
-      };
-      return { state: { ...store.state, lines } };
-    }),
+    set((store) => ({ state: engineUnassign(store.state, lineId, stationId) })),
+
+  repeatStaffing: () => set((store) => applyEngineResult(store, engineRepeat(store.state))),
+
+  startShift: () => set((store) => applyEngineResult(store, engineStartShift(store.state))),
 
   togglePause: () => set((store) => ({ paused: !store.paused })),
   setSpeed: (speed) => set({ speed }),
+  toggleSound: () => set((store) => ({ soundOn: !store.soundOn })),
+  dismissOffline: () => set({ offlineSummary: null }),
+
+  save: () => {
+    const s = get();
+    saveGame(s.state, { speed: s.speed, paused: s.paused, tab: s.tab, soundOn: s.soundOn });
+  },
 
   hireWorker: () => set((store) => applyEngineResult(store, engineHire(store.state))),
 
@@ -138,6 +151,7 @@ export const useGameStore = create<GameStore>((set) => ({
           overtime,
           eventLog: [...store.state.eventLog, event].slice(-100),
         },
+        events: [event],
       };
     }),
 

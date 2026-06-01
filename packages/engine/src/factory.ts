@@ -1,5 +1,6 @@
 import { GameState, Worker, Line, Client, Order } from './types';
 import { generateAppearance } from './workers/appearance';
+import { TICKS_PER_DAY } from './time';
 
 export function createInitialState(): GameState {
   // The starting three are hand-cast so the player meets distinct people on day one.
@@ -44,7 +45,7 @@ export function createInitialState(): GameState {
   const order1: Order = {
     id: 'ord1', clientId: 'c1', sku: 'SKU-001',
     units: 300, unitsCompleted: 0,
-    deadline: 1440,
+    deadline: TICKS_PER_DAY * 2, // two shifts to land the first contract
     revenuePerUnit: 2.50,
     qualityThreshold: 0.9,
   };
@@ -64,6 +65,11 @@ export function createInitialState(): GameState {
     programs: { attendance: false, referral: false },
     nextWorkerId: 4, // w1..w3 already taken
     staffingHistory: [],
+    completedObjectives: [],
+    cashWarned: false,
+    gameOver: false,
+    awaitingStaffing: false, // tick 0 rolls attendance, then opens the Day-1 staffing standup
+    previousAssignments: {},
     workers: { w1: worker1, w2: worker2, w3: worker3 },
     lines: { line1 },
     clients: { c1: client1 },
