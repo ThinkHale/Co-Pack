@@ -7,6 +7,7 @@ import { processOrders } from './clients/orders';
 import { processPayroll } from './economy/payroll';
 import { processIncidents } from './events/incidents';
 import { rollEvents } from './events/random';
+import { rollShiftChallenge } from './events/challenges';
 import { dayCondition } from './events/conditions';
 import { recordStaffingDay } from './economy/staffing-board';
 import { evaluateObjectives } from './progression/objectives';
@@ -58,8 +59,12 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
     // Remember the lineup, empty the stations, and hold for the morning standup.
     const previousAssignments = captureAssignments(s);
     s = clearAssignments(s);
-    s = { ...s, previousAssignments, awaitingStaffing: true };
+    s = { ...s, previousAssignments, awaitingStaffing: true, shiftChallenge: null };
   }
+
+  const rc = rollShiftChallenge(s);
+  s = rc.state;
+  events.push(...rc.events);
 
   const r2 = processThroughput(s);
   s = r2.state;

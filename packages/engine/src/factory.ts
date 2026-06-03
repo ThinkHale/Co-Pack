@@ -12,6 +12,7 @@ export function createInitialState(): GameState {
     permanent: false, isLead: false,
     skills: [{ stationId: 's1', proficiency: 0.70 }], // trained: Induct
     presentThisShift: true,
+    missedShifts: 0, sentHomeShifts: 0, shiftsWorked: 0, totalUnits: 0, shiftUnits: 0,
   };
   const worker2: Worker = {
     id: 'w2', name: 'Diana R.',
@@ -21,6 +22,7 @@ export function createInitialState(): GameState {
     permanent: false, isLead: false,
     skills: [{ stationId: 's2', proficiency: 0.85 }], // trained: Pack — loves the work
     presentThisShift: true,
+    missedShifts: 0, sentHomeShifts: 0, shiftsWorked: 0, totalUnits: 0, shiftUnits: 0,
   };
   const worker3: Worker = {
     id: 'w3', name: 'Jerome K.',
@@ -30,6 +32,7 @@ export function createInitialState(): GameState {
     permanent: false, isLead: false,
     skills: [{ stationId: 's3', proficiency: 0.65 }], // trained: Stage — harder to please
     presentThisShift: true,
+    missedShifts: 0, sentHomeShifts: 0, shiftsWorked: 0, totalUnits: 0, shiftUnits: 0,
   };
 
   // 3-station line: all three stages must be staffed to produce finished units
@@ -69,6 +72,9 @@ export function createInitialState(): GameState {
     cashWarned: false,
     gameOver: false,
     awaitingStaffing: false, // tick 0 rolls attendance, then opens the Day-1 staffing standup
+    shiftChallenge: null,
+    challengeCooldownUntil: 0,
+    lastShiftReport: null,
     previousAssignments: {},
     workers: { w1: worker1, w2: worker2, w3: worker3 },
     lines: { line1 },

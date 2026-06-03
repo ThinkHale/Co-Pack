@@ -21,5 +21,6 @@ export * from './economy/frontoffice';
 export * from './economy/solvency';
 export * from './events/conditions';
 export * from './events/incidents';
+export * from './events/challenges';
 export * from './progression/objectives';
 export * from './utils/random';

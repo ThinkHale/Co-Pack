@@ -194,6 +194,17 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         tone: met ? 'event-good' : 'event-alert', tag: 'BOARD',
       };
     }
+    case 'SHIFT_CHALLENGE':
+      return {
+        text: `${p.title}${p.lineName ? ` (${p.lineName})` : ''}`,
+        tone: 'event-alert', tag: 'CALL',
+      };
+    case 'CHALLENGE_RESOLVED':
+      return {
+        text: `${p.result ?? p.title}`,
+        tone: (p.reputationDelta as number | undefined) && (p.reputationDelta as number) < 0 ? 'event-alert' : 'event-good',
+        tag: 'DONE',
+      };
     case 'SHIFT_START': {
       const day = Math.floor(e.tick / TICKS_PER_DAY) + 1;
       return { text: `Day ${day} starting.`, tone: 'event-neutral', tag: 'TIME' };
@@ -224,7 +235,7 @@ function Game() {
     runTick, reset, togglePause, setSpeed, setTab, toggleSound, dismissOffline, save,
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
-    setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker,
+    resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -299,6 +310,7 @@ function Game() {
     0
   );
   const totalStations = Object.values(state.lines).reduce((sum, line) => sum + line.stations.length, 0);
+  const shiftActive = !awaitingStaffing && !gameOver;
   const lineCost = nextLineCost(state);
   const canAffordLine = canBuyLine(state);
   const canShoutout = shoutoutReady(state) && !paused;
@@ -333,7 +345,7 @@ function Game() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:min-w-[700px]">
+            <div className="hud-stats-grid grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:min-w-[700px]">
               <HudStat label="Cash" value={formatCurrency(state.cash)} tone="green" />
               <HudStat
                 label={`Fill · goal ${pct(FILL_RATE_TARGET)}`}
@@ -350,7 +362,7 @@ function Game() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="hud-controls-row mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <div className="speed-toggle" aria-label="Speed controls">
                 {([1, 4, 16] as SpeedSetting[]).map(s => (
@@ -417,7 +429,7 @@ function Game() {
         )}
 
         {tab === 'floor' && (
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="floor-grid grid gap-4 md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_360px]">
             <section className="space-y-4">
               <ConditionsBar
                 condition={condition}
@@ -435,23 +447,19 @@ function Game() {
                 onIncentive={runIncentive}
               />
 
-              {firstOrder ? (
-                <>
-                  <OrderHero
-                    order={firstOrder}
-                    tick={state.tick}
-                    throughput={throughput}
-                    reputation={reputation}
-                    clientName={primaryClient?.name ?? firstOrder.clientId}
-                  />
-                  {sortedOrders.length > 1 && (
-                    <OrdersStrip orders={sortedOrders.slice(1)} tick={state.tick} />
-                  )}
-                </>
-              ) : (
-                <div className="game-panel flex min-h-[180px] items-center justify-center p-5 text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
-                  No active orders
-                </div>
+              <MobileCrewDock
+                benchWorkers={benchWorkers}
+                selectedWorkerId={selectedWorkerId}
+                cash={state.cash}
+                onHire={hireWorker}
+                onSelectWorker={selectWorker}
+                awaitingStaffing={awaitingStaffing}
+                staffedStations={staffedStations}
+                onStartShift={() => { if (soundOn) playSound('click'); startShift(); }}
+              />
+
+              {state.shiftChallenge && (
+                <ShiftChallengeCard challenge={state.shiftChallenge} onResolve={resolveChallenge} />
               )}
 
               {selectedWorker && (
@@ -471,6 +479,7 @@ function Game() {
                   line={line}
                   workers={state.workers}
                   lineRate={lineThroughput(state, line)}
+                  shiftActive={shiftActive}
                   selectedWorkerId={selectedWorkerId}
                   onSelectWorker={selectWorker}
                   onAssign={assignWorker}
@@ -479,19 +488,32 @@ function Game() {
               ))}
             </section>
 
-            <aside className="space-y-4">
-              <ObjectivesPanel state={state} />
-              <CrewPanel
-                benchWorkers={benchWorkers}
-                allAssigned={benchWorkers.length === 0}
-                selectedWorkerId={selectedWorkerId}
-                onHire={hireWorker}
-                cash={state.cash}
-                onSelectWorker={selectWorker}
-              />
-              <EventLog events={recentEvents} />
+            <aside className="floor-sidebar space-y-4">
+              <div className="desktop-crew-panel">
+                <CrewPanel
+                  benchWorkers={benchWorkers}
+                  allAssigned={benchWorkers.length === 0}
+                  selectedWorkerId={selectedWorkerId}
+                  onHire={hireWorker}
+                  cash={state.cash}
+                  onSelectWorker={selectWorker}
+                />
+              </div>
             </aside>
           </div>
+        )}
+
+        {tab === 'orders' && (
+          <OrdersTab
+            state={state}
+            sortedOrders={sortedOrders}
+            firstOrder={firstOrder}
+            throughput={throughput}
+            reputation={reputation}
+            clientName={primaryClient?.name ?? firstOrder?.clientId ?? 'Client'}
+            paused={paused || awaitingStaffing || gameOver}
+            recentEvents={recentEvents}
+          />
         )}
 
         {tab === 'staffing' && (
@@ -516,7 +538,7 @@ function Game() {
         )}
       </main>
 
-      <TabBar tab={tab} onTab={setTab} fillBelowTarget={fillBelowTarget} />
+      <TabBar tab={tab} onTab={setTab} fillBelowTarget={fillBelowTarget} challengeActive={!!state.shiftChallenge} />
 
       {selectedWorker && tab === 'floor' && (
         <PlacingBar worker={selectedWorker} onCancel={() => selectWorker(null)} />
@@ -533,11 +555,14 @@ function Game() {
   );
 }
 
-function TabBar({ tab, onTab, fillBelowTarget }: { tab: TabKey; onTab: (t: TabKey) => void; fillBelowTarget: boolean }) {
+function TabBar({
+  tab, onTab, fillBelowTarget, challengeActive,
+}: { tab: TabKey; onTab: (t: TabKey) => void; fillBelowTarget: boolean; challengeActive: boolean }) {
   const tabs: { key: TabKey; label: string; icon: string }[] = [
-    { key: 'floor', label: 'The Floor', icon: '▚' },
+    { key: 'floor', label: 'Floor', icon: '▚' },
+    { key: 'orders', label: 'Orders', icon: '◫' },
     { key: 'staffing', label: 'Staffing', icon: '☰' },
-    { key: 'office', label: 'Front Office', icon: '★' },
+    { key: 'office', label: 'Office', icon: '★' },
   ];
   return (
     <nav className="tab-bar" aria-label="Main sections">
@@ -550,10 +575,81 @@ function TabBar({ tab, onTab, fillBelowTarget }: { tab: TabKey; onTab: (t: TabKe
         >
           <span className="tab-icon" aria-hidden="true">{t.icon}</span>
           <span>{t.label}</span>
+          {t.key === 'floor' && challengeActive && <span className="tab-dot" aria-label="challenge waiting" />}
           {t.key === 'staffing' && fillBelowTarget && <span className="tab-dot" aria-label="needs attention" />}
         </button>
       ))}
     </nav>
+  );
+}
+
+function OrdersTab({
+  state, sortedOrders, firstOrder, throughput, reputation, clientName, paused, recentEvents,
+}: {
+  state: GameState;
+  sortedOrders: Order[];
+  firstOrder: Order | undefined;
+  throughput: number;
+  reputation: number;
+  clientName: string;
+  paused: boolean;
+  recentEvents: GameEvent[];
+}) {
+  return (
+    <div className="orders-tab-grid grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="space-y-4">
+        {firstOrder ? (
+          <>
+            <OrderHero
+              order={firstOrder}
+              tick={state.tick}
+              throughput={throughput}
+              reputation={reputation}
+              clientName={clientName}
+            />
+            {sortedOrders.length > 1 && (
+              <OrdersStrip orders={sortedOrders.slice(1)} tick={state.tick} />
+            )}
+          </>
+        ) : (
+          <div className="game-panel flex min-h-[180px] items-center justify-center p-5 text-sm font-bold uppercase tracking-[0.16em] text-slate-400">
+            No active orders
+          </div>
+        )}
+
+        <FacilityScene state={state} paused={paused} />
+      </section>
+
+      <aside className="space-y-4">
+        <ObjectivesPanel state={state} />
+        <EventLog events={recentEvents} />
+      </aside>
+    </div>
+  );
+}
+
+function ShiftChallengeCard({
+  challenge, onResolve,
+}: {
+  challenge: NonNullable<GameState['shiftChallenge']>;
+  onResolve: (choiceId: string) => void;
+}) {
+  return (
+    <section className={`challenge-card challenge-${challenge.type}`}>
+      <div className="challenge-copy">
+        <div className="eyebrow">Floor decision</div>
+        <h2>{challenge.title}</h2>
+        <p>{challenge.note}</p>
+      </div>
+      <div className="challenge-actions">
+        {challenge.choices.map(choice => (
+          <button key={choice.id} type="button" onClick={() => onResolve(choice.id)}>
+            <strong>{choice.label}</strong>
+            <span>{choice.note}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -624,16 +720,129 @@ function OrderHero({
   );
 }
 
+function FacilityScene({ state, paused }: { state: GameState; paused: boolean }) {
+  const lines = Object.entries(state.lines);
+  const staffedStations = lines.reduce(
+    (sum, [, line]) => sum + line.stations.filter(s => s.assignedWorkerId).length,
+    0
+  );
+  const presentStations = lines.reduce(
+    (sum, [, line]) => sum + line.stations.filter(
+      s => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift
+    ).length,
+    0
+  );
+
+  return (
+    <section className="facility-panel" aria-label="Facility live view">
+      <div className="facility-head">
+        <div>
+          <div className="eyebrow">Facility live view</div>
+          <h2 className="facility-title">Packaging Floor</h2>
+        </div>
+        <div className="facility-metrics">
+          <span>{lines.length} line{lines.length === 1 ? '' : 's'}</span>
+          <span>{presentStations}/{staffedStations || 0} active crew</span>
+        </div>
+      </div>
+
+      <div className={`facility-view ${paused ? 'paused' : 'running'}`}>
+        <div className="facility-backwall" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="facility-lines">
+          {lines.map(([lineId, line], index) => (
+            <FacilityLine
+              key={lineId}
+              index={index}
+              line={line}
+              workers={state.workers}
+              lineRate={lineThroughput(state, line)}
+              paused={paused}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FacilityLine({
+  index, line, workers, lineRate, paused,
+}: {
+  index: number;
+  line: Line;
+  workers: Record<string, Worker>;
+  lineRate: number;
+  paused: boolean;
+}) {
+  const presentCount = line.stations.filter(
+    s => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift
+  ).length;
+  const running = presentCount > 0 && !paused;
+  const beltDuration = running ? Math.max(1.8, 6 - lineRate * 1.15) : 0;
+  const rowStyle = {
+    '--line-index': index,
+    '--line-speed': `${beltDuration}s`,
+  } as React.CSSProperties;
+
+  return (
+    <div className={`facility-line ${running ? 'running' : 'idle'}`} style={rowStyle}>
+      <div className="facility-line-label">
+        <strong>{line.name}</strong>
+        <span>{presentCount}/{line.stations.length}</span>
+      </div>
+      <div className="facility-track">
+        <div className="facility-belt" />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <span
+            key={i}
+            className="facility-parcel"
+            style={{ animationDelay: `${(-beltDuration / 5) * i}s` }}
+          />
+        ))}
+        <div className="facility-stations">
+          {line.stations.map(station => {
+            const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
+            const present = worker?.presentThisShift ?? false;
+            const theme = STATION_THEMES[station.id] ?? STATION_THEMES.s1;
+            return (
+              <div
+                key={station.id}
+                className={`facility-station ${worker ? 'assigned' : 'empty'} ${present ? 'present' : 'absent'}`}
+                style={{ '--station-color': theme.color } as React.CSSProperties}
+              >
+                <span className="facility-station-code">{theme.icon}</span>
+                {worker ? (
+                  <div className="facility-worker">
+                    <CharacterAvatar worker={worker} size="xs" />
+                    <span>{profileForWorker(worker).firstName}</span>
+                  </div>
+                ) : (
+                  <span className="facility-open-slot" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const WORKER_DND_MIME = 'application/x-copack-worker';
 
 function FloorLine({
-  lineId, line, workers, lineRate, selectedWorkerId,
+  lineId, line, workers, lineRate, shiftActive, selectedWorkerId,
   onSelectWorker, onAssign, onUnassign,
 }: {
   lineId: string;
   line: Line;
   workers: Record<string, Worker>;
   lineRate: number;
+  shiftActive: boolean;
   selectedWorkerId: string | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
@@ -644,7 +853,7 @@ function FloorLine({
   ).length;
   const isStopped = presentCount === 0;
   const isShort = presentCount > 0 && presentCount < line.stations.length;
-  const running = !isStopped;
+  const running = shiftActive && !isStopped;
   const selectedWorker = selectedWorkerId ? workers[selectedWorkerId] : null;
 
   // Belt speed scales with output so a humming line visibly moves faster.
@@ -658,8 +867,12 @@ function FloorLine({
           {line.automation > 0 && <span className="auto-chip">⚙ L{line.automation}</span>}
           {line.leadId && workers[line.leadId] && <span className="tag-lead">LEAD</span>}
         </div>
-        <div className={`line-status ${isStopped ? 'blocked' : isShort ? 'short' : 'running'}`}>
-          {isStopped
+        <div className={`line-status ${!shiftActive && presentCount > 0 ? 'ready' : isStopped ? 'blocked' : isShort ? 'short' : 'running'}`}>
+          {!shiftActive && presentCount > 0
+            ? `Ready ${presentCount}/${line.stations.length}`
+            : !shiftActive
+              ? `Staff ${presentCount}/${line.stations.length}`
+              : isStopped
             ? `Idle · 0/${line.stations.length}`
             : isShort
               ? `Short ${presentCount}/${line.stations.length} · ${lineRate.toFixed(1)}/min`
@@ -990,6 +1203,73 @@ function CrewPanel({
   );
 }
 
+function MobileCrewDock({
+  benchWorkers, selectedWorkerId, cash, onHire, onSelectWorker,
+  awaitingStaffing, staffedStations, onStartShift,
+}: {
+  benchWorkers: Worker[];
+  selectedWorkerId: string | null;
+  cash: number;
+  onHire: () => void;
+  onSelectWorker: (id: string | null) => void;
+  awaitingStaffing: boolean;
+  staffedStations: number;
+  onStartShift: () => void;
+}) {
+  const hasSelection = selectedWorkerId !== null;
+  const canStart = awaitingStaffing && staffedStations > 0;
+
+  return (
+    <div className={`mobile-crew-dock ${hasSelection ? 'has-selection' : ''}`}>
+      <div className="mobile-crew-dock-head">
+        <div>
+          <div className="eyebrow">Bench</div>
+          <strong>{canStart ? `${staffedStations} staffed` : benchWorkers.length > 0 ? 'Tap crew, then station' : 'All deployed'}</strong>
+        </div>
+        {canStart ? (
+          <button type="button" onClick={onStartShift} className="mobile-start-button">
+            Start
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onHire}
+            disabled={cash < HIRE_COST}
+            className="mobile-hire-button"
+          >
+            Hire {formatCurrency(HIRE_COST)}
+          </button>
+        )}
+      </div>
+      {benchWorkers.length > 0 ? (
+        <div className="mobile-crew-strip">
+          {benchWorkers.map(worker => {
+            const profile = profileForWorker(worker);
+            const absent = !worker.presentThisShift;
+            const selected = selectedWorkerId === worker.id;
+            return (
+              <button
+                key={worker.id}
+                type="button"
+                onClick={absent ? undefined : () => onSelectWorker(worker.id)}
+                disabled={absent}
+                className={`mobile-worker-chip ${selected ? 'selected' : ''} ${absent ? 'absent' : ''}`}
+                style={{ '--crew-color': profile.palette } as React.CSSProperties}
+              >
+                <CharacterAvatar worker={worker} size="xs" />
+                <span>{profile.firstName}</span>
+                <small>{profile.role.replace(' crew', '')}</small>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mobile-empty-dock">Every available worker is already on a line.</div>
+      )}
+    </div>
+  );
+}
+
 function BenchWorker({
   worker, selectedWorkerId, onSelect,
 }: { worker: Worker; selectedWorkerId: string | null; onSelect: () => void }) {
@@ -1058,7 +1338,7 @@ function TraitChips({ worker, className = '' }: { worker: Worker; className?: st
   );
 }
 
-function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?: 'sm' | 'md' }) {
+function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?: 'xs' | 'sm' | 'md' }) {
   const profile = profileForWorker(worker);
   return (
     <div
@@ -1536,6 +1816,8 @@ function toastForEvent(e: GameEvent): ToastSpec | null {
       return { text: `${p.workerName} quit`, tone: 'toast-bad', tag: 'QUIT', sound: 'bad' };
     case 'INCIDENT':
       return { text: `Floor incident · -$${Math.round(p.cost as number).toLocaleString()}`, tone: 'toast-bad', tag: 'SAFETY', sound: 'bad' };
+    case 'SHIFT_CHALLENGE':
+      return { text: `${p.title}`, tone: 'toast-alert', tag: 'CALL', sound: 'alert' };
     case 'ORDER_MISSED':
       return { text: `Order ${p.sku} blew its deadline`, tone: 'toast-bad', tag: 'LATE', sound: 'alert' };
     case 'CASH_WARNING':

@@ -7,6 +7,7 @@ import {
   upgradeAutomation, promoteLead, convertToPermanent,
   assignWorker as engineAssign, unassignStation as engineUnassign,
   repeatStaffing as engineRepeat, startShift as engineStartShift,
+  resolveShiftChallenge as engineResolveChallenge,
 } from '@copack/engine';
 import {
   loadGame, saveGame, clearSave, runOfflineCatchUp,
@@ -14,7 +15,7 @@ import {
 } from '../lib/persistence';
 
 export type SpeedSetting = 1 | 4 | 16;
-export type TabKey = 'floor' | 'staffing' | 'office';
+export type TabKey = 'floor' | 'orders' | 'staffing' | 'office';
 
 const DEFAULT_SPEED: SpeedSetting = 4;
 
@@ -48,6 +49,7 @@ interface GameStore {
   train: (workerId: string, stationId: string) => void;
   buyMeal: () => void;
   runIncentive: () => void;
+  resolveChallenge: (choiceId: string) => void;
   // Staffing tab
   setPayRate: (rate: number) => void;
   toggleSkill: (stationId: string) => void;
@@ -163,6 +165,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   buyMeal: () => set((store) => applyEngineResult(store, provideMeal(store.state))),
 
   runIncentive: () => set((store) => applyEngineResult(store, runIncentive(store.state))),
+
+  resolveChallenge: (choiceId) =>
+    set((store) => applyEngineResult(store, engineResolveChallenge(store.state, choiceId))),
 
   setPayRate: (rate) => set((store) => ({ state: setGlobalPayRate(store.state, rate) })),
 

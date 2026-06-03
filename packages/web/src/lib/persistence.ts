@@ -88,6 +88,8 @@ export function loadGame(): LoadedSave | null {
       cashWarned: s.cashWarned ?? false,
       gameOver: s.gameOver ?? false,
       awaitingStaffing: s.awaitingStaffing ?? false,
+      shiftChallenge: s.shiftChallenge ?? null,
+      challengeCooldownUntil: s.challengeCooldownUntil ?? 0,
       previousAssignments: s.previousAssignments ?? {},
       eventLog: s.eventLog ?? [],
     };

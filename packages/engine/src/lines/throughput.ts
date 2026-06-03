@@ -50,10 +50,13 @@ export function lineThroughput(state: GameState, line: Line): number {
   // senior, ...) averaged across the crew, plus line-wide traits (joker, mentor).
   const avgTraitMult = workers.reduce((m, w) => m + workerProductivityMult(w), 0) / workers.length;
   const traitLineMult = lineProductivityMult(workers);
+  const challengeMult = state.shiftChallenge?.lineId === line.id
+    ? state.shiftChallenge.outputMultiplier ?? 1
+    : 1;
 
   return BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier
     * overtimeMultiplier * staffingRatio * leadMultiplier * automationMultiplier(line)
-    * avgTraitMult * traitLineMult;
+    * avgTraitMult * traitLineMult * challengeMult;
 }
 
 // Total units/tick across every active line — the HUD's headline output number.

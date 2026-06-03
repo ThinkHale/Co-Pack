@@ -14,6 +14,11 @@ export interface Worker {
   isLead: boolean;       // a line lead — lifts the morale/output of their line
   referredBy?: string;
   presentThisShift: boolean;
+  missedShifts?: number;     // no-shows, for attendance accountability
+  sentHomeShifts?: number;   // showed up but was not placed, unpaid + morale hit
+  shiftsWorked?: number;     // shifts where they were actually placed on a line
+  totalUnits?: number;       // cumulative contributed output
+  shiftUnits?: number;       // output credited this shift; reset at shift boundary
 }
 
 export interface WorkerAppearance {
@@ -82,11 +87,16 @@ export type GameEventType =
   | 'WORKER_TRAINED'
   | 'WORKER_HIRED'
   | 'WORKER_CONVERTED'
+  | 'WORKER_TERMINATED'
   | 'LEAD_PROMOTED'
   | 'AUTOMATION_UPGRADED'
   | 'DAY_CONDITION'
   | 'ATTENDANCE_BOOST'
   | 'STAFFING_REPORT'
+  | 'SHIFT_CHALLENGE'
+  | 'CHALLENGE_RESOLVED'
+  | 'WORKER_SENT_HOME'
+  | 'SHIFT_IMPACT_REPORT'
   | 'INCIDENT'
   | 'WORKER_QUIT'
   | 'SHIFT_START'
@@ -99,6 +109,52 @@ export interface GameEvent {
   type: GameEventType;
   tick: number;
   payload: Record<string, unknown>;
+}
+
+export type ShiftChallengeType = 'belt_jam' | 'quality_check' | 'early_leave';
+
+export interface ShiftChallengeChoice {
+  id: string;
+  label: string;
+  note: string;
+}
+
+export interface ShiftChallenge {
+  id: string;
+  type: ShiftChallengeType;
+  title: string;
+  note: string;
+  lineId?: string;
+  workerId?: string;
+  createdTick: number;
+  outputMultiplier?: number; // While unresolved, affected line output is multiplied by this.
+  choices: ShiftChallengeChoice[];
+}
+
+export type WorkerShiftStatus = 'worked' | 'sent_home' | 'no_show';
+
+export interface WorkerShiftImpact {
+  workerId: string;
+  workerName: string;
+  status: WorkerShiftStatus;
+  lineName?: string;
+  stationName?: string;
+  units: number;
+  morale: number;
+  missedShifts: number;
+  sentHomeShifts: number;
+  shiftsWorked: number;
+}
+
+export interface ShiftImpactReport {
+  day: number;
+  tick: number;
+  totalUnits: number;
+  payroll: number;
+  workedCount: number;
+  sentHomeCount: number;
+  noShowCount: number;
+  workerImpacts: WorkerShiftImpact[];
 }
 
 // Staffing-agency policy the player sets in the Staffing tab.
@@ -137,6 +193,9 @@ export interface GameState {
   cashWarned: boolean;            // we've already flagged a low-cash warning this slide (de-dupe)
   gameOver: boolean;              // the plant has shut down (bankrupt) — run is over
   awaitingStaffing: boolean;      // shift boundary hit: stations cleared, clock held for the player to re-staff
+  shiftChallenge: ShiftChallenge | null; // active mid-shift decision awaiting player resolution
+  challengeCooldownUntil: number; // tick before which another shift challenge cannot spawn
+  lastShiftReport: ShiftImpactReport | null; // people-centered summary of the shift that just ended
   previousAssignments: Record<string, string>; // "lineId::stationId" -> workerId from the shift just worked (for "Repeat yesterday")
   workers: Record<string, Worker>;
   lines: Record<string, Line>;

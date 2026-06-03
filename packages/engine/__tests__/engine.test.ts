@@ -67,6 +67,7 @@ import {
   repeatStaffing,
   canRepeatStaffing,
   assignWorker,
+  resolveShiftChallenge,
   workingWorkers,
   GameState,
   Worker,
@@ -597,6 +598,66 @@ describe('incidents', () => {
     let any = false;
     for (let t = 0; t < 2000; t++) if (processIncidents({ ...s, tick: t }).events.length) any = true;
     expect(any).toBe(false);
+  });
+});
+
+describe('shift challenges', () => {
+  it('slows a line while a belt challenge is unresolved', () => {
+    const base = staffLineA(createInitialState());
+    const slowed = {
+      ...base,
+      shiftChallenge: {
+        id: 'test-jam',
+        type: 'belt_jam' as const,
+        title: 'Jam',
+        note: 'Test',
+        lineId: 'line1',
+        createdTick: 90,
+        outputMultiplier: 0.5,
+        choices: [],
+      },
+    };
+    expect(lineThroughput(slowed, slowed.lines.line1)).toBeCloseTo(lineThroughput(base, base.lines.line1) * 0.5, 5);
+  });
+
+  it('resolves a maintenance choice and clears the pending challenge', () => {
+    const state = {
+      ...staffLineA(createInitialState()),
+      cash: 1000,
+      shiftChallenge: {
+        id: 'test-jam',
+        type: 'belt_jam' as const,
+        title: 'Jam',
+        note: 'Test',
+        lineId: 'line1',
+        createdTick: 90,
+        outputMultiplier: 0.5,
+        choices: [],
+      },
+    };
+    const { state: after, events } = resolveShiftChallenge(state, 'clear');
+    expect(after.shiftChallenge).toBeNull();
+    expect(after.cash).toBe(880);
+    expect(events[0].type).toBe('CHALLENGE_RESOLVED');
+  });
+
+  it('letting someone leave early opens their station', () => {
+    const state = {
+      ...staffLineA(createInitialState()),
+      shiftChallenge: {
+        id: 'test-leave',
+        type: 'early_leave' as const,
+        title: 'Leave',
+        note: 'Test',
+        lineId: 'line1',
+        workerId: 'w1',
+        createdTick: 90,
+        choices: [],
+      },
+    };
+    const { state: after } = resolveShiftChallenge(state, 'let_go');
+    expect(after.workers.w1.presentThisShift).toBe(false);
+    expect(after.lines.line1.stations.some(s => s.assignedWorkerId === 'w1')).toBe(false);
   });
 });
 
