@@ -16,7 +16,7 @@ import {
   totalThroughput, lineThroughput,
   openObjectives, OBJECTIVES, Objective,
   TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
-  canRepeatStaffing,
+  canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, TabKey, HIRE_COST } from './hooks/useGameStore';
 import { playSound, unlockAudio, SoundKind } from './lib/sound';
@@ -120,7 +120,11 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
     case 'WORKER_ARRIVED':
       return { text: `${p.workerName} clocked in.`, tone: 'event-good', tag: 'CREW' };
     case 'WORKER_NO_SHOW':
-      return { text: `${p.workerName} is a no-show.`, tone: 'event-bad', tag: 'MISS' };
+      return { text: `${p.workerName} is a no-show${p.missedShifts ? ` (${p.missedShifts} missed)` : ''}.`, tone: 'event-bad', tag: 'MISS' };
+    case 'WORKER_SENT_HOME': {
+      const delta = Math.round((p.moraleDelta as number) * 100);
+      return { text: `${p.workerName} was sent home unpaid. Morale ${delta}%.`, tone: 'event-alert', tag: 'HOME' };
+    }
     case 'ORDER_COMPLETED':
       return { text: `Order ${p.sku} complete. +$${(p.revenue as number).toFixed(2)}`, tone: 'event-good', tag: 'WIN' };
     case 'ORDER_MISSED':
@@ -157,6 +161,8 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
       return { text: `${p.workerName} hired${p.referred ? ' (referral)' : ''}. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'HIRE' };
     case 'WORKER_CONVERTED':
       return { text: `${p.workerName} converted to company employee.`, tone: 'event-good', tag: 'PERM' };
+    case 'WORKER_TERMINATED':
+      return { text: `${p.workerName} terminated. Missed ${p.missedShifts} · sent home ${p.sentHomeShifts}.`, tone: 'event-bad', tag: 'TERM' };
     case 'LEAD_PROMOTED':
       return { text: `${p.workerName} promoted to lead on ${p.lineName}.`, tone: 'event-good', tag: 'LEAD' };
     case 'AUTOMATION_UPGRADED':
@@ -199,6 +205,12 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         text: `${p.title}${p.lineName ? ` (${p.lineName})` : ''}`,
         tone: 'event-alert', tag: 'CALL',
       };
+    case 'SHIFT_IMPACT_REPORT':
+      return {
+        text: `Shift closed: ${p.workedCount} worked, ${p.sentHomeCount} sent home, ${p.noShowCount} no-show. ${Math.round(p.totalUnits as number)} units.`,
+        tone: (p.sentHomeCount as number) || (p.noShowCount as number) ? 'event-alert' : 'event-good',
+        tag: 'SHIFT',
+      };
     case 'CHALLENGE_RESOLVED':
       return {
         text: `${p.result ?? p.title}`,
@@ -235,7 +247,7 @@ function Game() {
     runTick, reset, togglePause, setSpeed, setTab, toggleSound, dismissOffline, save,
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
-    resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker,
+    resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker, terminateWorker,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -298,7 +310,10 @@ function Game() {
   const assignedIds = useMemo(
     () => new Set(
       Object.values(state.lines).flatMap(l =>
-        l.stations.map(s => s.assignedWorkerId).filter(Boolean) as string[]
+        [
+          ...(l.stations.map(s => s.assignedWorkerId).filter(Boolean) as string[]),
+          ...(l.supportWorkerIds ?? []),
+        ]
       )
     ),
     [state.lines]
@@ -322,6 +337,12 @@ function Game() {
   const condition = dayCondition(state.day);
   const attendanceSwing = dayAttendanceModifier(state);
   const breakdown = moraleBreakdown(state.workers);
+  const onTerminateWorker = useCallback((worker: Worker) => {
+    const missed = worker.missedShifts ?? 0;
+    const sentHome = worker.sentHomeShifts ?? 0;
+    const message = `Terminate ${worker.name}? They have missed ${missed} shift${missed === 1 ? '' : 's'} and been sent home ${sentHome} time${sentHome === 1 ? '' : 's'}.`;
+    if (window.confirm(message)) terminateWorker(worker.id);
+  }, [terminateWorker]);
 
   return (
     <div className="game-shell min-h-screen text-white">
@@ -447,6 +468,8 @@ function Game() {
                 onIncentive={runIncentive}
               />
 
+              {state.lastShiftReport && <ShiftImpactPanel report={state.lastShiftReport} />}
+
               <MobileCrewDock
                 benchWorkers={benchWorkers}
                 selectedWorkerId={selectedWorkerId}
@@ -468,6 +491,7 @@ function Game() {
                   cash={state.cash}
                   payPolicy={state.payPolicy}
                   onTrain={train}
+                  onTerminate={onTerminateWorker}
                   onCancel={() => selectWorker(null)}
                 />
               )}
@@ -497,6 +521,7 @@ function Game() {
                   onHire={hireWorker}
                   cash={state.cash}
                   onSelectWorker={selectWorker}
+                  onTerminate={onTerminateWorker}
                 />
               </div>
             </aside>
@@ -534,6 +559,7 @@ function Game() {
             onUpgradeAutomation={upgradeAutomation}
             onPromoteLead={promoteLead}
             onConvert={convertWorker}
+            onTerminate={onTerminateWorker}
           />
         )}
       </main>
@@ -647,6 +673,55 @@ function ShiftChallengeCard({
             <strong>{choice.label}</strong>
             <span>{choice.note}</span>
           </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ShiftImpactPanel({ report }: { report: NonNullable<GameState['lastShiftReport']> }) {
+  const ordered = [...report.workerImpacts].sort((a, b) => {
+    const rank = { sent_home: 0, no_show: 1, worked: 2 };
+    return rank[a.status] - rank[b.status] || b.units - a.units;
+  });
+
+  const statusLabel = (status: typeof ordered[number]['status']) => {
+    if (status === 'worked') return 'Worked';
+    if (status === 'sent_home') return 'Sent home';
+    return 'No-show';
+  };
+
+  return (
+    <section className="shift-impact-panel">
+      <div className="shift-impact-head">
+        <div>
+          <div className="eyebrow">Last shift</div>
+          <h2>People Impact</h2>
+        </div>
+        <div className="shift-impact-score">
+          <strong>{Math.round(report.totalUnits)}</strong>
+          <span>units · {formatCurrency(report.payroll)}</span>
+        </div>
+      </div>
+      <div className="shift-impact-summary">
+        <span>{report.workedCount} worked</span>
+        <span>{report.sentHomeCount} sent home unpaid</span>
+        <span>{report.noShowCount} no-show</span>
+      </div>
+      <div className="shift-impact-list">
+        {ordered.map(worker => (
+          <div key={worker.workerId} className={`shift-impact-row status-${worker.status}`}>
+            <span className="shift-impact-status">{statusLabel(worker.status)}</span>
+            <span className="shift-impact-name">{worker.workerName}</span>
+            <span className="shift-impact-role">
+              {worker.status === 'worked'
+                ? `${worker.stationName ?? 'Floor'} · ${worker.units.toFixed(1)} units`
+                : worker.status === 'sent_home'
+                  ? 'No pay · morale hit'
+                  : `${worker.missedShifts} missed`}
+            </span>
+            <span className="shift-impact-counts">M{worker.missedShifts} · H{worker.sentHomeShifts}</span>
+          </div>
         ))}
       </div>
     </section>
@@ -855,6 +930,9 @@ function FloorLine({
   const isShort = presentCount > 0 && presentCount < line.stations.length;
   const running = shiftActive && !isStopped;
   const selectedWorker = selectedWorkerId ? workers[selectedWorkerId] : null;
+  const supportWorkerId = line.supportWorkerIds?.[0];
+  const supportWorker = supportWorkerId ? workers[supportWorkerId] : null;
+  const supportPresent = supportWorker?.presentThisShift ?? false;
 
   // Belt speed scales with output so a humming line visibly moves faster.
   const beltDuration = running ? Math.max(1.1, 3.4 - lineRate * 0.9) : 0;
@@ -874,7 +952,7 @@ function FloorLine({
               ? `Staff ${presentCount}/${line.stations.length}`
               : isStopped
             ? `Idle · 0/${line.stations.length}`
-            : isShort
+          : isShort
               ? `Short ${presentCount}/${line.stations.length} · ${lineRate.toFixed(1)}/min`
               : `Running · ${lineRate.toFixed(1)}/min`}
         </div>
@@ -922,6 +1000,19 @@ function FloorLine({
           })}
         </div>
       </div>
+
+      <SupportSlot
+        worker={supportWorker}
+        present={supportPresent}
+        working={supportPresent && running}
+        selectedWorker={selectedWorker}
+        onPlace={(workerId) => onAssign(workerId, lineId, SUPPORT_STATION_ID)}
+        onSelect={() => supportWorker && onSelectWorker(supportWorker.id)}
+        onUnassign={(event) => {
+          event.stopPropagation();
+          onUnassign(lineId, SUPPORT_STATION_ID);
+        }}
+      />
     </section>
   );
 }
@@ -1019,6 +1110,70 @@ function StationTile({
   );
 }
 
+function SupportSlot({
+  worker, present, working, selectedWorker, onPlace, onSelect, onUnassign,
+}: {
+  worker: Worker | null;
+  present: boolean;
+  working: boolean;
+  selectedWorker: Worker | null;
+  onPlace: (workerId: string) => void;
+  onSelect: () => void;
+  onUnassign: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  const hasTarget = selectedWorker !== null;
+  const profile = worker ? profileForWorker(worker) : null;
+  const selectedProfile = selectedWorker ? profileForWorker(selectedWorker) : null;
+
+  const handleClick = () => {
+    if (hasTarget && selectedWorker) onPlace(selectedWorker.id);
+    else if (worker) onSelect();
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={`support-slot ${worker ? 'occupied' : 'empty'} ${working ? 'working' : ''} ${hasTarget ? 'targeting' : ''}`}
+      onClick={handleClick}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      onDragOver={e => { if (e.dataTransfer.types.includes(WORKER_DND_MIME)) e.preventDefault(); }}
+      onDrop={e => {
+        e.preventDefault();
+        const wid = e.dataTransfer.getData(WORKER_DND_MIME);
+        if (wid) onPlace(wid);
+      }}
+    >
+      <div className="support-copy">
+        <span className="support-label">Support</span>
+        <strong>
+          {worker && profile
+            ? `${profile.firstName} helping`
+            : hasTarget
+              ? `Add ${selectedProfile?.firstName ?? 'helper'}`
+              : 'Overstaff line'}
+        </strong>
+        <small>
+          {worker
+            ? `${present ? 'Paid helper' : 'No-show'} · +${Math.round(SUPPORT_OUTPUT_BONUS * 100)}% line lift`
+            : 'Paid helper slot · smaller output lift'}
+        </small>
+      </div>
+      {worker && (
+        <>
+          <CharacterAvatar worker={worker} size="sm" />
+          <button type="button" className="support-clear" title="Remove helper" onClick={onUnassign}>✕</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 
 function ConditionsBar({
@@ -1091,12 +1246,13 @@ function ConditionsBar({
 const TRAINABLE_STATIONS = ['s1', 's2', 's3'];
 
 function WorkerActionBar({
-  worker, cash, payPolicy, onTrain, onCancel,
+  worker, cash, payPolicy, onTrain, onTerminate, onCancel,
 }: {
   worker: Worker;
   cash: number;
   payPolicy: GameState['payPolicy'];
   onTrain: (workerId: string, stationId: string) => void;
+  onTerminate: (worker: Worker) => void;
   onCancel: () => void;
 }) {
   const profile = profileForWorker(worker);
@@ -1122,11 +1278,21 @@ function WorkerActionBar({
               Click a station to assign · <span className={`risk-${risk}`}>{riskCopy}</span>
               {' '}· {formatCurrency(effectiveWage(worker, payPolicy))}/shift
             </div>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <span className="history-pill">Missed {worker.missedShifts ?? 0}</span>
+              <span className="history-pill">Sent home {worker.sentHomeShifts ?? 0}</span>
+              <span className="history-pill">{Math.round(worker.totalUnits ?? 0)} units</span>
+            </div>
           </div>
         </div>
-        <button type="button" className="worker-action-cancel" onClick={onCancel}>
-          Cancel
-        </button>
+        <div className="worker-action-buttons">
+          <button type="button" className="worker-action-term" onClick={() => onTerminate(worker)}>
+            Term
+          </button>
+          <button type="button" className="worker-action-cancel" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
       </div>
 
       <TraitChips worker={worker} className="mt-3" />
@@ -1157,7 +1323,7 @@ function WorkerActionBar({
 }
 
 function CrewPanel({
-  benchWorkers, allAssigned, selectedWorkerId, cash, onHire, onSelectWorker,
+  benchWorkers, allAssigned, selectedWorkerId, cash, onHire, onSelectWorker, onTerminate,
 }: {
   benchWorkers: Worker[];
   allAssigned: boolean;
@@ -1165,6 +1331,7 @@ function CrewPanel({
   cash: number;
   onHire: () => void;
   onSelectWorker: (id: string | null) => void;
+  onTerminate: (worker: Worker) => void;
 }) {
   return (
     <section className="game-panel p-4">
@@ -1172,6 +1339,9 @@ function CrewPanel({
         <div>
           <div className="eyebrow">Crew bench</div>
           <h2 className="text-2xl font-black text-white">{allAssigned ? 'All Deployed' : 'Ready Crew'}</h2>
+          <p className="mt-1 text-xs font-bold text-slate-400">
+            Present workers left here are sent home unpaid and lose morale.
+          </p>
         </div>
         <button
           type="button"
@@ -1191,6 +1361,7 @@ function CrewPanel({
               worker={worker}
               selectedWorkerId={selectedWorkerId}
               onSelect={() => onSelectWorker(worker.id)}
+              onTerminate={() => onTerminate(worker)}
             />
           ))}
         </div>
@@ -1218,6 +1389,7 @@ function MobileCrewDock({
 }) {
   const hasSelection = selectedWorkerId !== null;
   const canStart = awaitingStaffing && staffedStations > 0;
+  const presentBench = benchWorkers.filter(worker => worker.presentThisShift).length;
 
   return (
     <div className={`mobile-crew-dock ${hasSelection ? 'has-selection' : ''}`}>
@@ -1225,6 +1397,7 @@ function MobileCrewDock({
         <div>
           <div className="eyebrow">Bench</div>
           <strong>{canStart ? `${staffedStations} staffed` : benchWorkers.length > 0 ? 'Tap crew, then station' : 'All deployed'}</strong>
+          {canStart && presentBench > 0 && <small>{presentBench} home risk</small>}
         </div>
         {canStart ? (
           <button type="button" onClick={onStartShift} className="mobile-start-button">
@@ -1271,17 +1444,27 @@ function MobileCrewDock({
 }
 
 function BenchWorker({
-  worker, selectedWorkerId, onSelect,
-}: { worker: Worker; selectedWorkerId: string | null; onSelect: () => void }) {
+  worker, selectedWorkerId, onSelect, onTerminate,
+}: { worker: Worker; selectedWorkerId: string | null; onSelect: () => void; onTerminate: () => void }) {
   const isSelected = selectedWorkerId === worker.id;
   const profile = profileForWorker(worker);
   const absent = !worker.presentThisShift;
+  const handleSelect = () => {
+    if (!absent) onSelect();
+  };
 
   return (
-    <button
-      type="button"
-      onClick={absent ? undefined : onSelect}
-      disabled={absent}
+    <div
+      role="button"
+      tabIndex={absent ? -1 : 0}
+      onClick={handleSelect}
+      onKeyDown={e => {
+        if (absent) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       draggable={!absent}
       onDragStart={absent ? undefined : (e => {
         e.dataTransfer.setData(WORKER_DND_MIME, worker.id);
@@ -1311,6 +1494,9 @@ function BenchWorker({
           <MiniBar label="Trust" value={worker.reliability} />
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
+          <span className="history-pill">Missed {worker.missedShifts ?? 0}</span>
+          <span className="history-pill">Home {worker.sentHomeShifts ?? 0}</span>
+          <span className="history-pill">{Math.round(worker.totalUnits ?? 0)} units</span>
           {worker.skills.map(sk => (
             <span key={sk.stationId} className="skill-chip">
               {STATION_NAMES[sk.stationId] ?? sk.stationId} {pct(sk.proficiency)}
@@ -1318,8 +1504,18 @@ function BenchWorker({
           ))}
         </div>
         <TraitChips worker={worker} className="mt-2" />
+        <button
+          type="button"
+          className="term-button mt-3"
+          onClick={event => {
+            event.stopPropagation();
+            onTerminate();
+          }}
+        >
+          Terminate
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -1590,7 +1786,7 @@ function ProgramToggle({
 // ---------------------------------------------------------------------------
 
 function FrontOfficeTab({
-  state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onPromoteLead, onConvert,
+  state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onPromoteLead, onConvert, onTerminate,
 }: {
   state: GameState;
   lineCost: number;
@@ -1599,6 +1795,7 @@ function FrontOfficeTab({
   onUpgradeAutomation: (lineId: string) => void;
   onPromoteLead: (workerId: string, lineId: string) => void;
   onConvert: (workerId: string) => void;
+  onTerminate: (worker: Worker) => void;
 }) {
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter(w => !w.permanent);
@@ -1659,7 +1856,9 @@ function FrontOfficeTab({
           )}
           {Object.values(state.workers).map(worker => {
             // Which line is this worker assigned to (for lead promotion)?
-            const assignedLine = lines.find(([, l]) => l.stations.some(s => s.assignedWorkerId === worker.id));
+            const assignedLine = lines.find(([, l]) =>
+              l.stations.some(s => s.assignedWorkerId === worker.id) || (l.supportWorkerIds ?? []).includes(worker.id)
+            );
             const convertCost = conversionCost(worker);
             return (
               <div key={worker.id} className="office-worker">
@@ -1670,6 +1869,11 @@ function FrontOfficeTab({
                     {worker.permanent && <span className="tag-perm ml-2">COMPANY</span>}
                   </span>
                   <span className="text-xs font-bold text-slate-300">D{worker.tenureDays}</span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <div className="office-person-stat"><span>Missed</span><strong>{worker.missedShifts ?? 0}</strong></div>
+                  <div className="office-person-stat"><span>Sent home</span><strong>{worker.sentHomeShifts ?? 0}</strong></div>
+                  <div className="office-person-stat"><span>Units</span><strong>{Math.round(worker.totalUnits ?? 0)}</strong></div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
@@ -1689,6 +1893,14 @@ function FrontOfficeTab({
                     title="Convert temp to company employee"
                   >
                     {worker.permanent ? 'Company' : `Convert · ${formatCurrency(convertCost)}`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onTerminate(worker)}
+                    className="game-button game-button-small game-button-danger"
+                    title="Terminate this worker and remove them from the roster"
+                  >
+                    Term
                   </button>
                 </div>
               </div>
@@ -1814,6 +2026,8 @@ function toastForEvent(e: GameEvent): ToastSpec | null {
       return { text: `${p.lineName} opened`, tone: 'toast-good', tag: 'BUILD', sound: 'win' };
     case 'WORKER_QUIT':
       return { text: `${p.workerName} quit`, tone: 'toast-bad', tag: 'QUIT', sound: 'bad' };
+    case 'WORKER_TERMINATED':
+      return { text: `${p.workerName} terminated`, tone: 'toast-bad', tag: 'TERM', sound: 'bad' };
     case 'INCIDENT':
       return { text: `Floor incident · -$${Math.round(p.cost as number).toLocaleString()}`, tone: 'toast-bad', tag: 'SAFETY', sound: 'bad' };
     case 'SHIFT_CHALLENGE':
@@ -1927,6 +2141,11 @@ function MorningBanner({
   const staffed = Object.values(state.lines).reduce(
     (n, l) => n + l.stations.filter(s => s.assignedWorkerId).length, 0
   );
+  const assigned = new Set(Object.values(state.lines).flatMap(line => [
+    ...(line.stations.map(station => station.assignedWorkerId).filter(Boolean) as string[]),
+    ...(line.supportWorkerIds ?? []),
+  ]));
+  const unplacedPresent = present.filter(worker => !assigned.has(worker.id));
   const day = dayOfTick(state.tick);
 
   return (
@@ -1947,6 +2166,11 @@ function MorningBanner({
         <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-slate-300">
           {staffed}/{totalStations} stations staffed
         </p>
+        {unplacedPresent.length > 0 && (
+          <p className="mt-1 text-xs font-bold text-amber-200">
+            {unplacedPresent.length} present on the bench: assign them to a station/support slot or they go home unpaid with a morale hit.
+          </p>
+        )}
       </div>
       <div className="morning-actions">
         <button

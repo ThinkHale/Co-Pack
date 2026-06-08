@@ -1,6 +1,7 @@
 import { GameEvent, GameState, Line, ShiftChallenge, Worker } from '../types';
 import { shiftElapsedTicks, shiftRemainingTicks } from '../time';
 import { seededRandom, hashString } from '../utils/random';
+import { assignedWorkerIdsForLine } from '../lines/assignments';
 
 const CHALLENGE_CHANCE_PER_TICK = 0.006;
 const CHALLENGE_COOLDOWN_TICKS = 90;
@@ -11,8 +12,8 @@ const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 const firstName = (name: string) => name.split(' ')[0];
 
 function presentAssignedWorkers(state: GameState, line: Line): Worker[] {
-  return line.stations
-    .map(s => s.assignedWorkerId && state.workers[s.assignedWorkerId])
+  return assignedWorkerIdsForLine(line)
+    .map(workerId => state.workers[workerId])
     .filter((w): w is Worker => !!w && w.presentThisShift);
 }
 
@@ -191,9 +192,8 @@ function adjustLineMorale(state: GameState, lineId: string, delta: number): Game
   const line = state.lines[lineId];
   if (!line) return state;
   const workers = { ...state.workers };
-  for (const station of line.stations) {
-    if (!station.assignedWorkerId) continue;
-    const worker = workers[station.assignedWorkerId];
+  for (const workerId of assignedWorkerIdsForLine(line)) {
+    const worker = workers[workerId];
     if (!worker || !worker.presentThisShift) continue;
     workers[worker.id] = { ...worker, morale: clamp01(worker.morale + delta) };
   }
@@ -221,6 +221,7 @@ function clearWorkerFromLine(state: GameState, workerId: string): GameState {
       lineId,
       {
         ...line,
+        supportWorkerIds: (line.supportWorkerIds ?? []).filter(id => id !== workerId),
         stations: line.stations.map(station => (
           station.assignedWorkerId === workerId ? { ...station, assignedWorkerId: undefined } : station
         )),

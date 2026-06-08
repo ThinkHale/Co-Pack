@@ -4,7 +4,7 @@ import { processMorale } from './workers/morale';
 import { processRetention } from './workers/retention';
 import { processThroughput } from './lines/throughput';
 import { processOrders } from './clients/orders';
-import { processPayroll } from './economy/payroll';
+import { processPayroll, totalPayroll } from './economy/payroll';
 import { processIncidents } from './events/incidents';
 import { rollEvents } from './events/random';
 import { rollShiftChallenge } from './events/challenges';
@@ -13,6 +13,7 @@ import { recordStaffingDay } from './economy/staffing-board';
 import { evaluateObjectives } from './progression/objectives';
 import { checkSolvency } from './economy/solvency';
 import { captureAssignments, clearAssignments } from './lines/assignments';
+import { finalizeShiftImpact } from './workers/impact';
 import { TICKS_PER_SHIFT, TICKS_PER_DAY } from './time';
 
 export function tick(state: GameState): { state: GameState; events: GameEvent[] } {
@@ -25,8 +26,8 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
   let s = state;
 
   // Shift boundary — the daily-staffing ritual:
-  //  1. Settle the shift that just worked: morale, quits, payroll (present crew
-  //     only), and incidents — all against who actually worked, while their
+  //  1. Settle the shift that just worked: morale, payroll (present crew only),
+  //     incidents, a people-impact report, and quits — all against who actually worked, while their
   //     assignments are still in place.
   //  2. Roll the new shift's attendance (who shows up today).
   //  3. Snapshot yesterday's lineup, wipe the board, and hold the clock so the
@@ -37,11 +38,7 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
       s = rm.state;
       events.push(...rm.events);
 
-      // Quits land after morale settles — overtime fatigue can be the last straw.
-      const rr = processRetention(s);
-      s = rr.state;
-      events.push(...rr.events);
-
+      const payrollAmount = totalPayroll(s);
       const rp = processPayroll(s);
       s = rp.state;
       events.push(...rp.events);
@@ -50,6 +47,15 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
       const ri = processIncidents(s);
       s = ri.state;
       events.push(...ri.events);
+
+      const rf = finalizeShiftImpact(s, payrollAmount);
+      s = rf.state;
+      events.push(...rf.events);
+
+      // Quits land after the shift is paid and reported — overtime fatigue can be the last straw.
+      const rr = processRetention(s);
+      s = rr.state;
+      events.push(...rr.events);
     }
 
     const r = processAttendance(s);

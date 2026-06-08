@@ -10,6 +10,8 @@ import {
   processMorale,
   processRetention,
   quitProbability,
+  finalizeShiftImpact,
+  terminateWorker,
   trainWorker,
   trainingCost,
   purchaseLine,
@@ -67,6 +69,7 @@ import {
   repeatStaffing,
   canRepeatStaffing,
   assignWorker,
+  SUPPORT_STATION_ID,
   resolveShiftChallenge,
   workingWorkers,
   GameState,
@@ -133,6 +136,8 @@ describe('attendance independence (regression: shared-RNG bug)', () => {
     // Some show, some don't — not 0 and not all 40.
     expect(present).toBeGreaterThan(0);
     expect(present).toBeLessThan(40);
+    const absent = Object.values(after.workers).find(w => !w.presentThisShift)!;
+    expect(absent.missedShifts).toBe(1);
   });
 });
 
@@ -179,6 +184,36 @@ describe('payroll (pay only present, working crew)', () => {
     // Unstaffed start state: everyone present, nobody assigned → zero wages.
     expect(totalPayroll(createInitialState())).toBe(0);
   });
+
+  it('pays support helpers and credits their output', () => {
+    const base = staffLineA(createInitialState());
+    const baseUnits = processThroughput(base).state.activeOrders[0].unitsCompleted;
+    let state: GameState = {
+      ...base,
+      workers: {
+        ...base.workers,
+        w4: {
+          ...base.workers.w2,
+          id: 'w4',
+          name: 'Helper H.',
+          missedShifts: 0,
+          sentHomeShifts: 0,
+          shiftsWorked: 0,
+          shiftUnits: 0,
+          totalUnits: 0,
+        },
+      },
+    };
+    state = assignWorker(state, 'w4', 'line1', SUPPORT_STATION_ID);
+
+    expect(workingWorkers(state).map(w => w.id)).toContain('w4');
+    expect(totalPayroll(state)).toBeGreaterThan(totalPayroll(base));
+
+    const { state: after } = processThroughput(state);
+    expect(after.activeOrders[0].unitsCompleted).toBeGreaterThan(baseUnits);
+    expect(after.workers.w4.shiftUnits).toBeGreaterThan(0);
+    expect(after.workers.w4.totalUnits).toBeGreaterThan(0);
+  });
 });
 
 describe('recognition (shout-out)', () => {
@@ -195,9 +230,42 @@ describe('recognition (shout-out)', () => {
 
 describe('overtime fatigue', () => {
   it('burns morale at the shift boundary when overtime is on', () => {
-    const state = { ...createInitialState(), overtime: true };
-    const { state: after } = processMorale(state);
-    expect(after.workers.w2.morale).toBeLessThan(state.workers.w2.morale);
+    const base = staffLineA(createInitialState());
+    const normal = processMorale(base).state;
+    const overtime = processMorale({ ...base, overtime: true }).state;
+    expect(overtime.workers.w2.morale).toBeLessThan(normal.workers.w2.morale);
+  });
+});
+
+describe('sent-home accountability', () => {
+  it('counts and demoralizes present workers left off the floor', () => {
+    const base = staffLineA(createInitialState());
+    const state: GameState = {
+      ...base,
+      tick: TICKS_PER_SHIFT,
+      workers: {
+        ...base.workers,
+        w4: {
+          ...base.workers.w2,
+          id: 'w4',
+          name: 'Reliable Bench',
+          morale: 0.8,
+          disposition: 0.8,
+          missedShifts: 0,
+          sentHomeShifts: 0,
+          shiftsWorked: 0,
+          shiftUnits: 0,
+          totalUnits: 0,
+        },
+      },
+    };
+
+    const { state: after, events } = processMorale(state);
+    expect(after.workers.w4.sentHomeShifts).toBe(1);
+    expect(after.workers.w4.shiftsWorked).toBe(0);
+    expect(after.workers.w4.morale).toBeLessThan(state.workers.w4.morale);
+    expect(after.workers.w1.shiftsWorked).toBe(1);
+    expect(events.some(e => e.type === 'WORKER_SENT_HOME' && (e.payload as any).workerId === 'w4')).toBe(true);
   });
 });
 
@@ -250,6 +318,55 @@ describe('partial-line operation (regression: no-show no longer flat-stops a lin
   });
 });
 
+describe('shift impact report', () => {
+  it('summarizes who worked, who was sent home, and resets shift output credit', () => {
+    const base = staffLineA(createInitialState());
+    let state: GameState = {
+      ...base,
+      tick: TICKS_PER_SHIFT,
+      workers: {
+        ...base.workers,
+        w4: {
+          ...base.workers.w2,
+          id: 'w4',
+          name: 'Helper H.',
+          missedShifts: 0,
+          sentHomeShifts: 0,
+          shiftsWorked: 0,
+          shiftUnits: 0,
+          totalUnits: 0,
+        },
+        w5: {
+          ...base.workers.w3,
+          id: 'w5',
+          name: 'Bench B.',
+          missedShifts: 0,
+          sentHomeShifts: 0,
+          shiftsWorked: 0,
+          shiftUnits: 0,
+          totalUnits: 0,
+        },
+      },
+    };
+    state = assignWorker(state, 'w4', 'line1', SUPPORT_STATION_ID);
+    state = processThroughput(state).state;
+    const payroll = totalPayroll(state);
+    state = processMorale(state).state;
+
+    const { state: after, events } = finalizeShiftImpact(state, payroll);
+    const report = after.lastShiftReport!;
+    expect(report.workedCount).toBe(4);
+    expect(report.sentHomeCount).toBe(1);
+    expect(report.noShowCount).toBe(0);
+    expect(report.payroll).toBe(payroll);
+    expect(report.workerImpacts.find(w => w.workerId === 'w4')?.stationName).toBe('Support');
+    expect(report.workerImpacts.find(w => w.workerId === 'w5')?.status).toBe('sent_home');
+    expect(report.totalUnits).toBeGreaterThan(0);
+    expect(after.workers.w4.shiftUnits).toBe(0);
+    expect(events[0].type).toBe('SHIFT_IMPACT_REPORT');
+  });
+});
+
 describe('retention / quitting', () => {
   const base: Worker = {
     id: 'x', name: 'Test', tenureDays: 0, reliability: 0.6, morale: 0.5,
@@ -295,6 +412,35 @@ describe('retention / quitting', () => {
       }
     }
     expect(quit).toBe(true);
+  });
+
+  it('terminates a worker and clears their floor references', () => {
+    let state = staffLineA(createInitialState());
+    state = {
+      ...state,
+      previousAssignments: { 'line1::s1': 'w1', [`line1::${SUPPORT_STATION_ID}`]: 'w4' },
+      lines: {
+        ...state.lines,
+        line1: {
+          ...state.lines.line1,
+          leadId: 'w1',
+          supportWorkerIds: ['w4'],
+        },
+      },
+      workers: {
+        ...state.workers,
+        w1: { ...state.workers.w1, missedShifts: 2, sentHomeShifts: 1 },
+        w4: { ...state.workers.w2, id: 'w4', name: 'Helper H.' },
+      },
+    };
+
+    const { state: after, events } = terminateWorker(state, 'w1');
+    expect(after.workers.w1).toBeUndefined();
+    expect(after.lines.line1.leadId).toBeUndefined();
+    expect(after.lines.line1.stations.some(station => station.assignedWorkerId === 'w1')).toBe(false);
+    expect(Object.values(after.previousAssignments)).not.toContain('w1');
+    expect(events[0].type).toBe('WORKER_TERMINATED');
+    expect((events[0].payload as any).missedShifts).toBe(2);
   });
 });
 

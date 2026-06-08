@@ -81,15 +81,37 @@ export function loadGame(): LoadedSave | null {
     if (!s || typeof s.tick !== 'number' || typeof s.workers !== 'object' || !Array.isArray(s.activeOrders)) {
       return null;
     }
+    const workers: GameState['workers'] = Object.fromEntries(
+      Object.entries(s.workers).map(([id, worker]) => [
+        id,
+        {
+          ...worker,
+          missedShifts: worker.missedShifts ?? 0,
+          sentHomeShifts: worker.sentHomeShifts ?? 0,
+          shiftsWorked: worker.shiftsWorked ?? 0,
+          totalUnits: worker.totalUnits ?? 0,
+          shiftUnits: worker.shiftUnits ?? 0,
+        },
+      ])
+    );
+    const lines: GameState['lines'] = Object.fromEntries(
+      Object.entries(s.lines ?? {}).map(([id, line]) => [
+        id,
+        { ...line, supportWorkerIds: line.supportWorkerIds ?? [] },
+      ])
+    );
     // Defensive backfill for fields that may be absent in an early save.
     const state: GameState = {
       ...s,
+      workers,
+      lines,
       completedObjectives: s.completedObjectives ?? [],
       cashWarned: s.cashWarned ?? false,
       gameOver: s.gameOver ?? false,
       awaitingStaffing: s.awaitingStaffing ?? false,
       shiftChallenge: s.shiftChallenge ?? null,
       challengeCooldownUntil: s.challengeCooldownUntil ?? 0,
+      lastShiftReport: s.lastShiftReport ?? null,
       previousAssignments: s.previousAssignments ?? {},
       eventLog: s.eventLog ?? [],
     };

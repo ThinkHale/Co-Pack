@@ -5,6 +5,7 @@ export * from './factory';
 export * from './workers/attendance';
 export * from './workers/morale';
 export * from './workers/retention';
+export * from './workers/impact';
 export * from './workers/training';
 export * from './workers/hiring';
 export * from './workers/generator';

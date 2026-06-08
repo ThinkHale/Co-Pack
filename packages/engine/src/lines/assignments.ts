@@ -6,31 +6,83 @@ import { GameState, GameEvent, Line } from '../types';
 // hand-rolls line state, and so the shift boundary and "Repeat yesterday" share
 // exactly one implementation.
 
+export const SUPPORT_STATION_ID = 'support';
+export const MAX_SUPPORT_WORKERS_PER_LINE = 1;
+
 const stationKey = (lineId: string, stationId: string) => `${lineId}::${stationId}`;
 
-// Pull a worker off any station they hold, then seat them at the target station.
+function removeWorkerFromLine(line: Line, workerId: string): Line {
+  return {
+    ...line,
+    supportWorkerIds: (line.supportWorkerIds ?? []).filter(id => id !== workerId),
+    stations: line.stations.map(s =>
+      s.assignedWorkerId === workerId ? { ...s, assignedWorkerId: undefined } : s
+    ),
+  };
+}
+
+export function assignedWorkerIdsForLine(line: Line): string[] {
+  const ids = line.stations
+    .map(station => station.assignedWorkerId)
+    .filter((id): id is string => !!id);
+  return [...ids, ...(line.supportWorkerIds ?? [])];
+}
+
+export function assignedWorkerIds(state: GameState): Set<string> {
+  const ids = new Set<string>();
+  for (const line of Object.values(state.lines)) {
+    for (const workerId of assignedWorkerIdsForLine(line)) ids.add(workerId);
+  }
+  return ids;
+}
+
+// Pull a worker off any slot they hold, then seat them at the target station/helper slot.
 export function assignWorker(state: GameState, workerId: string, lineId: string, stationId: string): GameState {
   const lines: Record<string, Line> = Object.fromEntries(
     Object.entries(state.lines).map(([lid, l]) => [
       lid,
-      { ...l, stations: l.stations.map(s => (s.assignedWorkerId === workerId ? { ...s, assignedWorkerId: undefined } : s)) },
+      removeWorkerFromLine(l, workerId),
     ])
   );
+
+  const line = lines[lineId];
+  if (!line) return { ...state, lines };
+
+  if (stationId === SUPPORT_STATION_ID) {
+    const supportWorkerIds = [workerId, ...(line.supportWorkerIds ?? [])]
+      .filter((id, index, arr) => arr.indexOf(id) === index)
+      .slice(0, MAX_SUPPORT_WORKERS_PER_LINE);
+    lines[lineId] = { ...line, supportWorkerIds };
+    return { ...state, lines };
+  }
+
   lines[lineId] = {
-    ...lines[lineId],
-    stations: lines[lineId].stations.map(s => (s.id === stationId ? { ...s, assignedWorkerId: workerId } : s)),
+    ...line,
+    stations: line.stations.map(s => (s.id === stationId ? { ...s, assignedWorkerId: workerId } : s)),
   };
   return { ...state, lines };
 }
 
 export function unassignStation(state: GameState, lineId: string, stationId: string): GameState {
+  const line = state.lines[lineId];
+  if (!line) return state;
+  if (stationId === SUPPORT_STATION_ID) {
+    return {
+      ...state,
+      lines: {
+        ...state.lines,
+        [lineId]: { ...line, supportWorkerIds: [] },
+      },
+    };
+  }
+
   return {
     ...state,
     lines: {
       ...state.lines,
       [lineId]: {
-        ...state.lines[lineId],
-        stations: state.lines[lineId].stations.map(s => (s.id === stationId ? { ...s, assignedWorkerId: undefined } : s)),
+        ...line,
+        stations: line.stations.map(s => (s.id === stationId ? { ...s, assignedWorkerId: undefined } : s)),
       },
     },
   };
@@ -44,18 +96,21 @@ export function captureAssignments(state: GameState): Record<string, string> {
     for (const st of line.stations) {
       if (st.assignedWorkerId) map[stationKey(lineId, st.id)] = st.assignedWorkerId;
     }
+    for (const workerId of line.supportWorkerIds ?? []) {
+      map[stationKey(lineId, SUPPORT_STATION_ID)] = workerId;
+    }
   }
   return map;
 }
 
-// Empty every station — the morning reset.
+// Empty every station/helper slot — the morning reset.
 export function clearAssignments(state: GameState): GameState {
   return {
     ...state,
     lines: Object.fromEntries(
       Object.entries(state.lines).map(([lid, l]) => [
         lid,
-        { ...l, stations: l.stations.map(s => ({ ...s, assignedWorkerId: undefined })) },
+        { ...l, supportWorkerIds: [], stations: l.stations.map(s => ({ ...s, assignedWorkerId: undefined })) },
       ])
     ),
   };

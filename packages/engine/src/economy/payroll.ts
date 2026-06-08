@@ -1,16 +1,12 @@
 import { GameState, GameEvent, Worker } from '../types';
 import { effectiveWage, programsPerShiftCost } from './staffing';
+import { assignedWorkerIds } from '../lines/assignments';
 
 // The set of workers actually on the clock: present AND seated at a station. A
 // no-show isn't paid, and neither is someone left on the bench — you pay for
 // hours worked on the floor, the way temp labor actually bills.
 export function workingWorkers(state: GameState): Worker[] {
-  const assigned = new Set<string>();
-  for (const line of Object.values(state.lines)) {
-    for (const st of line.stations) {
-      if (st.assignedWorkerId) assigned.add(st.assignedWorkerId);
-    }
-  }
+  const assigned = assignedWorkerIds(state);
   return Object.values(state.workers).filter(w => w.presentThisShift && assigned.has(w.id));
 }
 
@@ -24,10 +20,11 @@ export function totalPayroll(state: GameState): number {
 export function processPayroll(state: GameState): { state: GameState; events: GameEvent[] } {
   const amount = totalPayroll(state);
   if (amount <= 0) return { state, events: [] };
+  const headcount = workingWorkers(state).length;
 
   const events: GameEvent[] = [{
     type: 'PAYROLL', tick: state.tick,
-    payload: { amount, headcount: Object.keys(state.workers).length },
+    payload: { amount, headcount },
   }];
 
   return { state: { ...state, cash: state.cash - amount }, events };

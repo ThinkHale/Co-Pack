@@ -9,6 +9,7 @@ function makeLine(index: number): Line {
     name: `Line ${String.fromCharCode(64 + index)}`, // Line A, B, C ...
     active: true,
     automation: 0,
+    supportWorkerIds: [],
     stations: [
       { id: 's1', name: 'Induct', throughputMultiplier: 1 },
       { id: 's2', name: 'Pack', throughputMultiplier: 1 },

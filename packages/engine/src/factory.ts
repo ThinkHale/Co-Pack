@@ -38,6 +38,7 @@ export function createInitialState(): GameState {
   // 3-station line: all three stages must be staffed to produce finished units
   const line1: Line = {
     id: 'line1', name: 'Line A', active: true, automation: 0,
+    supportWorkerIds: [],
     stations: [
       { id: 's1', name: 'Induct',  throughputMultiplier: 1 },
       { id: 's2', name: 'Pack',    throughputMultiplier: 1 },

@@ -71,6 +71,11 @@ export function generateWorker(id: string, seed: number, skillRequest: string[] 
     isLead: false,
     skills: [{ stationId, proficiency }],
     presentThisShift: true,
+    missedShifts: 0,
+    sentHomeShifts: 0,
+    shiftsWorked: 0,
+    totalUnits: 0,
+    shiftUnits: 0,
   };
 }
 

@@ -27,13 +27,14 @@ export function processAttendance(state: GameState): { state: GameState; events:
     const workerModifier = dayModifier + payAttendanceBonus(worker, state.payPolicy)
       + workerAttendanceMod(worker);
     const present = firstShift || rng <= attendanceProbability(worker, workerModifier);
-    updatedWorkers[worker.id] = { ...worker, presentThisShift: present };
+    const missedShifts = present ? worker.missedShifts ?? 0 : (worker.missedShifts ?? 0) + 1;
+    updatedWorkers[worker.id] = { ...worker, presentThisShift: present, missedShifts };
 
     if (!present) {
       events.push({
         type: 'WORKER_NO_SHOW',
         tick: state.tick,
-        payload: { workerId: worker.id, workerName: worker.name },
+        payload: { workerId: worker.id, workerName: worker.name, missedShifts },
       });
     } else {
       events.push({

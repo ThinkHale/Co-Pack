@@ -48,6 +48,7 @@ export interface Line {
   id: string;
   name: string;
   stations: Station[];
+  supportWorkerIds?: string[]; // extra helpers assigned to this line; paid, smaller output lift
   active: boolean;
   automation: number;    // 0+ automation level; each level lifts the line's output
   leadId?: string;       // worker assigned as this line's lead

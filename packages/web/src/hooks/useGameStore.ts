@@ -5,6 +5,7 @@ import {
   hireWorker as engineHire, HIRE_COST,
   setGlobalPayRate, toggleSkillRequest, toggleProgram,
   upgradeAutomation, promoteLead, convertToPermanent,
+  terminateWorker as engineTerminate,
   assignWorker as engineAssign, unassignStation as engineUnassign,
   repeatStaffing as engineRepeat, startShift as engineStartShift,
   resolveShiftChallenge as engineResolveChallenge,
@@ -58,6 +59,7 @@ interface GameStore {
   upgradeAutomation: (lineId: string) => void;
   promoteLead: (workerId: string, lineId: string) => void;
   convertWorker: (workerId: string) => void;
+  terminateWorker: (workerId: string) => void;
 }
 
 export { HIRE_COST };
@@ -183,4 +185,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   convertWorker: (workerId) =>
     set((store) => applyEngineResult(store, convertToPermanent(store.state, workerId))),
+
+  terminateWorker: (workerId) =>
+    set((store) => {
+      const result = engineTerminate(store.state, workerId);
+      return {
+        ...applyEngineResult(store, result),
+        selectedWorkerId: store.selectedWorkerId === workerId ? null : store.selectedWorkerId,
+      };
+    }),
 }));

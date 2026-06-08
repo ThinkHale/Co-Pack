@@ -45,12 +45,18 @@ function clearFromLines(lines: Record<string, Line>, workerId: string): Record<s
       id,
       {
         ...line,
+        leadId: line.leadId === workerId ? undefined : line.leadId,
+        supportWorkerIds: (line.supportWorkerIds ?? []).filter(id => id !== workerId),
         stations: line.stations.map(s =>
           s.assignedWorkerId === workerId ? { ...s, assignedWorkerId: undefined } : s
         ),
       },
     ])
   );
+}
+
+function clearPreviousAssignments(previousAssignments: Record<string, string>, workerId: string): Record<string, string> {
+  return Object.fromEntries(Object.entries(previousAssignments).filter(([, id]) => id !== workerId));
 }
 
 /**
@@ -81,5 +87,38 @@ export function processRetention(state: GameState): { state: GameState; events: 
   }
 
   if (events.length === 0) return { state, events };
-  return { state: { ...state, workers, lines }, events };
+  const gone = new Set(events.map(e => (e.payload as { workerId?: string }).workerId).filter((id): id is string => !!id));
+  let previousAssignments = state.previousAssignments;
+  for (const workerId of gone) previousAssignments = clearPreviousAssignments(previousAssignments, workerId);
+  return { state: { ...state, workers, lines, previousAssignments }, events };
+}
+
+export function terminateWorker(state: GameState, workerId: string): { state: GameState; events: GameEvent[] } {
+  const worker = state.workers[workerId];
+  if (!worker) return { state, events: [] };
+
+  const { [workerId]: _gone, ...workers } = state.workers;
+  const lines = clearFromLines(state.lines, workerId);
+  const previousAssignments = clearPreviousAssignments(state.previousAssignments, workerId);
+  const shiftChallenge = state.shiftChallenge?.workerId === workerId ? null : state.shiftChallenge;
+
+  const events: GameEvent[] = [{
+    type: 'WORKER_TERMINATED',
+    tick: state.tick,
+    payload: {
+      workerId,
+      workerName: worker.name,
+      missedShifts: worker.missedShifts ?? 0,
+      sentHomeShifts: worker.sentHomeShifts ?? 0,
+      shiftsWorked: worker.shiftsWorked ?? 0,
+      totalUnits: worker.totalUnits ?? 0,
+      morale: worker.morale,
+      reliability: worker.reliability,
+    },
+  }];
+
+  return {
+    state: { ...state, workers, lines, previousAssignments, shiftChallenge },
+    events,
+  };
 }
