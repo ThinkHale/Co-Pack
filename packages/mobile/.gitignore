@@ -1,0 +1,22 @@
+# Expo / native build artifacts
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# Generated native projects (managed workflow / EAS prebuild)
+/ios
+/android
+
+# Signing secrets — never commit
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+play-service-account.json
+
+# misc
+*.tsbuildinfo
+.DS_Store

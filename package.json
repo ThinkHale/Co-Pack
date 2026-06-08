@@ -5,8 +5,12 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "dev:web": "npm --workspace packages/web run dev",
+    "dev:mobile": "npm --workspace packages/mobile run start",
+    "ios": "npm --workspace packages/mobile run ios",
+    "android": "npm --workspace packages/mobile run android",
     "build:engine": "npm --workspace packages/engine run build",
     "build:web": "npm --workspace packages/web run build",
-    "test:engine": "npm --workspace packages/engine run test"
+    "test:engine": "npm --workspace packages/engine run test",
+    "typecheck:mobile": "npm --workspace packages/mobile run typecheck"
   }
 }

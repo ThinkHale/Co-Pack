@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Co-Pack",
+    "slug": "co-pack",
+    "scheme": "copack",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#121827",
+    "platforms": ["ios", "android"],
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.thinkhale.copack",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.thinkhale.copack",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#121827"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#121827",
+          "imageWidth": 280
+        }
+      ]
+    ]
+  }
+}
