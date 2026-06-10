@@ -1,0 +1,28 @@
+# Expo / native build artifacts
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# Android native project is regenerated on demand (EAS / prebuild)
+/android
+
+# The iOS native project IS committed so Xcode Cloud can build it on a clean
+# clone. Only the generated/heavy/secret pieces inside it are ignored:
+/ios/Pods/
+/ios/build/
+/ios/DerivedData/
+/ios/.xcode.env.local
+
+# Signing secrets — never commit
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+play-service-account.json
+
+# misc
+*.tsbuildinfo
+.DS_Store

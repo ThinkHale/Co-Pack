@@ -1,10 +1,10 @@
 # Co-Pack -- Claude Code Instructions
 
 ## Project Overview
-Co-Pack is a contract packaging idle/simulation game. Two builds share one engine:
+Co-Pack is a contract packaging idle/simulation game. Three builds share one engine:
 - `packages/engine` -- pure TypeScript simulation, no UI, no framework
 - `packages/web` -- React + Vite web demo (Employbridge branded, GitHub Pages)
-- `packages/mobile` -- React Native + Expo consumer game (Phase 3, not yet created)
+- `packages/mobile` -- React Native + Expo (SDK 56) iOS/Android build. Full feature parity with web, native touch UI (tap-to-assign instead of drag), consumes `@copack/engine` from source. Run `npm run dev:mobile`; ship via EAS (see `packages/mobile/README.md`).
 
 ## Key Conventions
 - Engine is the source of truth. UI packages consume it; they never contain game logic.
