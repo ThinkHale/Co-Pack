@@ -78,6 +78,29 @@ UDIDs; Android produces a plain APK):
 npx eas build --profile preview --platform android   # APK you can sideload immediately
 ```
 
+## Distribution — Xcode Cloud (alternative to EAS for iOS)
+
+The repo is prepped for Xcode Cloud: the native `ios/` project is committed and
+`ios/ci_scripts/ci_post_clone.sh` installs Node + workspace JS deps (`npm ci` at the
+monorepo root) + CocoaPods on each clean clone, so the React Native bundle phase
+resolves `@copack/engine`. Pods/build artifacts stay gitignored.
+
+Creating the workflow is a one-time GUI step (needs your Apple Developer account):
+
+1. Open `ios/CoPack.xcworkspace` in Xcode; sign in under **Xcode ▸ Settings ▸ Accounts**
+   with the team that owns `com.thinkhale.copack`.
+2. **Product ▸ Xcode Cloud ▸ Create Workflow** → pick the **CoPack** scheme.
+3. Grant Xcode Cloud access to the `ThinkHale/Co-Pack` GitHub repo when prompted
+   (installs the Xcode Cloud GitHub app).
+4. Configure: **Branch** = the branch you push (e.g. `mobile-xcode-cloud` or `main`);
+   **Action** = Archive (iOS, Release); add a **TestFlight (Internal Testing)**
+   post-action. Xcode can create the App Store Connect app record for the bundle id.
+5. Save — the first build starts automatically and runs `ci_post_clone.sh`. After this,
+   every push to the watched branch triggers a build.
+
+If a CI build fails on the clone/deps step, the fix goes in `ci_post_clone.sh` (push to
+the branch to re-trigger).
+
 ## Notes / next steps
 
 - App icon + splash are generated from `Co-Pack Logo.png` / `Co-Pack Splash.png`.
