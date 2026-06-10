@@ -5,9 +5,15 @@ web-build/
 expo-env.d.ts
 .metro-health-check*
 
-# Generated native projects (managed workflow / EAS prebuild)
-/ios
+# Android native project is regenerated on demand (EAS / prebuild)
 /android
+
+# The iOS native project IS committed so Xcode Cloud can build it on a clean
+# clone. Only the generated/heavy/secret pieces inside it are ignored:
+/ios/Pods/
+/ios/build/
+/ios/DerivedData/
+/ios/.xcode.env.local
 
 # Signing secrets — never commit
 *.jks
