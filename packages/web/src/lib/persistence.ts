@@ -1,4 +1,4 @@
-import { GameState, GameEvent, tick } from '@copack/engine';
+import { GameState, GameEvent, tick, autoAssignCrew, startShift } from '@copack/engine';
 import type { SpeedSetting, TabKey } from '../hooks/useGameStore';
 
 // --- Save / load + offline progression ---
@@ -147,9 +147,11 @@ export function runOfflineCatchUp(
   savedAt: number,
   wasPaused: boolean,
 ): { state: GameState; summary: OfflineSummary | null } {
-  // No catch-up if the run is over, the player left it paused, or they're already
-  // parked at a morning standup (the board is empty — nothing would run).
-  if (state.gameOver || wasPaused || state.awaitingStaffing) return { state, summary: null };
+  // No catch-up if the run is over or the player left it paused. A save parked
+  // at a morning standup only runs if a supervisor is hired — they staff the
+  // board and start the shift the moment you walk out the door.
+  if (state.gameOver || wasPaused) return { state, summary: null };
+  if (state.awaitingStaffing && !state.hasSupervisor) return { state, summary: null };
 
   const awayMs = Math.max(0, Date.now() - savedAt);
   let ticks = Math.floor((awayMs / 1000) * OFFLINE_TICKS_PER_SEC);
@@ -159,17 +161,20 @@ export function runOfflineCatchUp(
 
   const startCash = state.cash;
   let s = state;
+  if (s.awaitingStaffing) s = startShift(autoAssignCrew(s)).state;
   let ran = 0;
   const counts: Record<string, number> = {};
   for (let i = 0; i < ticks; i++) {
-    const r = tick(s);
+    // Unattended: a hired supervisor rolls every standup regardless of the
+    // live Auto-shift toggle — covering your absence is their whole job.
+    const r = tick(s, { unattended: true });
     s = r.state;
     ran++;
     for (const e of r.events as GameEvent[]) {
       if (TRACKED[e.type]) counts[e.type] = (counts[e.type] ?? 0) + 1;
     }
-    // Stop at the next morning — beyond the shift boundary the board is wiped and
-    // the line would just sit idle. The player comes back to a fresh standup.
+    // With no supervisor, stop at the next morning — beyond the shift boundary
+    // the board is wiped and the player comes back to a fresh standup.
     if (s.gameOver || s.awaitingStaffing) break;
   }
 

@@ -1107,13 +1107,13 @@ describe('daily re-staffing (sim loop)', () => {
 });
 
 describe('floor supervisor (the idle unlock)', () => {
-  it('hire charges the fee and turns auto-shift on', () => {
+  it('hire charges the fee but does NOT seize the controls (auto-shift stays off)', () => {
     const state = { ...createInitialState(), cash: 10000 };
     expect(canHireSupervisor(state)).toBe(true);
     const { state: after, events } = hireSupervisor(state);
     expect(after.cash).toBe(10000 - SUPERVISOR_COST);
     expect(after.hasSupervisor).toBe(true);
-    expect(after.autoShift).toBe(true);
+    expect(after.autoShift).toBe(false);
     expect(events[0].type).toBe('SUPERVISOR_HIRED');
     // Can't hire twice.
     expect(hireSupervisor(after).events.length).toBe(0);
@@ -1125,27 +1125,35 @@ describe('floor supervisor (the idle unlock)', () => {
     expect(events.length).toBe(0);
   });
 
-  it('rolls the shift boundary without holding when auto-shift is on', () => {
+  it('live play still holds the morning standup after hiring', () => {
     let s = { ...createInitialState(), cash: 50000 };
     s = hireSupervisor(s).state;
-    s = tick(s).state; // tick 0 boundary: attendance + auto-staff, no hold
+    s = tick(s).state; // attended tick at the boundary — the floor is the player's
+    expect(s.awaitingStaffing).toBe(true);
+  });
+
+  it('unattended (offline) time is always supervisor-run, even with auto-shift off', () => {
+    let s = { ...createInitialState(), cash: 50000 };
+    s = hireSupervisor(s).state;
+    expect(s.autoShift).toBe(false);
+    s = tick(s, { unattended: true }).state; // boundary: attendance + auto-staff, no hold
     expect(s.awaitingStaffing).toBe(false);
     const assigned = Object.values(s.lines).flatMap(l =>
       l.stations.map(st => st.assignedWorkerId).filter(Boolean));
     expect(assigned.length).toBe(3); // 3 present starters seated on 3 stations
     // The clock keeps moving and the line produces with no player input at all.
-    for (let i = 0; i < TICKS_PER_SHIFT * 2; i++) s = tick(s).state;
+    for (let i = 0; i < TICKS_PER_SHIFT * 2; i++) s = tick(s, { unattended: true }).state;
     expect(s.awaitingStaffing).toBe(false);
     expect(s.day).toBe(2);
     expect(s.completedOrders + s.activeOrders.reduce((u, o) => u + o.unitsCompleted, 0)).toBeGreaterThan(0);
   });
 
-  it('still holds the morning standup with auto-shift switched off', () => {
+  it('rolls live shift boundaries only when the player opts into auto-shift', () => {
     let s = { ...createInitialState(), cash: 50000 };
     s = hireSupervisor(s).state;
-    s = setAutoShift(s, false).state;
-    s = tick(s).state;
-    expect(s.awaitingStaffing).toBe(true);
+    s = setAutoShift(s, true).state;
+    s = tick(s).state; // attended, but the player asked for hands-free
+    expect(s.awaitingStaffing).toBe(false);
   });
 
   it('auto-staffing seats workers on their best-skill stations', () => {
@@ -1157,18 +1165,22 @@ describe('floor supervisor (the idle unlock)', () => {
     expect(stations.find(st => st.id === 's3')?.assignedWorkerId).toBe('w3');
   });
 
-  it('the supervisor resolves a stale floor decision in auto mode', () => {
+  it('the supervisor resolves a stale floor decision while on duty', () => {
     let s = { ...createInitialState(), cash: 50000 };
     s = hireSupervisor(s).state;
-    s = tick(s).state; // auto-staffed, running
-    s = {
+    s = tick(s, { unattended: true }).state; // auto-staffed, running
+    const withChallenge = {
       ...s,
       shiftChallenge: {
         id: 'stale-jam', type: 'belt_jam' as const, title: 'Jam', note: 'Test',
-        lineId: 'line1', createdTick: s.tick - 100, outputMultiplier: 0.5, choices: [],
+        lineId: 'line1', createdTick: s.tick - 100, outputMultiplier: 0.5 as number | undefined, choices: [],
       },
     };
-    const { state: after, events } = tick(s);
+    // Player present, auto-shift off: the decision stays on the player's desk.
+    const live = tick(withChallenge);
+    expect(live.state.shiftChallenge).not.toBeNull();
+    // Unattended: the supervisor makes the safe call.
+    const { state: after, events } = tick(withChallenge, { unattended: true });
     expect(after.shiftChallenge).toBeNull();
     expect(events.some(e => e.type === 'CHALLENGE_RESOLVED')).toBe(true);
   });

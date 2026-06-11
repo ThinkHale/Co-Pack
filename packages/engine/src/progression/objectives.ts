@@ -67,7 +67,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'hire_supervisor', label: 'Hire a floor supervisor', reward: 4000,
-    hint: 'Front Office → Operations. Shifts run themselves — even while you\'re away.',
+    hint: 'Front Office → Operations. The plant keeps earning while you\'re away.',
     isComplete: s => s.hasSupervisor,
   },
   {

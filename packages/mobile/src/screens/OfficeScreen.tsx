@@ -34,8 +34,9 @@ export function OfficeScreen({ state }: { state: GameState }) {
         {!state.hasSupervisor ? (
           <>
             <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-              Hire a supervisor and the morning standup runs itself: shifts roll automatically and
-              the plant keeps earning even while you're away. Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
+              Hire a supervisor and the plant keeps earning while you're away — they run every
+              standup you miss. While you're playing, the floor stays yours unless you flip
+              Auto-shift on. Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
             </Text>
             <Button
               label={`Hire supervisor · ${formatCurrency(SUPERVISOR_COST)}`}
@@ -48,11 +49,12 @@ export function OfficeScreen({ state }: { state: GameState }) {
         ) : (
           <>
             <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-              Hands-on mornings still squeeze out more — the supervisor never hires, trains, or
-              staffs support slots. {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.
+              Away time is always covered. Auto-shift is for watching hands-free — and a
+              hands-on morning still squeezes out more: the supervisor never hires, trains, or
+              staffs support slots. {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift either way.
             </Text>
             <Button
-              label={state.autoShift ? 'Auto-shift ON — supervisor runs the floor' : 'Auto-shift off — manual standups'}
+              label={state.autoShift ? 'Auto-shift ON — supervisor runs the floor' : 'Auto-shift off — you run the mornings'}
               tone={state.autoShift ? 'primary' : 'muted'}
               onPress={toggleAutoShift}
               style={{ marginTop: 10 }}

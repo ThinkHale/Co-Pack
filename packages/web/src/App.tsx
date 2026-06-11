@@ -238,7 +238,7 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
       };
     case 'SUPERVISOR_HIRED':
       return {
-        text: `Floor supervisor hired — shifts now run themselves. -$${(p.cost as number).toFixed(0)}`,
+        text: `Floor supervisor hired — the plant now runs while you're away. -$${(p.cost as number).toFixed(0)}`,
         tone: 'event-good', tag: 'OPS',
       };
     case 'AUTO_SHIFT_TOGGLED':
@@ -1850,9 +1850,10 @@ function FrontOfficeTab({
         {!state.hasSupervisor ? (
           <>
             <p className="mt-1 text-sm font-semibold text-slate-300">
-              Hire a supervisor and the morning standup runs itself: shifts roll one into the next,
-              the crew is seated automatically, and the plant keeps earning <strong>even while you're away</strong>.
-              They also make the safe call on any floor decision you leave hanging.
+              Hire a supervisor and the plant keeps earning <strong>while you're away</strong>:
+              they run every morning standup, seat the crew, and make the safe call on floor
+              decisions until you're back. While you're playing, the floor stays yours —
+              they only step in if you flip Auto-shift on.
               Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
             </p>
             <button
@@ -1867,15 +1868,16 @@ function FrontOfficeTab({
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <ProgramToggle
-              title="Supervisor runs the floor"
-              note={`Shifts roll automatically — staffed, started, and settled with no input. ${formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.`}
+              title="Auto-shift (hands-free while you watch)"
+              note={`Off: you run the mornings; the supervisor covers you only while you're away. On: they roll shifts even while you watch. ${formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.`}
               cost={SUPERVISOR_SALARY_PER_SHIFT}
               active={state.autoShift}
               onToggle={onToggleAutoShift}
             />
             <p className="self-center text-sm font-semibold text-slate-300">
-              Hands-on mornings still squeeze out more: the supervisor never hires, trains, or
-              staffs the support slots. Toggle off whenever you want the floor back.
+              Away time is always covered — the supervisor staffs and runs every shift you miss.
+              Hands-on mornings still squeeze out more: they never hire, train, or staff the
+              support slots.
             </p>
           </div>
         )}
@@ -2132,7 +2134,7 @@ function toastForEvent(e: GameEvent): ToastSpec | null {
     case 'CLIENT_UNLOCKED':
       return { text: `New client: ${p.clientName} — better rates unlocked`, tone: 'toast-gold', tag: 'CLIENT', sound: 'win' };
     case 'SUPERVISOR_HIRED':
-      return { text: `Supervisor hired — the floor now runs itself`, tone: 'toast-gold', tag: 'OPS', sound: 'win' };
+      return { text: `Supervisor hired — the plant earns while you're away`, tone: 'toast-gold', tag: 'OPS', sound: 'win' };
     case 'GAME_OVER':
       return { text: `The plant shut down`, tone: 'toast-bad', tag: 'OVER', sound: 'over' };
     default:

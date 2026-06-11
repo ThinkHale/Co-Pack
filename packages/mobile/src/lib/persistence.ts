@@ -3,7 +3,7 @@
 // The engine stays the source of truth — we just persist GameState and replay
 // tick() to catch the player up on the time they were away.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GameState, GameEvent, tick } from '@copack/engine';
+import { GameState, GameEvent, tick, autoAssignCrew, startShift } from '@copack/engine';
 import type { SpeedSetting, TabKey } from '../store/useGameStore';
 
 // v3: the economy moved to real temp-labor bill rates ($22–30/hr); v2 saves
@@ -133,7 +133,11 @@ export function runOfflineCatchUp(
   savedAt: number,
   wasPaused: boolean,
 ): { state: GameState; summary: OfflineSummary | null } {
-  if (state.gameOver || wasPaused || state.awaitingStaffing) return { state, summary: null };
+  // No catch-up if the run is over or left paused. A save parked at a morning
+  // standup only runs if a supervisor is hired — they staff the board and
+  // start the shift the moment you walk out the door.
+  if (state.gameOver || wasPaused) return { state, summary: null };
+  if (state.awaitingStaffing && !state.hasSupervisor) return { state, summary: null };
 
   const awayMs = Math.max(0, Date.now() - savedAt);
   let ticks = Math.floor((awayMs / 1000) * OFFLINE_TICKS_PER_SEC);
@@ -143,10 +147,13 @@ export function runOfflineCatchUp(
 
   const startCash = state.cash;
   let s = state;
+  if (s.awaitingStaffing) s = startShift(autoAssignCrew(s)).state;
   let ran = 0;
   const counts: Record<string, number> = {};
   for (let i = 0; i < ticks; i++) {
-    const r = tick(s);
+    // Unattended: a hired supervisor rolls every standup regardless of the
+    // live Auto-shift toggle — covering your absence is their whole job.
+    const r = tick(s, { unattended: true });
     s = r.state;
     ran++;
     for (const e of r.events as GameEvent[]) {

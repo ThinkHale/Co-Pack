@@ -83,7 +83,7 @@ export function formatEvent(e: GameEvent): EventLine {
     case 'CLIENT_UNLOCKED':
       return { text: `New client signed: ${p.clientName} — pays up to $${(p.revenueTop as number).toFixed(2)}/unit.`, tone: 'good', tag: 'CLIENT' };
     case 'SUPERVISOR_HIRED':
-      return { text: `Floor supervisor hired — shifts now run themselves. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'OPS' };
+      return { text: `Floor supervisor hired — the plant now runs while you're away. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'OPS' };
     case 'AUTO_SHIFT_TOGGLED':
       return { text: `Auto-shift ${p.autoShift ? 'ON — the supervisor runs the mornings' : 'off — back to manual standups'}.`, tone: 'neutral', tag: 'OPS' };
     case 'OVERHEAD':
@@ -140,7 +140,7 @@ export function toastForEvent(e: GameEvent): ToastSpec | null {
     case 'CLIENT_UNLOCKED':
       return { text: `New client: ${p.clientName} — better rates unlocked`, tone: 'gold', tag: 'CLIENT', sound: 'win' };
     case 'SUPERVISOR_HIRED':
-      return { text: `Supervisor hired — the floor now runs itself`, tone: 'gold', tag: 'OPS', sound: 'win' };
+      return { text: `Supervisor hired — the plant earns while you're away`, tone: 'gold', tag: 'OPS', sound: 'win' };
     case 'GAME_OVER':
       return { text: `The plant shut down`, tone: 'bad', tag: 'OVER', sound: 'over' };
     default:
