@@ -24,30 +24,30 @@ const maxAutomation = (s: GameState) =>
 
 export const OBJECTIVES: Objective[] = [
   {
-    id: 'first_order', label: 'Ship your first contract', reward: 500,
+    id: 'first_order', label: 'Ship your first contract', reward: 1200,
     hint: 'Staff a full line and deliver the order on the board.',
     isComplete: s => s.completedOrders >= 1,
     progress: s => ({ current: Math.min(s.completedOrders, 1), target: 1 }),
   },
   {
-    id: 'hire_one', label: 'Call the agency for a hire', reward: 400,
+    id: 'hire_one', label: 'Call the agency for a hire', reward: 1000,
     hint: 'Tap Hire on the Floor to bring in a fourth body.',
     isComplete: s => headcount(s) >= 4,
     progress: s => ({ current: Math.min(headcount(s), 4), target: 4 }),
   },
   {
-    id: 'train_one', label: 'Cross-train an associate', reward: 500,
+    id: 'train_one', label: 'Cross-train an associate', reward: 1200,
     hint: 'Select a worker and train them on a second station.',
     isComplete: s => Object.values(s.workers).some(w => w.skills.length >= 2),
   },
   {
-    id: 'five_orders', label: 'Ship 5 contracts', reward: 1200,
+    id: 'five_orders', label: 'Ship 5 contracts', reward: 3000,
     hint: 'Keep the belt moving — quantity builds the bankroll.',
     isComplete: s => s.completedOrders >= 5,
     progress: s => ({ current: Math.min(s.completedOrders, 5), target: 5 }),
   },
   {
-    id: 'land_atlas', label: 'Land Atlas Beverage Co.', reward: 1000,
+    id: 'land_atlas', label: 'Land Atlas Beverage Co.', reward: 2500,
     hint: 'Ship contracts to build a track record — bigger clients pay better per unit.',
     isComplete: s => !!s.clients.c2,
     progress: s => ({
@@ -56,33 +56,33 @@ export const OBJECTIVES: Objective[] = [
     }),
   },
   {
-    id: 'second_line', label: 'Open a second line', reward: 1500,
+    id: 'second_line', label: 'Open a second line', reward: 4000,
     hint: 'Front Office → Production Lines. More lines, more parallel orders.',
     isComplete: s => s.lineCount >= 2,
   },
   {
-    id: 'promote_lead', label: 'Promote a line lead', reward: 800,
+    id: 'promote_lead', label: 'Promote a line lead', reward: 2000,
     hint: 'Front Office → People moves. A lead lifts their whole line.',
     isComplete: s => Object.values(s.workers).some(w => w.isLead),
   },
   {
-    id: 'hire_supervisor', label: 'Hire a floor supervisor', reward: 1500,
+    id: 'hire_supervisor', label: 'Hire a floor supervisor', reward: 4000,
     hint: 'Front Office → Operations. Shifts run themselves — even while you\'re away.',
     isComplete: s => s.hasSupervisor,
   },
   {
-    id: 'convert_perm', label: 'Convert a temp to company', reward: 1000,
+    id: 'convert_perm', label: 'Convert a temp to company', reward: 2500,
     hint: 'A permanent hire is steadier and far less likely to walk.',
     isComplete: s => Object.values(s.workers).some(w => w.permanent),
   },
   {
-    id: 'automate_l2', label: 'Automate a line to L2', reward: 1500,
+    id: 'automate_l2', label: 'Automate a line to L2', reward: 4000,
     hint: 'Automation lifts output even when the crew is thin.',
     isComplete: s => maxAutomation(s) >= 2,
     progress: s => ({ current: Math.min(maxAutomation(s), 2), target: 2 }),
   },
   {
-    id: 'land_halcyon', label: 'Land Halcyon Home Goods', reward: 2000,
+    id: 'land_halcyon', label: 'Land Halcyon Home Goods', reward: 5000,
     hint: 'A national account: 14 contracts shipped and a two-line shop.',
     isComplete: s => !!s.clients.c3,
     progress: s => ({
@@ -91,24 +91,24 @@ export const OBJECTIVES: Objective[] = [
     }),
   },
   {
-    id: 'bank_25k', label: 'Bank $25,000', reward: 2000,
+    id: 'bank_60k', label: 'Bank $60,000', reward: 5000,
     hint: 'Run lean shifts and deliver on time.',
-    isComplete: s => s.cash >= 25000,
-    progress: s => ({ current: Math.max(0, Math.round(s.cash)), target: 25000 }),
+    isComplete: s => s.cash >= 60000,
+    progress: s => ({ current: Math.max(0, Math.round(s.cash)), target: 60000 }),
   },
   {
-    id: 'staffing_streak', label: 'Hold 95% labor coverage', reward: 2500,
+    id: 'staffing_streak', label: 'Hold 95% labor coverage', reward: 6000,
     hint: 'Keep the rolling staffing fill at target across a logged week.',
     isComplete: s => s.staffingHistory.length >= 5 && rollingStaffingFill(s) >= STAFFING_TARGET,
   },
   {
-    id: 'crew_eight', label: 'Grow the crew to 8', reward: 1500,
+    id: 'crew_eight', label: 'Grow the crew to 8', reward: 4000,
     hint: 'A deeper bench absorbs no-shows without stalling a line.',
     isComplete: s => headcount(s) >= 8,
     progress: s => ({ current: Math.min(headcount(s), 8), target: 8 }),
   },
   {
-    id: 'land_northwind', label: 'Land Northwind Pharma', reward: 4000,
+    id: 'land_northwind', label: 'Land Northwind Pharma', reward: 10000,
     hint: 'The premium contract: 30 shipped and three lines running.',
     isComplete: s => !!s.clients.c4,
     progress: s => ({
@@ -117,10 +117,10 @@ export const OBJECTIVES: Objective[] = [
     }),
   },
   {
-    id: 'bank_100k', label: 'Bank $100,000', reward: 10000,
+    id: 'bank_250k', label: 'Bank $250,000', reward: 25000,
     hint: 'The empire chapter. Automate, parallelize, keep morale high.',
-    isComplete: s => s.cash >= 100000,
-    progress: s => ({ current: Math.max(0, Math.round(s.cash)), target: 100000 }),
+    isComplete: s => s.cash >= 250000,
+    progress: s => ({ current: Math.max(0, Math.round(s.cash)), target: 250000 }),
   },
 ];
 

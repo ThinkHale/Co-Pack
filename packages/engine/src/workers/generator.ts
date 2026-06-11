@@ -39,7 +39,10 @@ export function generateWorker(id: string, seed: number, skillRequest: string[] 
   let reliability = 0.55 + rng(1) * 0.28;     // 0.55 – 0.83
   let disposition = 0.45 + rng(6) * 0.40;     // 0.45 – 0.85
   let proficiency = 0.45 + rng(4) * 0.30;     // 0.45 – 0.75
-  let wage = 70 + reliability * 50;
+  // Market BILL rate per 10h shift: worker hourly + agency markup. A typical
+  // body bills ~$25/hr; steadier people command more (~$23–$26.30/hr before
+  // trait premiums). The pay-policy dial then sweeps ~90%–120% of this.
+  let wage = 230 + reliability * 40;
 
   for (const tid of traits) {
     const t: Trait = TRAITS[tid];
@@ -52,6 +55,9 @@ export function generateWorker(id: string, seed: number, skillRequest: string[] 
   reliability = clamp01(reliability);
   disposition = clamp01(disposition);
   proficiency = clamp01(proficiency);
+  // Keep the bill inside the realistic band: never below the $22/hr legal
+  // floor, never above $32/hr even for a heavily-premium-trait veteran.
+  wage = Math.max(220, Math.min(320, wage));
 
   // 60% of the time, honor the requested skill mix if one is set.
   const pool = skillRequest.length > 0 && rng(5) < 0.6 ? skillRequest : STATION_IDS;

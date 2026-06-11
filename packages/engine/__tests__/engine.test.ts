@@ -33,6 +33,7 @@ import {
   hireWorker,
   moraleBreakdown,
   effectiveWage,
+  effectiveHourly,
   payAttendanceBonus,
   payRetentionFactor,
   setGlobalPayRate,
@@ -648,7 +649,29 @@ describe('pay policy', () => {
 
   it('clamps the rate within bounds', () => {
     const tooHigh = setGlobalPayRate(createInitialState(), 99);
-    expect(tooHigh.payPolicy.globalRate).toBeLessThanOrEqual(1.5);
+    expect(tooHigh.payPolicy.globalRate).toBeLessThanOrEqual(1.2);
+    const tooLow = setGlobalPayRate(createInitialState(), 0);
+    expect(tooLow.payPolicy.globalRate).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('bills realistic temp-labor rates: $22–$32/hr across the pay dial', () => {
+    // $16/hr minimum wage + agency markup puts the legal bill floor at $22/hr;
+    // decent-morale hires bill ~$25/hr at market, and the dial sweeps to ~$30+.
+    const floor = setGlobalPayRate(createInitialState(), 0.9).payPolicy;
+    const market = createInitialState().payPolicy;
+    const top = setGlobalPayRate(createInitialState(), 1.2).payPolicy;
+    for (let i = 0; i < 50; i++) {
+      const w = generateWorker(`pay${i}`, i * 977 + 3);
+      expect(effectiveHourly(w, floor)).toBeGreaterThanOrEqual(22);
+      expect(effectiveHourly(w, market)).toBeGreaterThanOrEqual(22);
+      expect(effectiveHourly(w, market)).toBeLessThanOrEqual(32);
+      expect(effectiveHourly(w, top)).toBeLessThanOrEqual(32 * 1.2);
+    }
+    // The starting crew bills in-band at market too.
+    for (const w of Object.values(createInitialState().workers)) {
+      expect(effectiveHourly(w, market)).toBeGreaterThanOrEqual(22);
+      expect(effectiveHourly(w, market)).toBeLessThanOrEqual(30);
+    }
   });
 });
 
@@ -812,7 +835,7 @@ describe('shift challenges', () => {
     };
     const { state: after, events } = resolveShiftChallenge(state, 'clear');
     expect(after.shiftChallenge).toBeNull();
-    expect(after.cash).toBe(880);
+    expect(after.cash).toBe(700);
     expect(events[0].type).toBe('CHALLENGE_RESOLVED');
   });
 

@@ -8,7 +8,7 @@ const Slider = RawSlider as unknown as React.ComponentType<any>;
 import {
   GameState,
   requiredPositions, coveredPositions, staffingFill, rollingStaffingFill, STAFFING_TARGET,
-  effectiveWage,
+  effectiveWage, SHIFT_HOURS,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
 } from '@copack/engine';
@@ -107,6 +107,7 @@ function PayPanel({ state, onSetPayRate }: { state: GameState; onSetPayRate: (ra
       </View>
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
         <StatCell label="Roster payroll" value={`${formatCurrency(rosterPayroll)}/sh`} />
+        <StatCell label="Avg bill" value={`$${headcount > 0 ? (rosterPayroll / headcount / SHIFT_HOURS).toFixed(2) : '0.00'}/hr`} />
         <StatCell label="Headcount" value={`${headcount}`} />
       </View>
     </Panel>

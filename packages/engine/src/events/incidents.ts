@@ -11,8 +11,8 @@ import { workerIncidentRisk, lineIncidentResist } from '../workers/traits';
 
 const OVERTIME_RISK_MULT = 1.6;     // tired crews have more incidents
 const INCIDENT_MORALE_HIT = 0.08;
-const INCIDENT_COST_MIN = 250;
-const INCIDENT_COST_MAX = 900;
+const INCIDENT_COST_MIN = 600;
+const INCIDENT_COST_MAX = 2200;
 
 // Map each assigned worker to the safety resistance present on their line.
 function lineResistByWorker(state: GameState): Record<string, number> {

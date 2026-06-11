@@ -1,6 +1,6 @@
 import { GameState, GameEvent, Worker, StationSkill } from '../types';
 
-const TRAIN_BASE_COST = 350;       // cost to cross-train a brand-new skill
+const TRAIN_BASE_COST = 900;       // cost to cross-train a brand-new skill
 const UPSKILL_STEP = 0.15;         // proficiency gained per training session
 const PROFICIENCY_CAP = 0.95;      // you can always get a little better, never perfect
 const NEW_SKILL_PROFICIENCY = 0.55;// a freshly cross-trained worker starts competent
@@ -10,7 +10,7 @@ const TRAIN_MORALE_BONUS = 0.04;   // investing in people lifts them
 export function trainingCost(worker: Worker, stationId: string): number {
   const existing = worker.skills.find(s => s.stationId === stationId);
   if (!existing) return TRAIN_BASE_COST;
-  return Math.round(TRAIN_BASE_COST + existing.proficiency * 600);
+  return Math.round(TRAIN_BASE_COST + existing.proficiency * 1500);
 }
 
 export function canTrain(worker: Worker, stationId: string): boolean {

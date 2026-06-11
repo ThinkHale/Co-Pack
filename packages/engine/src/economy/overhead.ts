@@ -8,8 +8,8 @@ import { SUPERVISOR_SALARY_PER_SHIFT } from './supervisor';
 // cost, and the way to outrun it is scale — more lines, better-paying clients.
 // Rent grows gently with footprint so it pressures stagnation, not expansion.
 
-export const FACILITY_RENT_BASE = 150;
-export const FACILITY_RENT_PER_EXTRA_LINE = 75;
+export const FACILITY_RENT_BASE = 375;
+export const FACILITY_RENT_PER_EXTRA_LINE = 190;
 
 export function facilityRent(state: GameState): number {
   return FACILITY_RENT_BASE + FACILITY_RENT_PER_EXTRA_LINE * Math.max(0, state.lineCount - 1);

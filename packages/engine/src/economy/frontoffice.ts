@@ -6,7 +6,7 @@ import { GameState, GameEvent, Line, Worker } from '../types';
 
 export const AUTOMATION_BONUS_PER_LEVEL = 0.18; // +18% line output per level
 export const AUTOMATION_MAX_LEVEL = 5;
-const AUTOMATION_BASE_COST = 2200;
+const AUTOMATION_BASE_COST = 5500;
 
 export function automationCost(line: Line): number {
   return Math.round(AUTOMATION_BASE_COST * (line.automation + 1) * 1.4);
@@ -42,7 +42,7 @@ export function upgradeAutomation(state: GameState, lineId: string): { state: Ga
 // A line with a lead gets a morale-and-output bump. Bad-manager risk lives in the
 // fact that a lead pulled from a station leaves a hole; promote the right person.
 
-export const LEAD_COST = 1200;
+export const LEAD_COST = 3000;
 export const LEAD_OUTPUT_BONUS = 0.12; // +12% line output when a lead is on it
 export const LEAD_MORALE_BONUS = 0.06; // lead lifts crew morale each shift
 
@@ -75,7 +75,7 @@ export function promoteLead(state: GameState, workerId: string, lineId: string):
 // wage bump, but they become markedly steadier: higher reliability, a higher
 // morale set-point, and a morale bump from the vote of confidence.
 
-export const CONVERT_COST = 1800;
+export const CONVERT_COST = 4500;
 const CONVERT_WAGE_MULTIPLIER = 1.35;
 
 export function conversionCost(_worker: Worker): number {

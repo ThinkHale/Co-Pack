@@ -5,7 +5,7 @@ import {
   dayCondition, dayAttendanceModifier,
   mealCost, incentiveCost, mealReady, incentiveReady,
   mealCooldownRemaining, incentiveCooldownRemaining,
-  canRepeatStaffing, flightRisk, trainingCost, canTrain, effectiveWage,
+  canRepeatStaffing, flightRisk, trainingCost, canTrain, effectiveWage, effectiveHourly,
   lineThroughput, dayOfTick, weekday, openObjectives,
   SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
 } from '@copack/engine';
@@ -359,7 +359,7 @@ function WorkerActionBar({
               {worker.permanent && <Pill color={colors.purple}>CO</Pill>}
             </View>
             <Text style={{ color: riskColor, fontSize: 11, fontWeight: '700', marginTop: 2 }}>
-              {riskCopy} · {formatCurrency(effectiveWage(worker, payPolicy))}/shift
+              {riskCopy} · ${effectiveHourly(worker, payPolicy).toFixed(2)}/hr ({formatCurrency(effectiveWage(worker, payPolicy))}/shift)
             </Text>
           </View>
         </View>

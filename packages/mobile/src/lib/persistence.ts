@@ -6,8 +6,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameState, GameEvent, tick } from '@copack/engine';
 import type { SpeedSetting, TabKey } from '../store/useGameStore';
 
-const SAVE_KEY = 'copack.save.v2';
-const SAVE_VERSION = 2;
+// v3: the economy moved to real temp-labor bill rates ($22–30/hr); v2 saves
+// are in the old currency scale and are intentionally not migrated.
+const SAVE_KEY = 'copack.save.v3';
+const SAVE_VERSION = 3;
 
 const OFFLINE_TICKS_PER_SEC = 1;
 // With a supervisor hired, shifts roll unattended and the full cap can pay out.
