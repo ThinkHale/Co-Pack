@@ -543,6 +543,7 @@ function Game() {
                   workers={state.workers}
                   lineRate={lineThroughput(state, line)}
                   shiftActive={shiftActive}
+                  paused={paused}
                   selectedWorkerId={selectedWorkerId}
                   onSelectWorker={selectWorker}
                   onAssign={assignWorker}
@@ -575,7 +576,6 @@ function Game() {
             throughput={throughput}
             reputation={reputation}
             clientName={primaryClient?.name ?? firstOrder?.clientId ?? 'Client'}
-            paused={paused || awaitingStaffing || gameOver}
             recentEvents={recentEvents}
           />
         )}
@@ -652,7 +652,7 @@ function TabBar({
 }
 
 function OrdersTab({
-  state, sortedOrders, firstOrder, throughput, reputation, clientName, paused, recentEvents,
+  state, sortedOrders, firstOrder, throughput, reputation, clientName, recentEvents,
 }: {
   state: GameState;
   sortedOrders: Order[];
@@ -660,7 +660,6 @@ function OrdersTab({
   throughput: number;
   reputation: number;
   clientName: string;
-  paused: boolean;
   recentEvents: GameEvent[];
 }) {
   return (
@@ -684,8 +683,6 @@ function OrdersTab({
             No active orders
           </div>
         )}
-
-        <FacilityScene state={state} paused={paused} />
       </section>
 
       <aside className="space-y-4">
@@ -831,12 +828,12 @@ function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void
       type="button"
       onClick={onGoTo}
       title={next.hint}
-      className="game-panel mb-4 flex w-full items-center gap-3 p-3 text-left"
+      className="game-panel goal-strip mb-4 flex w-full items-center gap-3 p-3 text-left"
     >
       <span className="eyebrow shrink-0">Next goal</span>
       <span className="min-w-0 flex-1 truncate text-sm font-black text-white">{next.label}</span>
       {ratio !== null && (
-        <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-white/10">
+        <span className="hidden h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-white/10 sm:block">
           <span className="block h-full rounded-full bg-amber-300" style={{ width: `${Math.max(4, ratio * 100)}%` }} />
         </span>
       )}
@@ -848,8 +845,8 @@ function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void
 function HudStat({ label, value, tone }: { label: string; value: string; tone: 'green' | 'cyan' | 'pink' | 'gold' | 'red' }) {
   return (
     <div className={`hud-stat hud-stat-${tone}`}>
-      <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-slate-950/60">{label}</div>
-      <div className="mt-1 truncate text-xl font-black leading-none text-slate-950 sm:text-2xl">{value}</div>
+      <div className="hud-stat-label">{label}</div>
+      <div className="hud-stat-value">{value}</div>
     </div>
   );
 }
@@ -912,122 +909,10 @@ function OrderHero({
   );
 }
 
-function FacilityScene({ state, paused }: { state: GameState; paused: boolean }) {
-  const lines = Object.entries(state.lines);
-  const staffedStations = lines.reduce(
-    (sum, [, line]) => sum + line.stations.filter(s => s.assignedWorkerId).length,
-    0
-  );
-  const presentStations = lines.reduce(
-    (sum, [, line]) => sum + line.stations.filter(
-      s => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift
-    ).length,
-    0
-  );
-
-  return (
-    <section className="facility-panel" aria-label="Facility live view">
-      <div className="facility-head">
-        <div>
-          <div className="eyebrow">Facility live view</div>
-          <h2 className="facility-title">Packaging Floor</h2>
-        </div>
-        <div className="facility-metrics">
-          <span>{lines.length} line{lines.length === 1 ? '' : 's'}</span>
-          <span>{presentStations}/{staffedStations || 0} active crew</span>
-        </div>
-      </div>
-
-      <div className={`facility-view ${paused ? 'paused' : 'running'}`}>
-        <div className="facility-backwall" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="facility-lines">
-          {lines.map(([lineId, line], index) => (
-            <FacilityLine
-              key={lineId}
-              index={index}
-              line={line}
-              workers={state.workers}
-              lineRate={lineThroughput(state, line)}
-              paused={paused}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FacilityLine({
-  index, line, workers, lineRate, paused,
-}: {
-  index: number;
-  line: Line;
-  workers: Record<string, Worker>;
-  lineRate: number;
-  paused: boolean;
-}) {
-  const presentCount = line.stations.filter(
-    s => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift
-  ).length;
-  const running = presentCount > 0 && !paused;
-  const beltDuration = running ? Math.max(1.8, 6 - lineRate * 1.15) : 0;
-  const rowStyle = {
-    '--line-index': index,
-    '--line-speed': `${beltDuration}s`,
-  } as React.CSSProperties;
-
-  return (
-    <div className={`facility-line ${running ? 'running' : 'idle'}`} style={rowStyle}>
-      <div className="facility-line-label">
-        <strong>{line.name}</strong>
-        <span>{presentCount}/{line.stations.length}</span>
-      </div>
-      <div className="facility-track">
-        <div className="facility-belt" />
-        {Array.from({ length: 5 }).map((_, i) => (
-          <span
-            key={i}
-            className="facility-parcel"
-            style={{ animationDelay: `${(-beltDuration / 5) * i}s` }}
-          />
-        ))}
-        <div className="facility-stations">
-          {line.stations.map(station => {
-            const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
-            const present = worker?.presentThisShift ?? false;
-            const theme = STATION_THEMES[station.id] ?? STATION_THEMES.s1;
-            return (
-              <div
-                key={station.id}
-                className={`facility-station ${worker ? 'assigned' : 'empty'} ${present ? 'present' : 'absent'}`}
-                style={{ '--station-color': theme.color } as React.CSSProperties}
-              >
-                <span className="facility-station-code">{theme.icon}</span>
-                {worker ? (
-                  <div className="facility-worker">
-                    <CharacterAvatar worker={worker} size="xs" />
-                    <span>{profileForWorker(worker).firstName}</span>
-                  </div>
-                ) : (
-                  <span className="facility-open-slot" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const WORKER_DND_MIME = 'application/x-copack-worker';
 
 function FloorLine({
-  lineId, line, workers, lineRate, shiftActive, selectedWorkerId,
+  lineId, line, workers, lineRate, shiftActive, paused, selectedWorkerId,
   onSelectWorker, onAssign, onUnassign,
 }: {
   lineId: string;
@@ -1035,6 +920,7 @@ function FloorLine({
   workers: Record<string, Worker>;
   lineRate: number;
   shiftActive: boolean;
+  paused: boolean;
   selectedWorkerId: string | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
@@ -1045,14 +931,18 @@ function FloorLine({
   ).length;
   const isStopped = presentCount === 0;
   const isShort = presentCount > 0 && presentCount < line.stations.length;
-  const running = shiftActive && !isStopped;
+  // Paused freezes the belt (the sim clock is stopped — boxes rolling would
+  // be a lie) without flipping the status chips into their "Ready" morning state.
+  const running = shiftActive && !isStopped && !paused;
   const selectedWorker = selectedWorkerId ? workers[selectedWorkerId] : null;
   const supportWorkerId = line.supportWorkerIds?.[0];
   const supportWorker = supportWorkerId ? workers[supportWorkerId] : null;
   const supportPresent = supportWorker?.presentThisShift ?? false;
 
-  // Belt speed scales with output so a humming line visibly moves faster.
-  const beltDuration = running ? Math.max(1.1, 3.4 - lineRate * 0.9) : 0;
+  // Belt speed and carton density both scale with output, so the difference
+  // between a limping line and a humming one is readable at a glance.
+  const beltDuration = Math.max(1.6, 5.2 - lineRate * 2.6);
+  const boxCount = Math.max(3, Math.min(9, Math.round(2 + lineRate * 4)));
 
   return (
     <section className="game-panel p-3 sm:p-5">
@@ -1075,17 +965,7 @@ function FloorLine({
         </div>
       </div>
 
-      <div className={`conveyor-wrap ${running ? 'running' : 'stopped'}`}>
-        <div className="conveyor-belt" />
-        <div className="conveyor-flow" aria-hidden="true">
-          {running && Array.from({ length: 7 }).map((_, i) => (
-            <span
-              key={i}
-              className="belt-package"
-              style={{ animationDuration: `${beltDuration}s`, animationDelay: `${(-beltDuration / 7) * i}s` }}
-            />
-          ))}
-        </div>
+      <div className={`line-flow ${running ? 'running' : 'stopped'}`}>
         <div className="station-grid">
           {line.stations.map((station, index) => {
             const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
@@ -1115,6 +995,25 @@ function FloorLine({
               />
             );
           })}
+        </div>
+
+        {/* The takeaway belt: cartons start raw under Induct, get packed under
+            Pack, and roll out taped under Stage — the line's work, visible. */}
+        <div className="belt-lane" aria-hidden="true">
+          <div className="belt-tread" />
+          <div className="belt-stage-marks">
+            <span /><span /><span />
+          </div>
+          {running && Array.from({ length: boxCount }).map((_, i) => (
+            <span
+              key={`${boxCount}-${i}`}
+              className="belt-box"
+              style={{ animationDuration: `${beltDuration}s`, animationDelay: `${(-beltDuration / boxCount) * i}s` }}
+            />
+          ))}
+          <div className={`belt-outlet ${running ? 'running' : ''}`}>
+            {running ? `${lineRate.toFixed(1)}/min ▸` : isStopped && shiftActive ? 'STALLED' : '—'}
+          </div>
         </div>
       </div>
 
@@ -1149,7 +1048,7 @@ function StationTile({
   selectedWorker: Worker | null;
   onPlace: (workerId: string) => void;
   onSelect: () => void;
-  onUnassign: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onUnassign: (event: React.SyntheticEvent) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const profile = worker ? profileForWorker(worker) : null;
@@ -1189,7 +1088,21 @@ function StationTile({
         <span className="station-code" style={{ background: theme.color }}>{theme.icon}</span>
         <span className="station-name-tag">{stationName}</span>
         {worker && (
-          <button type="button" className="station-clear" title="Unassign worker" onClick={onUnassign}>✕</button>
+          // span, not button: this card is already a <button>, and nesting
+          // buttons is invalid DOM (React warns, browsers mis-handle clicks).
+          <span
+            role="button"
+            tabIndex={0}
+            className="station-clear"
+            title="Unassign worker"
+            onClick={onUnassign}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onUnassign(e);
+              }
+            }}
+          >✕</span>
         )}
       </div>
 

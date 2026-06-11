@@ -78,7 +78,7 @@ button {
   background:
     linear-gradient(135deg, rgba(18, 24, 39, 0.12) 25%, transparent 25%, transparent 50%, rgba(18, 24, 39, 0.12) 50%, rgba(18, 24, 39, 0.12) 75%, transparent 75%, transparent);
   background-size: 34px 34px;
-  opacity: 0.5;
+  opacity: 0.32;
 }
 
 .eyebrow {
@@ -223,33 +223,61 @@ button {
   display: none;
 }
 
+/* HUD stat tiles: dark glass with a per-stat accent, instead of the old flat
+   full-bleed color blocks that fought every panel around them. The number IS
+   the color; the chrome stays quiet. */
 .hud-stat {
+  --stat-color: #68d8ff;
+  position: relative;
   min-width: 0;
-  border: 2px solid rgba(18, 24, 39, 0.28);
-  border-radius: 7px;
-  padding: 0.75rem;
-  box-shadow: inset 0 -4px 0 rgba(18, 24, 39, 0.14);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--stat-color) 30%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 0.7rem 0.75rem 0.8rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stat-color) 11%, transparent), transparent 60%),
+    rgba(10, 15, 27, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-.hud-stat-green {
-  background: #72ef8f;
+.hud-stat::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--stat-color), transparent 88%);
+  opacity: 0.85;
 }
 
-.hud-stat-cyan {
-  background: #68d8ff;
+.hud-stat-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8fa3bd;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
-.hud-stat-pink {
-  background: #ff7a9a;
+.hud-stat-value {
+  margin-top: 0.3rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--stat-color);
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--stat-color) 35%, transparent);
 }
 
-.hud-stat-gold {
-  background: #ffe66c;
-}
-
-.hud-stat-red {
-  background: #ff6b81;
-}
+.hud-stat-green { --stat-color: #72ef8f; }
+.hud-stat-cyan { --stat-color: #68d8ff; }
+.hud-stat-pink { --stat-color: #ff7a9a; }
+.hud-stat-gold { --stat-color: #ffe66c; }
+.hud-stat-red { --stat-color: #ff6b81; }
 
 .speed-toggle {
   display: inline-flex;
@@ -884,372 +912,122 @@ button {
   }
 }
 
-/* --- Facility live view: a bigger animated plant readout above the controls --- */
-.facility-panel {
-  position: relative;
-  overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025)),
-    #10192b;
-  box-shadow:
-    0 22px 60px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-.facility-head {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.8rem 0.9rem 0.6rem;
-}
-
-.facility-title {
-  margin-top: 0.1rem;
-  color: #f8fbff;
-  font-size: 1.3rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.facility-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.45rem;
-}
-
-.facility-metrics span {
-  display: inline-flex;
-  min-height: 1.75rem;
-  align-items: center;
-  border: 1px solid rgba(125, 211, 252, 0.25);
-  border-radius: 6px;
-  padding: 0.25rem 0.55rem;
-  background: rgba(8, 13, 24, 0.48);
-  color: #bae6fd;
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.facility-view {
-  position: relative;
-  min-height: 12.5rem;
-  overflow: hidden;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    linear-gradient(180deg, rgba(125, 211, 252, 0.12), transparent 34%),
-    linear-gradient(180deg, #17243a 0%, #0d1424 70%);
-}
-
-.facility-backwall {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.facility-backwall::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 38%;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 5rem),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent);
-}
-
-.facility-backwall::after {
-  content: "";
-  position: absolute;
-  right: -4rem;
-  bottom: -2rem;
-  left: -4rem;
-  height: 40%;
-  transform: perspective(24rem) rotateX(56deg);
-  transform-origin: bottom;
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    #141d30;
-  background-size: 3.2rem 2.2rem;
-}
-
-.facility-backwall span {
-  position: absolute;
-  top: 0.9rem;
-  width: 8rem;
-  height: 2.8rem;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-radius: 7px;
-  background:
-    linear-gradient(90deg, rgba(114, 239, 143, 0.26), rgba(104, 216, 255, 0.22)),
-    rgba(8, 13, 24, 0.38);
-  box-shadow: 0 0 26px rgba(104, 216, 255, 0.12);
-}
-
-.facility-backwall span:nth-child(1) { left: 7%; }
-.facility-backwall span:nth-child(2) { left: 42%; width: 6.8rem; }
-.facility-backwall span:nth-child(3) { right: 8%; }
-
-.facility-lines {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 0.5rem;
-  padding: 3.3rem 0.9rem 0.8rem;
-}
-
-.facility-line {
-  display: grid;
-  grid-template-columns: 5.4rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 3.55rem;
-  opacity: 0;
-  animation: facility-line-in 360ms ease forwards;
-  animation-delay: calc(var(--line-index) * 70ms);
-}
-
-@keyframes facility-line-in {
-  from { opacity: 0; transform: translateY(0.6rem); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.facility-line-label {
-  min-width: 0;
-  border-left: 4px solid #7dd3fc;
-  padding-left: 0.55rem;
-}
-
-.facility-line-label strong,
-.facility-line-label span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.facility-line-label strong {
-  color: #f8fbff;
-  font-size: 0.9rem;
-  font-weight: 900;
-}
-
-.facility-line-label span {
-  margin-top: 0.1rem;
-  color: #94a3b8;
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.facility-track {
-  position: relative;
-  min-height: 3.55rem;
-}
-
-.facility-belt {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  left: 0;
-  height: 2.2rem;
-  transform: translateY(-50%);
-  border: 2px solid rgba(255, 255, 255, 0.11);
-  border-radius: 7px;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 16px, rgba(255, 255, 255, 0.03) 16px 32px),
-    linear-gradient(180deg, #2b3856, #1b2740);
-  background-size: 32px 100%, 100% 100%;
-}
-
-.facility-line.running .facility-belt {
-  animation: belt-scroll 0.85s linear infinite;
-}
-
-.facility-parcel {
-  position: absolute;
-  top: calc(50% - 0.52rem);
-  left: 0;
-  z-index: 1;
-  width: 1.05rem;
-  height: 1.05rem;
-  border-radius: 3px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 40%),
-    #ffb02e;
-  box-shadow:
-    inset 0 -3px 0 rgba(18, 24, 39, 0.22),
-    0 5px 10px rgba(0, 0, 0, 0.24);
-  opacity: 0;
-}
-
-.facility-line.running .facility-parcel {
-  animation: facility-parcel-move var(--line-speed) linear infinite;
-}
-
-@keyframes facility-parcel-move {
-  from { left: -1.5rem; transform: rotate(0deg); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  to { left: calc(100% + 1.5rem); transform: rotate(14deg); opacity: 0; }
-}
-
-.facility-stations {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.6rem;
-}
-
-.facility-station {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  min-height: 3.55rem;
-  align-items: end;
-  justify-items: center;
-}
-
-.facility-station::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 1.8rem;
-  height: 1.8rem;
-  transform: translateY(-50%);
-  border: 2px solid color-mix(in srgb, var(--station-color) 72%, white);
-  border-radius: 7px;
-  background: rgba(8, 13, 24, 0.74);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--station-color) 12%, transparent);
-}
-
-.facility-station-code {
-  position: absolute;
-  top: calc(50% - 0.68rem);
-  z-index: 1;
-  color: var(--station-color);
-  font-size: 0.55rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-}
-
-.facility-worker {
-  position: relative;
-  z-index: 3;
-  display: grid;
-  justify-items: center;
-  gap: 0.12rem;
-  transform: translateY(0.15rem);
-}
-
-.facility-line.running .facility-worker {
-  animation: worker-bob 1.15s ease-in-out infinite;
-}
-
-.facility-worker span {
-  max-width: 4.8rem;
-  overflow: hidden;
-  border-radius: 5px;
-  padding: 0.08rem 0.32rem;
-  background: rgba(8, 13, 24, 0.7);
-  color: #f8fbff;
-  font-size: 0.58rem;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.facility-station.absent .facility-worker {
-  opacity: 0.46;
-  filter: grayscale(0.7);
-  animation: none;
-}
-
-.facility-open-slot {
-  position: relative;
-  z-index: 2;
-  width: 2rem;
-  height: 2rem;
-  margin-bottom: 0.28rem;
-  border: 2px dashed rgba(255, 255, 255, 0.16);
-  border-radius: 8px;
-  background: rgba(8, 13, 24, 0.35);
-}
-
-.facility-view.paused .facility-backwall span {
-  opacity: 0.55;
-}
-
-/* --- The facility floor: an animated conveyor running under the stations --- */
-.conveyor-wrap {
+/* --- The line: stations on top, a real visible takeaway belt below ---
+   The old belt was painted BEHIND the station cards, so it only peeked through
+   the 0.55rem gaps — invisible, i.e. useless. Now the belt has its own lane
+   under the stations, and each carton visibly progresses through the line's
+   three stages as it travels: raw carton under Induct, packed amber under
+   Pack, sealed with teal tape under Stage. Speed + carton density track the
+   line's actual units/min. */
+.line-flow {
   position: relative;
   overflow: hidden;
   border-radius: 10px;
-  padding: 0.75rem;
+  padding: 0.75rem 0.75rem 0.6rem;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01)),
     #0d1424;
 }
 
-.conveyor-belt {
-  position: absolute;
-  top: 50%;
-  right: 0.75rem;
-  left: 0.75rem;
-  height: 3.4rem;
-  transform: translateY(-50%);
+.belt-lane {
+  position: relative;
+  height: 2.6rem;
+  margin-top: 0.6rem;
+  overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 18px, rgba(255, 255, 255, 0.02) 18px 36px),
-    #25314d;
-  background-size: 36px 100%, 100% 100%;
-}
-.conveyor-wrap.running .conveyor-belt {
-  animation: belt-scroll 0.9s linear infinite;
-}
-@keyframes belt-scroll {
-  from { background-position: 0 0, 0 0; }
-  to { background-position: 36px 0, 0 0; }
+  background: linear-gradient(180deg, #222e4c, #18223a);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.35);
 }
 
-/* Boxes flowing down the belt — the visible heartbeat of a running line. */
-.conveyor-flow {
+/* Scrolling tread: chevrons read as direction even before a carton appears. */
+.belt-tread {
   position: absolute;
-  top: 50%;
-  right: 1rem;
-  left: 1rem;
-  height: 0;
-  transform: translateY(-50%);
+  inset: 0;
+  background:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.10) 0 10px, transparent 10px 30px);
+  background-size: 60px 100%;
+  opacity: 0.65;
+}
+.line-flow.running .belt-tread {
+  animation: belt-tread-scroll 1.1s linear infinite;
+}
+@keyframes belt-tread-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 60px 0; }
+}
+.line-flow.stopped .belt-lane { filter: saturate(0.55) brightness(0.8); }
+
+/* Faint station-zone separators on the lane, aligned to the 3 stations above. */
+.belt-stage-marks {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   pointer-events: none;
 }
-.belt-package {
+.belt-stage-marks span { border-right: 1px dashed rgba(255, 255, 255, 0.08); }
+.belt-stage-marks span:last-child { border-right: 0; }
+
+/* One carton: travels the lane while its look advances with the stations it
+   passes — open kraft carton → packed amber → sealed with teal tape. */
+.belt-box {
   position: absolute;
-  top: -0.6rem;
+  top: 50%;
   left: 0;
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.45rem;
+  height: 1.15rem;
+  margin-top: -0.62rem;
+  border: 2px solid rgba(10, 14, 24, 0.55);
   border-radius: 3px;
-  background: linear-gradient(135deg, #ffd98a, #d49a3a);
-  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.3);
-  animation-name: belt-package-move;
+  box-shadow: inset 0 -3px 0 rgba(10, 14, 24, 0.25), 0 4px 8px rgba(0, 0, 0, 0.35);
+  animation-name: belt-box-journey;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
+  will-change: left;
 }
-@keyframes belt-package-move {
-  from { left: -1.5rem; opacity: 0; }
-  8% { opacity: 1; }
-  92% { opacity: 1; }
-  to { left: calc(100% + 1.5rem); opacity: 0; }
+@keyframes belt-box-journey {
+  0% {
+    left: -1.8rem;
+    opacity: 0;
+    background: linear-gradient(90deg, #9a6a35 0 40%, #845827 40% 60%, #9a6a35 60% 100%);
+  }
+  5% { opacity: 1; }
+  /* leaving Induct: still a raw carton */
+  30% { background: linear-gradient(90deg, #9a6a35 0 40%, #845827 40% 60%, #9a6a35 60% 100%); }
+  /* through Pack: filled + amber */
+  40% { background: linear-gradient(90deg, #ffb02e 0 40%, #f29b13 40% 60%, #ffb02e 60% 100%); }
+  62% { background: linear-gradient(90deg, #ffb02e 0 40%, #f29b13 40% 60%, #ffb02e 60% 100%); }
+  /* through Stage: teal tape seals it */
+  72% { background: linear-gradient(90deg, #ffb02e 0 40%, #2fd5be 40% 60%, #ffb02e 60% 100%); }
+  95% { opacity: 1; }
+  100% {
+    left: calc(100% + 0.6rem);
+    opacity: 0;
+    background: linear-gradient(90deg, #ffb02e 0 40%, #2fd5be 40% 60%, #ffb02e 60% 100%);
+  }
+}
+
+/* Right-end readout: the lane literally reports what it ships per minute. */
+.belt-outlet {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  z-index: 1;
+  transform: translateY(-50%);
+  border-radius: 5px;
+  padding: 0.18rem 0.45rem;
+  background: rgba(8, 13, 24, 0.82);
+  color: #64748b;
+  font-size: 0.62rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.belt-outlet.running {
+  color: #5eead4;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.25), 0 0 14px rgba(53, 208, 186, 0.18);
 }
 
 .station-grid {
@@ -1289,6 +1067,16 @@ button {
   background: var(--station-color);
   opacity: 0.92;
   pointer-events: none;
+}
+
+/* A working station's accent bar breathes — alive without being noisy. */
+.station-card.working::before {
+  box-shadow: 0 0 16px var(--station-color);
+  animation: station-glow 1.8s ease-in-out infinite;
+}
+@keyframes station-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .station-card:hover,
@@ -1557,16 +1345,12 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .facility-line,
-  .facility-line.running .facility-belt,
-  .facility-line.running .facility-parcel,
-  .facility-line.running .facility-worker,
-  .conveyor-wrap.running .conveyor-belt,
-  .belt-package,
+  .line-flow.running .belt-tread,
+  .belt-box,
+  .station-card.working::before,
   .station-card.working .character-avatar,
   .support-slot.working .character-avatar { animation: none; }
-  .facility-parcel,
-  .belt-package { display: none; }
+  .belt-box { display: none; }
 }
 
 .crew-card {
@@ -1870,10 +1654,10 @@ button {
   }
   .hud-stat {
     min-width: 7.3rem;
-    padding: 0.58rem;
+    padding: 0.55rem 0.6rem 0.65rem;
   }
-  .hud-stat > div:last-child {
-    font-size: 1.25rem;
+  .hud-stat-value {
+    font-size: 1.18rem;
   }
   .speed-toggle button,
   .game-button {
@@ -2082,35 +1866,12 @@ button {
     font-weight: 900;
     text-align: center;
   }
-  .facility-head {
-    align-items: center;
-    flex-direction: row;
-    gap: 0.5rem;
-    padding: 0.65rem 0.75rem 0.5rem;
-  }
-  .facility-metrics {
-    justify-content: flex-end;
-  }
-  .facility-metrics span { min-height: 1.45rem; padding: 0.15rem 0.4rem; font-size: 0.58rem; }
-  .facility-title { font-size: 1rem; }
-  .facility-view {
-    min-height: 9.8rem;
-  }
-  .facility-backwall span { height: 2rem; }
-  .facility-lines {
-    gap: 0.35rem;
-    padding: 2.45rem 0.65rem 0.6rem;
-  }
-  .facility-line {
-    grid-template-columns: 4.4rem minmax(0, 1fr);
-    gap: 0.45rem;
-  }
-  .facility-line-label strong { font-size: 0.78rem; }
-  .facility-line-label span { font-size: 0.6rem; }
-  .facility-stations { gap: 0.25rem; }
-  .facility-worker span { max-width: 3.4rem; }
   .avatar-xs { --avatar-size: 2rem; }
   .station-grid { gap: 0.4rem; }
+  .line-flow { padding: 0.5rem 0.5rem 0.45rem; }
+  .belt-lane { height: 2.1rem; margin-top: 0.45rem; }
+  .belt-box { width: 1.2rem; height: 0.95rem; margin-top: -0.52rem; }
+  .belt-outlet { font-size: 0.56rem; padding: 0.14rem 0.35rem; }
   .station-card {
     min-height: 9rem;
     padding: 0.5rem 0.4rem;
@@ -2392,6 +2153,18 @@ button {
 }
 .tag-lead { background: #ffe66c; color: #1b1405; }
 .tag-perm { background: #7c6cff; color: #0c0a1f; }
+
+/* --- Next-goal strip: one slim line of pull at the top of the Floor --- */
+.goal-strip {
+  border-left: 3px solid #ffe66c;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.goal-strip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 230, 108, 0.7);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+}
 
 /* --- Objectives --- */
 .objective-count {

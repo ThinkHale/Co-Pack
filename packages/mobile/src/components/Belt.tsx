@@ -1,53 +1,92 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, View, StyleSheet, Easing } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, View, Text, StyleSheet, Easing } from 'react-native';
 import { colors } from '../theme';
 
-// A conveyor that visibly moves when the line is running. Faster lines → faster
-// belt, matching the web build's belt-speed-scales-with-output juice. When stopped
-// the parcels freeze.
+// The takeaway belt under a line's stations — ported from the web rebuild.
+// Each carton visibly progresses through the line's three stages as it travels:
+// raw kraft carton under Induct, packed amber under Pack, sealed with teal tape
+// under Stage. Speed and carton density track the line's actual units/min, and
+// the outlet chip reads out what the lane ships. (The previous belt translated
+// parcels by `100/parcels` POINTS — not track width — so they barely moved.)
 export function ConveyorBelt({
-  running, rate, height = 26, parcels = 7,
-}: { running: boolean; rate: number; parcels?: number; height?: number }) {
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    anim.stopAnimation();
-    if (!running) return;
-    // beltDuration: 1.1s (fast) .. 3.4s (slow), shorter when output is higher.
-    const durationMs = Math.max(1100, 3400 - rate * 900);
-    anim.setValue(0);
-    const loop = Animated.loop(
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: durationMs,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [running, rate, anim]);
+  running, rate, height = 34, outlet,
+}: { running: boolean; rate: number; height?: number; outlet?: string }) {
+  const [width, setWidth] = useState(0);
+  const boxCount = Math.max(3, Math.min(8, Math.round(2 + rate * 4)));
+  const durationMs = Math.max(1600, 5200 - rate * 2600);
 
   return (
-    <View style={[styles.track, { height }]}>
-      <View style={styles.belt} />
-      {Array.from({ length: parcels }).map((_, i) => {
-        const base = (i / parcels) * 100;
-        const translateX = anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, 100 / parcels],
-        });
-        return (
-          <Animated.View
-            key={i}
-            style={[
-              styles.parcel,
-              { left: `${base}%`, opacity: running ? 1 : 0.35, transform: [{ translateX: running ? translateX : 0 }] },
-            ]}
-          />
-        );
-      })}
+    <View
+      style={[styles.track, { height }, !running && styles.trackStopped]}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+    >
+      {/* Stage-zone separators aligned with the three stations above. */}
+      <View style={styles.zones} pointerEvents="none">
+        <View style={styles.zone} />
+        <View style={styles.zone} />
+        <View style={[styles.zone, { borderRightWidth: 0 }]} />
+      </View>
+
+      {width > 0 && running && Array.from({ length: boxCount }).map((_, i) => (
+        <Carton
+          key={`${boxCount}-${durationMs}-${i}`}
+          trackWidth={width}
+          durationMs={durationMs}
+          offsetMs={(durationMs / boxCount) * i}
+        />
+      ))}
+
+      <View style={[styles.outlet, running && styles.outletOn]}>
+        <Text style={[styles.outletText, running && { color: colors.teal }]} numberOfLines={1}>
+          {outlet ?? (running ? `${rate.toFixed(1)}/min ▸` : '—')}
+        </Text>
+      </View>
     </View>
+  );
+}
+
+// One carton on its journey. The look advances with the zones it passes:
+// the amber "packed" face fades in over the Pack third, the teal tape over the
+// Stage third. Opacity + transform only, so everything runs on the UI thread.
+function Carton({ trackWidth, durationMs, offsetMs }: { trackWidth: number; durationMs: number; offsetMs: number }) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    // RN has no negative animation delay, so stagger by starting the first
+    // cycle mid-journey, then settle into a clean full loop.
+    const frac = (offsetMs % durationMs) / durationMs;
+    progress.setValue(frac);
+    const first = Animated.timing(progress, {
+      toValue: 1,
+      duration: durationMs * (1 - frac),
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    first.start(({ finished }) => {
+      if (!finished) return;
+      progress.setValue(0);
+      loop = Animated.loop(
+        Animated.timing(progress, { toValue: 1, duration: durationMs, easing: Easing.linear, useNativeDriver: true })
+      );
+      loop.start();
+    });
+    return () => {
+      first.stop();
+      loop?.stop();
+    };
+  }, [progress, durationMs, offsetMs, trackWidth]);
+
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [-22, trackWidth + 6] });
+  const opacity = progress.interpolate({ inputRange: [0, 0.05, 0.94, 1], outputRange: [0, 1, 1, 0] });
+  const packedOpacity = progress.interpolate({ inputRange: [0, 0.32, 0.42, 1], outputRange: [0, 0, 1, 1] });
+  const tapeOpacity = progress.interpolate({ inputRange: [0, 0.62, 0.72, 1], outputRange: [0, 0, 1, 1] });
+
+  return (
+    <Animated.View style={[styles.carton, { opacity, transform: [{ translateX }] }]} pointerEvents="none">
+      <Animated.View style={[styles.cartonFace, { backgroundColor: '#ffb02e', opacity: packedOpacity }]} />
+      <Animated.View style={[styles.tape, { opacity: tapeOpacity }]} />
+    </Animated.View>
   );
 }
 
@@ -55,27 +94,57 @@ const styles = StyleSheet.create({
   track: {
     width: '100%',
     borderRadius: 8,
-    backgroundColor: 'rgba(8,13,24,0.55)',
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: '#18223a',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.10)',
     overflow: 'hidden',
     justifyContent: 'center',
   },
-  belt: {
+  trackStopped: { opacity: 0.6 },
+  zones: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row' },
+  zone: { flex: 1, borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.07)', borderStyle: 'dashed' },
+  carton: {
     position: 'absolute',
-    left: 0, right: 0,
-    height: 4,
     top: '50%',
-    marginTop: -2,
-    backgroundColor: 'rgba(125,211,252,0.18)',
+    left: 0,
+    marginTop: -8,
+    width: 19,
+    height: 15,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(10,14,24,0.55)',
+    backgroundColor: '#9a6a35', // raw kraft carton off the Induct feed
+    overflow: 'hidden',
   },
-  parcel: {
+  cartonFace: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  tape: {
     position: 'absolute',
-    top: '50%',
-    marginTop: -5,
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-    backgroundColor: colors.sky,
+    top: 0,
+    bottom: 0,
+    left: '50%',
+    width: 5,
+    marginLeft: -2.5,
+    backgroundColor: '#2fd5be',
+  },
+  outlet: {
+    position: 'absolute',
+    right: 5,
+    alignSelf: 'center',
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(8,13,24,0.85)',
+  },
+  outletOn: {
+    borderWidth: 1,
+    borderColor: 'rgba(94,234,212,0.3)',
+  },
+  outletText: {
+    color: colors.textFaint,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    fontVariant: ['tabular-nums'],
   },
 });

@@ -114,7 +114,7 @@ function Game() {
         showsVerticalScrollIndicator={false}
       >
         {tab === 'floor' && <FloorScreen state={state} />}
-        {tab === 'orders' && <OrdersScreen state={state} paused={paused || awaitingStaffing || gameOver} />}
+        {tab === 'orders' && <OrdersScreen state={state} />}
         {tab === 'staffing' && <StaffingScreen state={state} />}
         {tab === 'office' && <OfficeScreen state={state} />}
       </ScrollView>

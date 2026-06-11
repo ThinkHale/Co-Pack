@@ -13,7 +13,7 @@ import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
 
 export function OfficeScreen({ state }: { state: GameState }) {
-  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift } = useGameStore();
+  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, reset } = useGameStore();
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter((w) => !w.permanent);
   const lineCost = nextLineCost(state);
@@ -146,6 +146,25 @@ export function OfficeScreen({ state }: { state: GameState }) {
           })}
         </View>
         <Text style={[styles.note, { marginTop: 10 }]}>{temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert</Text>
+      </Panel>
+
+      <Panel>
+        <View style={styles.rowBetween}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow color={colors.red}>Danger zone</Eyebrow>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Wipe the save and start a fresh plant.</Text>
+          </View>
+          <Button
+            label="Reset run"
+            tone="danger"
+            onPress={() =>
+              Alert.alert('Reset the run?', 'This wipes your save and starts a fresh shift.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Reset', style: 'destructive', onPress: reset },
+              ])
+            }
+          />
+        </View>
       </Panel>
     </View>
   );

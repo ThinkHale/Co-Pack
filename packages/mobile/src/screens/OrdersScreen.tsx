@@ -1,20 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import {
-  GameState, Order, Line, Worker,
-  reputationPayMultiplier, totalThroughput, lineThroughput,
+  GameState, Order,
+  reputationPayMultiplier, totalThroughput,
   openObjectives, OBJECTIVES, Objective,
+  CLIENT_TIERS,
   TICKS_PER_SHIFT,
 } from '@copack/engine';
-import { colors, radius, shared, STATION_THEMES } from '../theme';
-import { formatCurrency, pct, ticksToTimeRemaining, profileForWorker } from '../format';
+import { colors, radius, shared } from '../theme';
+import { formatCurrency, pct, ticksToTimeRemaining } from '../format';
 import { formatEvent, eventToneColor } from '../events';
 import { Panel, Eyebrow, Pill, Bar } from '../components/common';
-import { CharacterAvatar } from '../components/Avatar';
-import { ConveyorBelt } from '../components/Belt';
 import type { GameEvent } from '@copack/engine';
 
-export function OrdersScreen({ state, paused }: { state: GameState; paused: boolean }) {
+export function OrdersScreen({ state }: { state: GameState }) {
   const sorted = [...state.activeOrders].sort((a, b) => (a.deadline - state.tick) - (b.deadline - state.tick));
   const firstOrder = sorted[0];
   const throughput = totalThroughput(state);
@@ -29,8 +28,8 @@ export function OrdersScreen({ state, paused }: { state: GameState; paused: bool
       ) : (
         <Panel><Text style={styles.noOrders}>No active orders</Text></Panel>
       )}
-      {sorted.length > 1 && <OrdersStrip orders={sorted.slice(1)} tick={state.tick} />}
-      <FacilityScene state={state} paused={paused} />
+      {sorted.length > 1 && <OrdersStrip orders={sorted.slice(1)} tick={state.tick} clients={state.clients} />}
+      <ClientBook state={state} />
       <ObjectivesPanel state={state} />
       <EventLog events={recentEvents} />
     </View>
@@ -82,7 +81,7 @@ function OrderHero({
   );
 }
 
-function OrdersStrip({ orders, tick }: { orders: Order[]; tick: number }) {
+function OrdersStrip({ orders, tick, clients }: { orders: Order[]; tick: number; clients: GameState['clients'] }) {
   return (
     <Panel>
       <View style={styles.rowBetween}>
@@ -102,7 +101,9 @@ function OrdersStrip({ orders, tick }: { orders: Order[]; tick: number }) {
                 <Text style={{ color, fontSize: 11, fontWeight: '900' }}>{ticksToTimeRemaining(remaining)}</Text>
               </View>
               <View style={{ marginTop: 6 }}><Bar value={Math.max(progress, 0.02)} color={color} height={6} /></View>
-              <Text style={[shared.bodyMute, { marginTop: 4 }]}>{Math.round(o.unitsCompleted)} / {o.units}</Text>
+              <Text style={[shared.bodyMute, { marginTop: 4 }]} numberOfLines={1}>
+                {clients[o.clientId]?.name ?? o.clientId} · {Math.round(o.unitsCompleted)} / {o.units} · ${o.revenuePerUnit.toFixed(2)}/u
+              </Text>
             </View>
           );
         })}
@@ -111,56 +112,42 @@ function OrdersStrip({ orders, tick }: { orders: Order[]; tick: number }) {
   );
 }
 
-function FacilityScene({ state, paused }: { state: GameState; paused: boolean }) {
-  const lines = Object.entries(state.lines);
-  const staffedStations = lines.reduce((sum, [, l]) => sum + l.stations.filter((s) => s.assignedWorkerId).length, 0);
-  const presentStations = lines.reduce((sum, [, l]) => sum + l.stations.filter((s) => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift).length, 0);
-
+// The growth ladder made visible: every client tier, what it pays, and exactly
+// what it takes to land the next one — the answer to "why grow?". Web parity.
+function ClientBook({ state }: { state: GameState }) {
+  const activeLines = Object.values(state.lines).filter((l) => l.active).length;
   return (
     <Panel>
-      <View style={styles.rowBetween}>
-        <View>
-          <Eyebrow>Facility live view</Eyebrow>
-          <Text style={shared.h2}>Packaging Floor</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={shared.bodyMute}>{lines.length} line{lines.length === 1 ? '' : 's'}</Text>
-          <Text style={shared.bodyMute}>{presentStations}/{staffedStations || 0} active</Text>
-        </View>
-      </View>
-      <View style={{ gap: 10, marginTop: 10 }}>
-        {lines.map(([lineId, line]) => (
-          <FacilityLine key={lineId} line={line} workers={state.workers} lineRate={lineThroughput(state, line)} paused={paused} />
-        ))}
-      </View>
-    </Panel>
-  );
-}
-
-function FacilityLine({ line, workers, lineRate, paused }: { line: Line; workers: Record<string, Worker>; lineRate: number; paused: boolean }) {
-  const presentCount = line.stations.filter((s) => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift).length;
-  const running = presentCount > 0 && !paused;
-  return (
-    <View style={styles.facLine}>
-      <View style={styles.facLabel}>
-        <Text style={styles.facName} numberOfLines={1}>{line.name}</Text>
-        <Text style={shared.bodyMute}>{presentCount}/{line.stations.length}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <ConveyorBelt running={running} rate={lineRate} parcels={5} height={22} />
-      </View>
-      <View style={styles.facCrew}>
-        {line.stations.map((station) => {
-          const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
-          const theme = STATION_THEMES[station.id] ?? STATION_THEMES.s1;
-          return worker ? (
-            <CharacterAvatar key={station.id} worker={worker} size="xs" />
-          ) : (
-            <View key={station.id} style={[styles.facEmpty, { borderColor: theme.color }]} />
+      <Eyebrow>Client book</Eyebrow>
+      <Text style={shared.h2}>Contract Ladder</Text>
+      <View style={{ gap: 8, marginTop: 10 }}>
+        {CLIENT_TIERS.map((tier) => {
+          const client = state.clients[tier.id];
+          const signed = !!client;
+          const needsShipped = Math.max(0, tier.unlockAtCompleted - state.completedOrders);
+          const needsLines = Math.max(0, tier.minLines - activeLines);
+          const unlockNote = [
+            needsShipped > 0 ? `ship ${needsShipped} more contract${needsShipped === 1 ? '' : 's'}` : null,
+            needsLines > 0 ? `open ${needsLines} more line${needsLines === 1 ? '' : 's'}` : null,
+          ].filter(Boolean).join(' · ') || 'Signing soon…';
+          return (
+            <View key={tier.id} style={[styles.clientRow, !signed && { opacity: 0.55 }]}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.clientName} numberOfLines={1}>{signed ? tier.name : `🔒 ${tier.name}`}</Text>
+                <Text style={styles.clientRate}>
+                  ${tier.revenueBase.toFixed(2)}–{(tier.revenueBase + tier.revenueSpread).toFixed(2)}/u
+                </Text>
+              </View>
+              <Text style={[shared.bodyMute, { marginTop: 2 }]} numberOfLines={2}>
+                {signed
+                  ? `Rep ${pct(client.reputation)} — paying ${pct(reputationPayMultiplier(client.reputation))} of rate. ${tier.blurb}`
+                  : unlockNote}
+              </Text>
+            </View>
           );
         })}
       </View>
-    </View>
+    </Panel>
   );
 }
 
@@ -244,11 +231,9 @@ const styles = StyleSheet.create({
   progText: { color: colors.textDim, fontSize: 11, fontWeight: '800' },
   orderMini: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 10 },
   orderMiniSku: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  facLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  facLabel: { width: 70 },
-  facName: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  facCrew: { flexDirection: 'row', gap: 2, width: 76, justifyContent: 'flex-end' },
-  facEmpty: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, borderStyle: 'dashed' },
+  clientRow: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, borderLeftColor: colors.gold, padding: 10 },
+  clientName: { color: colors.text, fontSize: 14, fontWeight: '900', flex: 1 },
+  clientRate: { color: colors.green, fontSize: 12, fontWeight: '900' },
   objRow: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 12 },
   objLabel: { color: colors.text, fontSize: 14, fontWeight: '900', flex: 1 },
   objReward: { color: colors.green, fontSize: 13, fontWeight: '900' },
