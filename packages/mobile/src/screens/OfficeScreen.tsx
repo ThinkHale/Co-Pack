@@ -5,6 +5,7 @@ import {
   nextLineCost, canBuyLine,
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
   LEAD_COST, conversionCost,
+  canHireSupervisor, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT,
 } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency } from '../format';
@@ -12,7 +13,7 @@ import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
 
 export function OfficeScreen({ state }: { state: GameState }) {
-  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker } = useGameStore();
+  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift } = useGameStore();
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter((w) => !w.permanent);
   const lineCost = nextLineCost(state);
@@ -27,6 +28,39 @@ export function OfficeScreen({ state }: { state: GameState }) {
 
   return (
     <View style={{ gap: 14 }}>
+      <Panel>
+        <Eyebrow>Operations</Eyebrow>
+        <Text style={shared.h2}>Floor Supervisor</Text>
+        {!state.hasSupervisor ? (
+          <>
+            <Text style={[shared.bodyMute, { marginTop: 4 }]}>
+              Hire a supervisor and the morning standup runs itself: shifts roll automatically and
+              the plant keeps earning even while you're away. Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
+            </Text>
+            <Button
+              label={`Hire supervisor · ${formatCurrency(SUPERVISOR_COST)}`}
+              tone="primary"
+              disabled={!canHireSupervisor(state)}
+              onPress={hireSupervisor}
+              style={{ marginTop: 10 }}
+            />
+          </>
+        ) : (
+          <>
+            <Text style={[shared.bodyMute, { marginTop: 4 }]}>
+              Hands-on mornings still squeeze out more — the supervisor never hires, trains, or
+              staffs support slots. {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.
+            </Text>
+            <Button
+              label={state.autoShift ? 'Auto-shift ON — supervisor runs the floor' : 'Auto-shift off — manual standups'}
+              tone={state.autoShift ? 'primary' : 'muted'}
+              onPress={toggleAutoShift}
+              style={{ marginTop: 10 }}
+            />
+          </>
+        )}
+      </Panel>
+
       <Panel>
         <Eyebrow>Capacity</Eyebrow>
         <Text style={shared.h2}>Production Lines</Text>

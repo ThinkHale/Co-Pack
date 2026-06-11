@@ -9,6 +9,8 @@ import {
   assignWorker as engineAssign, unassignStation as engineUnassign,
   repeatStaffing as engineRepeat, startShift as engineStartShift,
   resolveShiftChallenge as engineResolveChallenge,
+  hireSupervisor as engineHireSupervisor, setAutoShift as engineSetAutoShift,
+  autoAssignCrew,
 } from '@copack/engine';
 import {
   loadGame, saveGame, clearSave, runOfflineCatchUp,
@@ -60,6 +62,9 @@ interface GameStore {
   promoteLead: (workerId: string, lineId: string) => void;
   convertWorker: (workerId: string) => void;
   terminateWorker: (workerId: string) => void;
+  hireSupervisor: () => void;
+  toggleAutoShift: () => void;
+  autoFillCrew: () => void;
 }
 
 export { HIRE_COST };
@@ -204,4 +209,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         selectedWorkerId: store.selectedWorkerId === workerId ? null : store.selectedWorkerId,
       };
     }),
+
+  hireSupervisor: () => set((store) => applyEngineResult(store, engineHireSupervisor(store.state))),
+
+  toggleAutoShift: () =>
+    set((store) => applyEngineResult(store, engineSetAutoShift(store.state, !store.state.autoShift))),
+
+  // One-tap morning fill during a manual standup (supervisor required).
+  autoFillCrew: () =>
+    set((store) => (store.state.hasSupervisor ? { state: autoAssignCrew(store.state) } : {})),
 }));

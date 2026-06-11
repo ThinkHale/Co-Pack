@@ -1,6 +1,7 @@
 import { GameState, GameEvent, Order, Client } from '../types';
 import { seededRandom } from '../utils/random';
 import { TICKS_PER_DAY } from '../time';
+import { ClientTier, CLIENT_TIERS, unlockedTiers, processClientUnlocks } from './roster';
 
 // Reputation pays. A trusted shop earns full price; a struggling one gets squeezed.
 const REP_ON_COMPLETE = 0.03; // recover trust by delivering
@@ -12,8 +13,20 @@ export function reputationPayMultiplier(reputation: number): number {
   return 0.7 + reputation * 0.3;
 }
 
+// A blown deadline still ships what was packed — at half rate. Misses sting
+// (lost margin + the reputation hit) without vaporizing a shift's work, which
+// is what used to death-spiral a struggling site into bankruptcy.
+export const LATE_SALVAGE_RATE = 0.5;
+
 export function processOrders(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
+
+  // Sign any client tier the site has just qualified for, so new contracts can
+  // come from them on this very pass.
+  const ru = processClientUnlocks(state);
+  state = ru.state;
+  events.push(...ru.events);
+
   const completedIds: string[] = [];
   const missedIds: string[] = [];
   let cash = state.cash;
@@ -47,11 +60,15 @@ export function processOrders(state: GameState): { state: GameState; events: Gam
       });
       adjustReputation(order.clientId, REP_ON_COMPLETE);
     } else if (state.tick > order.deadline) {
+      const client = clients[order.clientId];
+      const payMultiplier = reputationPayMultiplier(client?.reputation ?? 1);
+      const salvage = order.unitsCompleted * order.revenuePerUnit * payMultiplier * LATE_SALVAGE_RATE;
+      cash += salvage;
       missedIds.push(order.id);
       missedOrders++;
       events.push({
         type: 'ORDER_MISSED', tick: state.tick,
-        payload: { orderId: order.id, sku: order.sku, clientId: order.clientId },
+        payload: { orderId: order.id, sku: order.sku, clientId: order.clientId, salvage },
       });
       adjustReputation(order.clientId, -REP_ON_MISS);
     }
@@ -68,7 +85,8 @@ export function processOrders(state: GameState): { state: GameState; events: Gam
   const target = targetOrderCount(state);
   while (activeOrders.length < target) {
     orderCount++;
-    activeOrders = [...activeOrders, generateNextOrder(state, orderCount, completedOrders)];
+    const tier = pickOrderTier(state, activeOrders);
+    activeOrders = [...activeOrders, generateNextOrder(state, orderCount, completedOrders, tier)];
   }
 
   return { state: { ...state, activeOrders, cash, orderCount, completedOrders, missedOrders, clients }, events };
@@ -89,18 +107,33 @@ export function fillRate(state: GameState): number {
 
 export const FILL_RATE_TARGET = 0.95;
 
-function generateNextOrder(state: GameState, count: number, level: number): Order {
+// Which client the next contract comes from. The board prefers the best-paying
+// unlocked client that doesn't already have an open order — so landing a new
+// tier immediately changes what's on the board — and falls back to the starter
+// tier as safe filler once every signed client has work queued.
+function pickOrderTier(state: GameState, activeOrders: Order[]): ClientTier {
+  const signed = unlockedTiers(state).filter(t => state.clients[t.id]);
+  const candidates = signed.length > 0 ? signed : [CLIENT_TIERS[0]];
+  const open = new Set(activeOrders.map(o => o.clientId));
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    if (!open.has(candidates[i].id)) return candidates[i];
+  }
+  return candidates[0];
+}
+
+function generateNextOrder(state: GameState, count: number, level: number, tier: ClientTier): Order {
   const rng = seededRandom(count * 31337 + state.tick);
-  // Volume grows with the player's track record; deadline is two shifts out.
-  const units = Math.round(260 + level * 45 + rng * 50);
+  // Volume grows with the tier and the player's track record; the deadline
+  // clock is the same for everyone — bigger contracts demand a bigger site.
+  const units = Math.round(tier.unitsBase + level * tier.unitsPerLevel + rng * tier.unitsSpread);
   return {
     id: `ord${count}`,
-    clientId: 'c1',
+    clientId: tier.id,
     sku: `SKU-${String(count).padStart(3, '0')}`,
     units,
     unitsCompleted: 0,
-    deadline: state.tick + TICKS_PER_DAY * 2,
-    revenuePerUnit: +(2.20 + seededRandom(count * 12345) * 0.60).toFixed(2),
+    deadline: state.tick + TICKS_PER_DAY * tier.deadlineShifts,
+    revenuePerUnit: +(tier.revenueBase + seededRandom(count * 12345) * tier.revenueSpread).toFixed(2),
     qualityThreshold: 0.9,
   };
 }

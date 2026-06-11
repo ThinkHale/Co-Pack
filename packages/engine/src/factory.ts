@@ -67,6 +67,8 @@ export function createInitialState(): GameState {
     payPolicy: { perSkill: false, globalRate: 1.0, skillRates: { s1: 1.0, s2: 1.0, s3: 1.0 } },
     skillRequest: [],
     programs: { attendance: false, referral: false },
+    hasSupervisor: false,
+    autoShift: false,
     nextWorkerId: 4, // w1..w3 already taken
     staffingHistory: [],
     completedObjectives: [],

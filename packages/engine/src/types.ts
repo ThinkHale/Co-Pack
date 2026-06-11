@@ -104,6 +104,10 @@ export type GameEventType =
   | 'SHIFT_END'
   | 'OBJECTIVE_COMPLETED'
   | 'CASH_WARNING'
+  | 'SUPERVISOR_HIRED'
+  | 'AUTO_SHIFT_TOGGLED'
+  | 'CLIENT_UNLOCKED'
+  | 'OVERHEAD'
   | 'GAME_OVER';
 
 export interface GameEvent {
@@ -188,6 +192,8 @@ export interface GameState {
   payPolicy: PayPolicy;     // how generously the agency is paid (Staffing tab)
   skillRequest: string[];   // station ids the agency prioritizes when sending new hires
   programs: StaffingPrograms;
+  hasSupervisor: boolean;   // floor supervisor hired — unlocks hands-off shift rollover
+  autoShift: boolean;       // supervisor runs the morning standup; shifts roll without holding
   nextWorkerId: number;     // monotonic id counter so hires never collide after a quit
   staffingHistory: StaffingDay[]; // per-day labor coverage vs the schedule (the board)
   completedObjectives: string[];  // ids of progression goals already cleared (rewards paid once)

@@ -14,9 +14,11 @@ const SAVE_KEY = 'copack.save.v2';
 const SAVE_VERSION = 2;
 
 // Offline accrues 1 game-tick per real second (≈ the 1× live rate), capped so a
-// long absence is a warm welcome-back, not a game-breaking windfall.
+// long absence is a warm welcome-back, not a game-breaking windfall. Without a
+// supervisor the catch-up still parks at the next morning standup; with one,
+// shifts roll unattended and the full cap can pay out — the real idle loop.
 const OFFLINE_TICKS_PER_SEC = 1;
-const OFFLINE_CAP_TICKS = 2880;   // 6 shifts / 2 game-days of credited catch-up
+const OFFLINE_CAP_TICKS = 7200;   // 12 shifts / game-days of credited catch-up
 const MIN_OFFLINE_MS = 60_000;    // under a minute away → just resume, no fanfare
 
 export interface UiPrefs {
@@ -109,6 +111,8 @@ export function loadGame(): LoadedSave | null {
       cashWarned: s.cashWarned ?? false,
       gameOver: s.gameOver ?? false,
       awaitingStaffing: s.awaitingStaffing ?? false,
+      hasSupervisor: s.hasSupervisor ?? false,
+      autoShift: s.autoShift ?? false,
       shiftChallenge: s.shiftChallenge ?? null,
       challengeCooldownUntil: s.challengeCooldownUntil ?? 0,
       lastShiftReport: s.lastShiftReport ?? null,

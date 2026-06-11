@@ -119,6 +119,15 @@ function makeChallenge(
   };
 }
 
+// The supervisor's default when a floor decision goes unanswered in auto-shift
+// mode: the safe, slightly costly call every time — pay for the fix, run the
+// check, let the worker go. Hands-on players can make sharper trade-offs.
+export function supervisorChallengeChoice(challenge: ShiftChallenge): string {
+  if (challenge.type === 'belt_jam') return 'clear';
+  if (challenge.type === 'quality_check') return 'inspect';
+  return 'let_go';
+}
+
 export function resolveShiftChallenge(
   state: GameState,
   choiceId: string,

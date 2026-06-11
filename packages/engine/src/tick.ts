@@ -5,14 +5,16 @@ import { processRetention } from './workers/retention';
 import { processThroughput } from './lines/throughput';
 import { processOrders } from './clients/orders';
 import { processPayroll, totalPayroll } from './economy/payroll';
+import { processOverhead } from './economy/overhead';
+import { autoShiftActive, SUPERVISOR_CHALLENGE_GRACE_TICKS } from './economy/supervisor';
 import { processIncidents } from './events/incidents';
 import { rollEvents } from './events/random';
-import { rollShiftChallenge } from './events/challenges';
+import { rollShiftChallenge, resolveShiftChallenge, supervisorChallengeChoice } from './events/challenges';
 import { dayCondition } from './events/conditions';
 import { recordStaffingDay } from './economy/staffing-board';
 import { evaluateObjectives } from './progression/objectives';
 import { checkSolvency } from './economy/solvency';
-import { captureAssignments, clearAssignments } from './lines/assignments';
+import { captureAssignments, clearAssignments, autoAssignCrew } from './lines/assignments';
 import { finalizeShiftImpact } from './workers/impact';
 import { TICKS_PER_SHIFT, TICKS_PER_DAY } from './time';
 
@@ -43,6 +45,11 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
       s = rp.state;
       events.push(...rp.events);
 
+      // Fixed costs (rent + supervisor salary) land with payroll every shift.
+      const rv = processOverhead(s);
+      s = rv.state;
+      events.push(...rv.events);
+
       // Incidents accrue over the shift that was worked, by the crew who worked it.
       const ri = processIncidents(s);
       s = ri.state;
@@ -62,10 +69,31 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
     s = r.state;
     events.push(...r.events);
 
-    // Remember the lineup, empty the stations, and hold for the morning standup.
+    // Remember the lineup and empty the stations. With a supervisor running the
+    // floor, they immediately re-staff and the shift rolls on — this is what
+    // makes the game genuinely idle. Otherwise, hold for the morning standup.
     const previousAssignments = captureAssignments(s);
     s = clearAssignments(s);
-    s = { ...s, previousAssignments, awaitingStaffing: true, shiftChallenge: null };
+    s = { ...s, previousAssignments, shiftChallenge: null };
+    if (autoShiftActive(s)) {
+      s = autoAssignCrew(s);
+      events.push({
+        type: 'SHIFT_START', tick: s.tick,
+        payload: { day: Math.floor(s.tick / TICKS_PER_DAY), auto: true },
+      });
+    } else {
+      s = { ...s, awaitingStaffing: true };
+    }
+  }
+
+  // In auto-shift mode the supervisor won't leave a floor decision hanging
+  // forever: after a short grace window (the player's chance to weigh in),
+  // they make the safe call so an unattended run isn't quietly throttled.
+  if (s.shiftChallenge && autoShiftActive(s)
+    && s.tick - s.shiftChallenge.createdTick >= SUPERVISOR_CHALLENGE_GRACE_TICKS) {
+    const ra = resolveShiftChallenge(s, supervisorChallengeChoice(s.shiftChallenge));
+    s = ra.state;
+    events.push(...ra.events);
   }
 
   const rc = rollShiftChallenge(s);

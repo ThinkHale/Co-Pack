@@ -19,8 +19,10 @@ export function formatEvent(e: GameEvent): EventLine {
     }
     case 'ORDER_COMPLETED':
       return { text: `Order ${p.sku} complete. +$${(p.revenue as number).toFixed(2)}`, tone: 'good', tag: 'WIN' };
-    case 'ORDER_MISSED':
-      return { text: `Order ${p.sku} missed.`, tone: 'bad', tag: 'LATE' };
+    case 'ORDER_MISSED': {
+      const salvage = (p.salvage as number) ?? 0;
+      return { text: `Order ${p.sku} missed.${salvage > 0 ? ` Late shipment salvaged +$${Math.round(salvage)}.` : ''}`, tone: 'bad', tag: 'LATE' };
+    }
     case 'MORALE_SHIFT': {
       const delta = p.delta as number;
       const sign = delta > 0 ? '+' : '';
@@ -76,8 +78,16 @@ export function formatEvent(e: GameEvent): EventLine {
       return { text: `${p.result ?? p.title}`, tone: (p.reputationDelta as number | undefined) && (p.reputationDelta as number) < 0 ? 'alert' : 'good', tag: 'DONE' };
     case 'SHIFT_START': {
       const day = Math.floor(e.tick / TICKS_PER_DAY) + 1;
-      return { text: `Day ${day} starting.`, tone: 'neutral', tag: 'TIME' };
+      return { text: `Day ${day} starting${p.auto ? ' — supervisor ran the standup' : ''}.`, tone: 'neutral', tag: 'TIME' };
     }
+    case 'CLIENT_UNLOCKED':
+      return { text: `New client signed: ${p.clientName} — pays up to $${(p.revenueTop as number).toFixed(2)}/unit.`, tone: 'good', tag: 'CLIENT' };
+    case 'SUPERVISOR_HIRED':
+      return { text: `Floor supervisor hired — shifts now run themselves. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'OPS' };
+    case 'AUTO_SHIFT_TOGGLED':
+      return { text: `Auto-shift ${p.autoShift ? 'ON — the supervisor runs the mornings' : 'off — back to manual standups'}.`, tone: 'neutral', tag: 'OPS' };
+    case 'OVERHEAD':
+      return { text: `Overhead -$${(p.total as number).toFixed(0)} (rent${(p.supervisorSalary as number) > 0 ? ' + supervisor' : ''}).`, tone: 'alert', tag: 'RENT' };
     case 'OBJECTIVE_COMPLETED':
       return { text: `Goal cleared: ${p.label} +$${(p.reward as number).toFixed(0)}`, tone: 'good', tag: 'GOAL' };
     case 'CASH_WARNING':
@@ -127,6 +137,10 @@ export function toastForEvent(e: GameEvent): ToastSpec | null {
       return { text: `Order ${p.sku} blew its deadline`, tone: 'bad', tag: 'LATE', sound: 'alert' };
     case 'CASH_WARNING':
       return { text: `Cash in the red — deliver orders or cut costs`, tone: 'alert', tag: 'CASH', sound: 'alert' };
+    case 'CLIENT_UNLOCKED':
+      return { text: `New client: ${p.clientName} — better rates unlocked`, tone: 'gold', tag: 'CLIENT', sound: 'win' };
+    case 'SUPERVISOR_HIRED':
+      return { text: `Supervisor hired — the floor now runs itself`, tone: 'gold', tag: 'OPS', sound: 'win' };
     case 'GAME_OVER':
       return { text: `The plant shut down`, tone: 'bad', tag: 'OVER', sound: 'over' };
     default:

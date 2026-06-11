@@ -1,5 +1,6 @@
 import { GameState, GameEvent } from '../types';
 import { rollingStaffingFill, STAFFING_TARGET } from '../economy/staffing-board';
+import { clientTier } from '../clients/roster';
 
 // --- Objectives: the progression ladder ---
 // A sandbox with no goals has no pull. Objectives give the player a next thing to
@@ -46,6 +47,15 @@ export const OBJECTIVES: Objective[] = [
     progress: s => ({ current: Math.min(s.completedOrders, 5), target: 5 }),
   },
   {
+    id: 'land_atlas', label: 'Land Atlas Beverage Co.', reward: 1000,
+    hint: 'Ship contracts to build a track record — bigger clients pay better per unit.',
+    isComplete: s => !!s.clients.c2,
+    progress: s => ({
+      current: Math.min(s.completedOrders, clientTier('c2')?.unlockAtCompleted ?? 6),
+      target: clientTier('c2')?.unlockAtCompleted ?? 6,
+    }),
+  },
+  {
     id: 'second_line', label: 'Open a second line', reward: 1500,
     hint: 'Front Office → Production Lines. More lines, more parallel orders.',
     isComplete: s => s.lineCount >= 2,
@@ -54,6 +64,11 @@ export const OBJECTIVES: Objective[] = [
     id: 'promote_lead', label: 'Promote a line lead', reward: 800,
     hint: 'Front Office → People moves. A lead lifts their whole line.',
     isComplete: s => Object.values(s.workers).some(w => w.isLead),
+  },
+  {
+    id: 'hire_supervisor', label: 'Hire a floor supervisor', reward: 1500,
+    hint: 'Front Office → Operations. Shifts run themselves — even while you\'re away.',
+    isComplete: s => s.hasSupervisor,
   },
   {
     id: 'convert_perm', label: 'Convert a temp to company', reward: 1000,
@@ -65,6 +80,15 @@ export const OBJECTIVES: Objective[] = [
     hint: 'Automation lifts output even when the crew is thin.',
     isComplete: s => maxAutomation(s) >= 2,
     progress: s => ({ current: Math.min(maxAutomation(s), 2), target: 2 }),
+  },
+  {
+    id: 'land_halcyon', label: 'Land Halcyon Home Goods', reward: 2000,
+    hint: 'A national account: 14 contracts shipped and a two-line shop.',
+    isComplete: s => !!s.clients.c3,
+    progress: s => ({
+      current: Math.min(s.completedOrders, clientTier('c3')?.unlockAtCompleted ?? 14),
+      target: clientTier('c3')?.unlockAtCompleted ?? 14,
+    }),
   },
   {
     id: 'bank_25k', label: 'Bank $25,000', reward: 2000,
@@ -82,6 +106,15 @@ export const OBJECTIVES: Objective[] = [
     hint: 'A deeper bench absorbs no-shows without stalling a line.',
     isComplete: s => headcount(s) >= 8,
     progress: s => ({ current: Math.min(headcount(s), 8), target: 8 }),
+  },
+  {
+    id: 'land_northwind', label: 'Land Northwind Pharma', reward: 4000,
+    hint: 'The premium contract: 30 shipped and three lines running.',
+    isComplete: s => !!s.clients.c4,
+    progress: s => ({
+      current: Math.min(s.completedOrders, clientTier('c4')?.unlockAtCompleted ?? 30),
+      target: clientTier('c4')?.unlockAtCompleted ?? 30,
+    }),
   },
   {
     id: 'bank_100k', label: 'Bank $100,000', reward: 10000,
