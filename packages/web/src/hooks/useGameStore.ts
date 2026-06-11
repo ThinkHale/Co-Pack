@@ -11,6 +11,8 @@ import {
   resolveShiftChallenge as engineResolveChallenge,
   hireSupervisor as engineHireSupervisor, setAutoShift as engineSetAutoShift,
   autoAssignCrew,
+  toggleOvertime as engineToggleOvertime,
+  purchaseUnlock as enginePurchaseUnlock, FeatureUnlockId,
 } from '@copack/engine';
 import {
   loadGame, saveGame, clearSave, runOfflineCatchUp,
@@ -66,6 +68,7 @@ interface GameStore {
   hireSupervisor: () => void;
   toggleAutoShift: () => void;
   autoFillCrew: () => void;
+  buyUnlock: (id: FeatureUnlockId) => void;
 }
 
 export { HIRE_COST };
@@ -149,21 +152,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   buyLine: () => set((store) => applyEngineResult(store, purchaseLine(store.state))),
 
-  toggleOvertime: () =>
-    set((store) => {
-      const overtime = !store.state.overtime;
-      const event: GameEvent = {
-        type: 'OVERTIME_TOGGLED', tick: store.state.tick, payload: { overtime },
-      };
-      return {
-        state: {
-          ...store.state,
-          overtime,
-          eventLog: [...store.state.eventLog, event].slice(-100),
-        },
-        events: [event],
-      };
-    }),
+  // Engine-owned (and gated behind the 'overtime' feature unlock).
+  toggleOvertime: () => set((store) => applyEngineResult(store, engineToggleOvertime(store.state))),
 
   shoutout: () => set((store) => applyEngineResult(store, applyShoutout(store.state))),
 
@@ -202,6 +192,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }),
 
   hireSupervisor: () => set((store) => applyEngineResult(store, engineHireSupervisor(store.state))),
+
+  buyUnlock: (id) => set((store) => applyEngineResult(store, enginePurchaseUnlock(store.state, id))),
 
   toggleAutoShift: () =>
     set((store) => applyEngineResult(store, engineSetAutoShift(store.state, !store.state.autoShift))),

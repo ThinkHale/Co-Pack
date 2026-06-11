@@ -3,7 +3,7 @@ import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-nati
 import {
   GameState,
   totalThroughput, fillRate, FILL_RATE_TARGET, totalPayroll, facilityOverhead,
-  shoutoutReady, moraleBreakdown,
+  shoutoutReady, moraleBreakdown, hasUnlock,
 } from '@copack/engine';
 import { colors, radius, hudTone } from '../theme';
 import { formatCurrency, pct, shiftLabel, shiftClock, shiftProgress, averageMorale } from '../format';
@@ -65,7 +65,12 @@ export function Hud({ state }: { state: GameState }) {
         </View>
         <CtrlBtn label={paused ? 'Resume' : 'Pause'} onPress={togglePause} primary />
         <CtrlBtn label={canShout ? 'Shout-out' : 'Cooling'} onPress={shoutout} disabled={!canShout} />
-        <CtrlBtn label={state.overtime ? 'OT ON' : 'Overtime'} onPress={toggleOvertime} active={state.overtime} />
+        <CtrlBtn
+          label={state.overtime ? 'OT ON' : hasUnlock(state, 'overtime') ? 'Overtime' : 'OT 🔒'}
+          onPress={toggleOvertime}
+          active={state.overtime}
+          disabled={!hasUnlock(state, 'overtime')}
+        />
         {state.hasSupervisor && (
           <CtrlBtn label={state.autoShift ? 'Auto ON' : 'Auto'} onPress={toggleAutoShift} active={state.autoShift} />
         )}

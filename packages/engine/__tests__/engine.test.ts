@@ -90,6 +90,12 @@ import {
   unlockedTiers,
   processClientUnlocks,
   nextLockedTier,
+  FEATURE_UNLOCKS,
+  featureUnlock,
+  hasUnlock,
+  canBuyUnlock,
+  purchaseUnlock,
+  toggleOvertime,
   GameState,
   Worker,
   Order,
@@ -216,7 +222,7 @@ describe('payroll (pay only present, working crew)', () => {
   });
 
   it('pays support helpers and credits their output', () => {
-    const base = staffLineA(createInitialState());
+    const base = { ...staffLineA(createInitialState()), unlocks: ['support'] };
     const baseUnits = processThroughput(base).state.activeOrders[0].unitsCompleted;
     let state: GameState = {
       ...base,
@@ -350,7 +356,7 @@ describe('partial-line operation (regression: no-show no longer flat-stops a lin
 
 describe('shift impact report', () => {
   it('summarizes who worked, who was sent home, and resets shift output credit', () => {
-    const base = staffLineA(createInitialState());
+    const base = { ...staffLineA(createInitialState()), unlocks: ['support'] };
     let state: GameState = {
       ...base,
       tick: TICKS_PER_SHIFT,
@@ -685,7 +691,7 @@ describe('skill request & referral program', () => {
   });
 
   it('referral program makes new hires arrive referred', () => {
-    let s = createInitialState();
+    let s = { ...createInitialState(), cash: 100000, unlocks: ['programs'] };
     s = toggleProgram(s, 'referral');
     expect(programsPerShiftCost(s)).toBeGreaterThan(0);
     const { state: after } = hireWorker(s);
@@ -835,7 +841,7 @@ describe('shift challenges', () => {
     };
     const { state: after, events } = resolveShiftChallenge(state, 'clear');
     expect(after.shiftChallenge).toBeNull();
-    expect(after.cash).toBe(700);
+    expect(after.cash).toBe(100); // $1,000 - $900 maintenance call-out
     expect(events[0].type).toBe('CHALLENGE_RESOLVED');
   });
 
@@ -1246,6 +1252,58 @@ describe('client ladder (growth incentive)', () => {
       expect(CLIENT_TIERS[i].unitsBase).toBeGreaterThan(CLIENT_TIERS[i - 1].unitsBase);
     }
     expect(clientTier('c1')?.name).toBe('Cresco Distribution');
+  });
+});
+
+describe('purchasable feature unlocks (the upgrade cadence)', () => {
+  it('purchases an unlock once, charging its cost', () => {
+    const state = { ...createInitialState(), cash: 10000 };
+    expect(canBuyUnlock(state, 'overtime')).toBe(true);
+    const { state: after, events } = purchaseUnlock(state, 'overtime');
+    expect(after.unlocks).toContain('overtime');
+    expect(after.cash).toBe(10000 - featureUnlock('overtime')!.cost);
+    expect(events[0].type).toBe('FEATURE_UNLOCKED');
+    // Buying again is a no-op.
+    expect(purchaseUnlock(after, 'overtime').events.length).toBe(0);
+  });
+
+  it('refuses when the player cannot afford it', () => {
+    const broke = { ...createInitialState(), cash: 0 };
+    const { state: after } = purchaseUnlock(broke, 'support');
+    expect(after.unlocks).toHaveLength(0);
+    expect(after.cash).toBe(0);
+  });
+
+  it('overtime cannot be toggled until authorized', () => {
+    const state = createInitialState();
+    expect(toggleOvertime(state).state.overtime).toBe(false);
+    expect(toggleOvertime(state).events.length).toBe(0);
+    const unlocked = purchaseUnlock({ ...state, cash: 10000 }, 'overtime').state;
+    const { state: on, events } = toggleOvertime(unlocked);
+    expect(on.overtime).toBe(true);
+    expect(events[0].type).toBe('OVERTIME_TOGGLED');
+  });
+
+  it('support slots reject assignment until the Floater program is bought', () => {
+    const state = createInitialState();
+    const blocked = assignWorker(state, 'w1', 'line1', SUPPORT_STATION_ID);
+    expect(blocked.lines.line1.supportWorkerIds).toHaveLength(0);
+    const unlocked = purchaseUnlock({ ...state, cash: 10000 }, 'support').state;
+    const seated = assignWorker(unlocked, 'w1', 'line1', SUPPORT_STATION_ID);
+    expect(seated.lines.line1.supportWorkerIds).toContain('w1');
+  });
+
+  it('standing programs stay off until the HR retainer is bought', () => {
+    const state = createInitialState();
+    expect(toggleProgram(state, 'attendance').programs.attendance).toBe(false);
+    const unlocked = purchaseUnlock({ ...state, cash: 10000 }, 'programs').state;
+    expect(toggleProgram(unlocked, 'attendance').programs.attendance).toBe(true);
+  });
+
+  it('the first purchased upgrade clears its objective', () => {
+    const state = purchaseUnlock({ ...createInitialState(), cash: 10000 }, 'programs').state;
+    const { state: after } = evaluateObjectives(state);
+    expect(after.completedObjectives).toContain('first_unlock');
   });
 });
 

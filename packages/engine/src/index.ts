@@ -27,4 +27,5 @@ export * from './events/conditions';
 export * from './events/incidents';
 export * from './events/challenges';
 export * from './progression/objectives';
+export * from './progression/unlocks';
 export * from './utils/random';

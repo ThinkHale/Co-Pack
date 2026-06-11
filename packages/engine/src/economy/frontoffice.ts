@@ -1,4 +1,17 @@
 import { GameState, GameEvent, Line, Worker } from '../types';
+import { hasUnlock } from '../progression/unlocks';
+
+// --- Overtime (engine-owned; requires the 'overtime' feature unlock) ---
+// More output now, morale cost at shift end. Gated behind a one-time purchase
+// so the early game has to earn its crunch lever.
+export function toggleOvertime(state: GameState): { state: GameState; events: GameEvent[] } {
+  if (!hasUnlock(state, 'overtime')) return { state, events: [] };
+  const overtime = !state.overtime;
+  return {
+    state: { ...state, overtime },
+    events: [{ type: 'OVERTIME_TOGGLED', tick: state.tick, payload: { overtime } }],
+  };
+}
 
 // --- Automation: spend to make a line lean less on labor ---
 // Each level adds a flat output multiplier to the line, so the same crew (or a

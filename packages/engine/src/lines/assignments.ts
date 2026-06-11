@@ -1,4 +1,5 @@
 import { GameState, GameEvent, Line } from '../types';
+import { hasUnlock } from '../progression/unlocks';
 
 // --- Staffing the lines (engine-owned, source of truth) ---
 // Co-Pack is a daily-staffing sim: each morning the board is wiped and you assign
@@ -38,6 +39,8 @@ export function assignedWorkerIds(state: GameState): Set<string> {
 
 // Pull a worker off any slot they hold, then seat them at the target station/helper slot.
 export function assignWorker(state: GameState, workerId: string, lineId: string, stationId: string): GameState {
+  // Helper slots are a purchased capability (the Floater program).
+  if (stationId === SUPPORT_STATION_ID && !hasUnlock(state, 'support')) return state;
   const lines: Record<string, Line> = Object.fromEntries(
     Object.entries(state.lines).map(([lid, l]) => [
       lid,

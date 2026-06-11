@@ -11,6 +11,7 @@ import {
   effectiveWage, SHIFT_HOURS,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
+  hasUnlock,
 } from '@copack/engine';
 import { colors, radius, shared, STATION_NAMES } from '../theme';
 import { formatCurrency, pct } from '../format';
@@ -142,12 +143,18 @@ function SkillPanel({ state, onToggleSkill }: { state: GameState; onToggleSkill:
 
 function ProgramsPanel({ state, onToggleProgram }: { state: GameState; onToggleProgram: (program: 'attendance' | 'referral') => void }) {
   const headcount = Object.keys(state.workers).length;
+  const locked = !hasUnlock(state, 'programs');
   return (
     <Panel>
       <Eyebrow>Standing programs</Eyebrow>
       <Text style={shared.h2}>Ongoing Incentives</Text>
       <Text style={[shared.bodyMute, { marginTop: 4 }]}>Always-on programs billed per head every shift, running in the background.</Text>
-      <View style={{ gap: 10, marginTop: 12 }}>
+      {locked && (
+        <Text style={{ color: colors.gold, fontSize: 11, fontWeight: '900', marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          🔒 Requires the HR partner retainer — Office → Upgrades
+        </Text>
+      )}
+      <View style={{ gap: 10, marginTop: 12, opacity: locked ? 0.5 : 1 }} pointerEvents={locked ? 'none' : 'auto'}>
         <ProgramToggle title="Attendance program" note={`Crew-wide turnout boost · ${formatCurrency(ATTENDANCE_PROGRAM_PER_HEAD)}/head/shift`} cost={ATTENDANCE_PROGRAM_PER_HEAD * headcount} active={state.programs.attendance} onToggle={() => onToggleProgram('attendance')} />
         <ProgramToggle title="Referral program" note={`New hires arrive referred · ${formatCurrency(REFERRAL_PROGRAM_PER_HEAD)}/head/shift`} cost={REFERRAL_PROGRAM_PER_HEAD * headcount} active={state.programs.referral} onToggle={() => onToggleProgram('referral')} />
       </View>

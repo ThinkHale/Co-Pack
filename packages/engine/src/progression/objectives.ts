@@ -41,6 +41,11 @@ export const OBJECTIVES: Objective[] = [
     isComplete: s => Object.values(s.workers).some(w => w.skills.length >= 2),
   },
   {
+    id: 'first_unlock', label: 'Buy your first upgrade', reward: 1500,
+    hint: 'Front Office → Upgrades. Overtime, floaters, and HR programs are earned, not given.',
+    isComplete: s => s.unlocks.length >= 1,
+  },
+  {
     id: 'five_orders', label: 'Ship 5 contracts', reward: 3000,
     hint: 'Keep the belt moving — quantity builds the bankroll.',
     isComplete: s => s.completedOrders >= 5,

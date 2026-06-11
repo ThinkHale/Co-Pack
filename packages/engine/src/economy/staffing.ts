@@ -1,5 +1,6 @@
 import { GameState, Worker, PayPolicy } from '../types';
 import { SHIFT_HOURS } from '../time';
+import { hasUnlock } from '../progression/unlocks';
 
 // --- Pay policy: the single most consequential dial in the game ---
 // Wages are real temp-labor BILL rates: the worker's hourly plus the agency's
@@ -92,5 +93,7 @@ export function toggleSkillRequest(state: GameState, stationId: string): GameSta
 }
 
 export function toggleProgram(state: GameState, program: keyof GameState['programs']): GameState {
+  // Standing programs require the HR partner retainer (purchased unlock).
+  if (!hasUnlock(state, 'programs')) return state;
   return { ...state, programs: { ...state.programs, [program]: !state.programs[program] } };
 }

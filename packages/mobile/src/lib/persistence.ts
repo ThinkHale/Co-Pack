@@ -105,6 +105,7 @@ export async function loadGame(): Promise<LoadedSave | null> {
       awaitingStaffing: s.awaitingStaffing ?? false,
       hasSupervisor: s.hasSupervisor ?? false,
       autoShift: s.autoShift ?? false,
+      unlocks: s.unlocks ?? [],
       shiftChallenge: s.shiftChallenge ?? null,
       challengeCooldownUntil: s.challengeCooldownUntil ?? 0,
       lastShiftReport: s.lastShiftReport ?? null,
