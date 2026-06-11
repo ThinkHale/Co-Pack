@@ -10,7 +10,8 @@ const SAVE_KEY = 'copack.save.v2';
 const SAVE_VERSION = 2;
 
 const OFFLINE_TICKS_PER_SEC = 1;
-const OFFLINE_CAP_TICKS = 2880; // 6 shifts / 2 game-days of credited catch-up
+// With a supervisor hired, shifts roll unattended and the full cap can pay out.
+const OFFLINE_CAP_TICKS = 7200; // 12 shifts / game-days of credited catch-up
 const MIN_OFFLINE_MS = 60_000;
 
 export interface UiPrefs {
@@ -100,6 +101,8 @@ export async function loadGame(): Promise<LoadedSave | null> {
       cashWarned: s.cashWarned ?? false,
       gameOver: s.gameOver ?? false,
       awaitingStaffing: s.awaitingStaffing ?? false,
+      hasSupervisor: s.hasSupervisor ?? false,
+      autoShift: s.autoShift ?? false,
       shiftChallenge: s.shiftChallenge ?? null,
       challengeCooldownUntil: s.challengeCooldownUntil ?? 0,
       lastShiftReport: s.lastShiftReport ?? null,

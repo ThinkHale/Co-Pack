@@ -26,7 +26,7 @@ export function FloorScreen({ state }: { state: GameState }) {
   const {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
     hireWorker, train, buyMeal, runIncentive, repeatStaffing, startShift,
-    resolveChallenge, terminateWorker, soundOn,
+    resolveChallenge, terminateWorker, soundOn, autoFillCrew,
   } = useGameStore();
 
   const awaitingStaffing = state.awaitingStaffing;
@@ -63,6 +63,8 @@ export function FloorScreen({ state }: { state: GameState }) {
           state={state}
           condition={condition}
           canRepeat={canRepeatStaffing(state)}
+          hasSupervisor={state.hasSupervisor}
+          onAutoFill={autoFillCrew}
           onRepeat={repeatStaffing}
           onStart={startShift}
         />
@@ -131,11 +133,13 @@ export function FloorScreen({ state }: { state: GameState }) {
 // --- Morning standup ---------------------------------------------------------
 
 function MorningBanner({
-  state, condition, canRepeat, onRepeat, onStart,
+  state, condition, canRepeat, hasSupervisor, onAutoFill, onRepeat, onStart,
 }: {
   state: GameState;
   condition: DayConditionInfo;
   canRepeat: boolean;
+  hasSupervisor: boolean;
+  onAutoFill: () => void;
   onRepeat: () => void;
   onStart: () => void;
 }) {
@@ -170,6 +174,7 @@ function MorningBanner({
         </Text>
       )}
       <View style={styles.bannerActions}>
+        {hasSupervisor && <Button label="Auto-fill" tone="muted" onPress={onAutoFill} style={{ flex: 1 }} />}
         <Button label="Repeat yesterday" tone="muted" disabled={!canRepeat} onPress={onRepeat} style={{ flex: 1 }} />
         <Button label="Start shift ▸" tone="primary" onPress={onStart} style={{ flex: 1 }} />
       </View>

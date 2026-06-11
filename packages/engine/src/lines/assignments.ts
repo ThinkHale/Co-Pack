@@ -142,6 +142,36 @@ export function canRepeatStaffing(state: GameState): boolean {
   });
 }
 
+// Supervisor auto-staffing: seat yesterday's lineup first (familiar stations),
+// then fill any still-open station from the present bench, best station
+// proficiency first. Deliberately decent-not-optimal — it never hires, trains,
+// or uses support slots, so a hands-on morning still beats the supervisor.
+export function autoAssignCrew(state: GameState): GameState {
+  let s = repeatStaffing(state).state;
+  const seated = assignedWorkerIds(s);
+  const bench = Object.values(s.workers)
+    .filter(w => w.presentThisShift && !seated.has(w.id))
+    // Stable order so auto-staffing stays deterministic regardless of object key order.
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  for (const lineId of Object.keys(s.lines)) {
+    if (!s.lines[lineId].active) continue;
+    for (const stationId of s.lines[lineId].stations.map(st => st.id)) {
+      if (s.lines[lineId].stations.find(st => st.id === stationId)?.assignedWorkerId) continue;
+      if (bench.length === 0) return s;
+      let bestIdx = 0;
+      let bestScore = -1;
+      bench.forEach((w, i) => {
+        const prof = w.skills.find(sk => sk.stationId === stationId)?.proficiency ?? 0;
+        if (prof > bestScore) { bestScore = prof; bestIdx = i; }
+      });
+      const [worker] = bench.splice(bestIdx, 1);
+      s = assignWorker(s, worker.id, lineId, stationId);
+    }
+  }
+  return s;
+}
+
 // Begin the shift: release the morning hold so the clock runs again.
 export function startShift(state: GameState): { state: GameState; events: GameEvent[] } {
   if (!state.awaitingStaffing) return { state, events: [] };

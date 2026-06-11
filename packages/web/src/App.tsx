@@ -17,6 +17,8 @@ import {
   openObjectives, OBJECTIVES, Objective,
   TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
   canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
+  facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor,
+  CLIENT_TIERS,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, TabKey, HIRE_COST } from './hooks/useGameStore';
 import { playSound, unlockAudio, SoundKind } from './lib/sound';
@@ -127,8 +129,13 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
     }
     case 'ORDER_COMPLETED':
       return { text: `Order ${p.sku} complete. +$${(p.revenue as number).toFixed(2)}`, tone: 'event-good', tag: 'WIN' };
-    case 'ORDER_MISSED':
-      return { text: `Order ${p.sku} missed.`, tone: 'event-bad', tag: 'LATE' };
+    case 'ORDER_MISSED': {
+      const salvage = (p.salvage as number) ?? 0;
+      return {
+        text: `Order ${p.sku} missed.${salvage > 0 ? ` Late shipment salvaged +$${Math.round(salvage)}.` : ''}`,
+        tone: 'event-bad', tag: 'LATE',
+      };
+    }
     case 'MORALE_SHIFT': {
       const delta = p.delta as number;
       const sign = delta > 0 ? '+' : '';
@@ -219,8 +226,31 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
       };
     case 'SHIFT_START': {
       const day = Math.floor(e.tick / TICKS_PER_DAY) + 1;
-      return { text: `Day ${day} starting.`, tone: 'event-neutral', tag: 'TIME' };
+      return {
+        text: `Day ${day} starting${p.auto ? ' — supervisor ran the standup' : ''}.`,
+        tone: 'event-neutral', tag: 'TIME',
+      };
     }
+    case 'CLIENT_UNLOCKED':
+      return {
+        text: `New client signed: ${p.clientName} — pays up to $${(p.revenueTop as number).toFixed(2)}/unit.`,
+        tone: 'event-good', tag: 'CLIENT',
+      };
+    case 'SUPERVISOR_HIRED':
+      return {
+        text: `Floor supervisor hired — shifts now run themselves. -$${(p.cost as number).toFixed(0)}`,
+        tone: 'event-good', tag: 'OPS',
+      };
+    case 'AUTO_SHIFT_TOGGLED':
+      return {
+        text: `Auto-shift ${p.autoShift ? 'ON — the supervisor runs the mornings' : 'off — back to manual standups'}.`,
+        tone: 'event-neutral', tag: 'OPS',
+      };
+    case 'OVERHEAD':
+      return {
+        text: `Overhead -$${(p.total as number).toFixed(0)} (rent${(p.supervisorSalary as number) > 0 ? ' + supervisor' : ''}).`,
+        tone: 'event-alert', tag: 'RENT',
+      };
     case 'OBJECTIVE_COMPLETED':
       return { text: `Goal cleared: ${p.label} +$${(p.reward as number).toFixed(0)}`, tone: 'event-good', tag: 'GOAL' };
     case 'CASH_WARNING':
@@ -248,6 +278,7 @@ function Game() {
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker, terminateWorker,
+    hireSupervisor, toggleAutoShift, autoFillCrew,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -330,6 +361,7 @@ function Game() {
   const canAffordLine = canBuyLine(state);
   const canShoutout = shoutoutReady(state) && !paused;
   const payroll = totalPayroll(state);
+  const overhead = facilityOverhead(state);
   const primaryClient = firstOrder ? state.clients[firstOrder.clientId] : Object.values(state.clients)[0];
   const reputation = primaryClient?.reputation ?? 1;
   const fill = fillRate(state);
@@ -417,33 +449,40 @@ function Game() {
               >
                 {state.overtime ? 'Overtime ON' : 'Overtime'}
               </button>
+              {state.hasSupervisor && (
+                <button
+                  type="button"
+                  onClick={toggleAutoShift}
+                  title="The supervisor runs the morning standup — shifts roll on their own, even while you're away"
+                  className={`game-button ${state.autoShift ? 'game-button-ot-on' : 'game-button-muted'}`}
+                >
+                  {state.autoShift ? 'Auto-shift ON' : 'Auto-shift'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={toggleSound}
                 title={soundOn ? 'Mute sound effects' : 'Unmute sound effects'}
                 className="game-button game-button-muted"
               >
-                {soundOn ? '♪ Sound' : '✕ Muted'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { if (window.confirm('Reset the run? This wipes your save and starts a fresh shift.')) reset(); }}
-                className="game-button game-button-muted"
-              >
-                Reset
+                {soundOn ? '♪' : '✕'}
               </button>
             </div>
             <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">
-              Payroll {formatCurrency(payroll)}/shift
+              Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)} /shift
             </div>
           </div>
         </header>
+
+        {tab === 'floor' && <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />}
 
         {tab === 'floor' && awaitingStaffing && (
           <MorningBanner
             state={state}
             condition={condition}
             canRepeat={canRepeatStaffing(state)}
+            hasSupervisor={state.hasSupervisor}
+            onAutoFill={autoFillCrew}
             onRepeat={repeatStaffing}
             onStart={() => { if (soundOn) playSound('click'); startShift(); }}
           />
@@ -560,6 +599,9 @@ function Game() {
             onPromoteLead={promoteLead}
             onConvert={convertWorker}
             onTerminate={onTerminateWorker}
+            onHireSupervisor={hireSupervisor}
+            onToggleAutoShift={toggleAutoShift}
+            onReset={() => { if (window.confirm('Reset the run? This wipes your save and starts a fresh shift.')) reset(); }}
           />
         )}
       </main>
@@ -634,7 +676,7 @@ function OrdersTab({
               clientName={clientName}
             />
             {sortedOrders.length > 1 && (
-              <OrdersStrip orders={sortedOrders.slice(1)} tick={state.tick} />
+              <OrdersStrip orders={sortedOrders.slice(1)} tick={state.tick} clients={state.clients} />
             )}
           </>
         ) : (
@@ -647,10 +689,51 @@ function OrdersTab({
       </section>
 
       <aside className="space-y-4">
+        <ClientBook state={state} />
         <ObjectivesPanel state={state} />
         <EventLog events={recentEvents} />
       </aside>
     </div>
+  );
+}
+
+// The growth ladder made visible: every client tier, what it pays, and exactly
+// what it takes to land the next one. This is the answer to "why grow?".
+function ClientBook({ state }: { state: GameState }) {
+  return (
+    <section className="game-panel p-4">
+      <div className="mb-3">
+        <div className="eyebrow">Client book</div>
+        <h2 className="text-2xl font-black text-white">Contract Ladder</h2>
+      </div>
+      <div className="space-y-2">
+        {CLIENT_TIERS.map(tier => {
+          const client = state.clients[tier.id];
+          const signed = !!client;
+          const needsShipped = Math.max(0, tier.unlockAtCompleted - state.completedOrders);
+          const activeLines = Object.values(state.lines).filter(l => l.active).length;
+          const needsLines = Math.max(0, tier.minLines - activeLines);
+          return (
+            <div key={tier.id} className={`objective-row ${signed ? '' : 'opacity-60'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="objective-label">{signed ? tier.name : `🔒 ${tier.name}`}</span>
+                <span className="objective-reward">
+                  ${tier.revenueBase.toFixed(2)}–{(tier.revenueBase + tier.revenueSpread).toFixed(2)}/unit
+                </span>
+              </div>
+              <div className="objective-hint">
+                {signed
+                  ? `Rep ${pct(client.reputation)} — paying ${pct(reputationPayMultiplier(client.reputation))} of rate. ${tier.blurb}`
+                  : [
+                      needsShipped > 0 ? `ship ${needsShipped} more contract${needsShipped === 1 ? '' : 's'}` : null,
+                      needsLines > 0 ? `open ${needsLines} more line${needsLines === 1 ? '' : 's'}` : null,
+                    ].filter(Boolean).join(' · ') || 'Signing soon…'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -679,7 +762,10 @@ function ShiftChallengeCard({
   );
 }
 
+// Collapsed by default: the floor was drowning in always-open panels. The
+// one-line summary keeps the signal; the per-person detail is one tap away.
 function ShiftImpactPanel({ report }: { report: NonNullable<GameState['lastShiftReport']> }) {
+  const [open, setOpen] = useState(false);
   const ordered = [...report.workerImpacts].sort((a, b) => {
     const rank = { sent_home: 0, no_show: 1, worked: 2 };
     return rank[a.status] - rank[b.status] || b.units - a.units;
@@ -693,22 +779,27 @@ function ShiftImpactPanel({ report }: { report: NonNullable<GameState['lastShift
 
   return (
     <section className="shift-impact-panel">
-      <div className="shift-impact-head">
+      <button
+        type="button"
+        className="shift-impact-head w-full cursor-pointer text-left"
+        onClick={() => setOpen(o => !o)}
+        title={open ? 'Collapse the shift report' : 'Expand the per-person shift report'}
+      >
         <div>
-          <div className="eyebrow">Last shift</div>
+          <div className="eyebrow">Last shift {open ? '▾' : '▸'}</div>
           <h2>People Impact</h2>
         </div>
         <div className="shift-impact-score">
           <strong>{Math.round(report.totalUnits)}</strong>
           <span>units · {formatCurrency(report.payroll)}</span>
         </div>
-      </div>
+      </button>
       <div className="shift-impact-summary">
         <span>{report.workedCount} worked</span>
         <span>{report.sentHomeCount} sent home unpaid</span>
         <span>{report.noShowCount} no-show</span>
       </div>
-      <div className="shift-impact-list">
+      {open && <div className="shift-impact-list">
         {ordered.map(worker => (
           <div key={worker.workerId} className={`shift-impact-row status-${worker.status}`}>
             <span className="shift-impact-status">{statusLabel(worker.status)}</span>
@@ -723,8 +814,34 @@ function ShiftImpactPanel({ report }: { report: NonNullable<GameState['lastShift
             <span className="shift-impact-counts">M{worker.missedShifts} · H{worker.sentHomeShifts}</span>
           </div>
         ))}
-      </div>
+      </div>}
     </section>
+  );
+}
+
+// The single most important pull on the screen: what to chase next. One slim
+// line — tapping it jumps to the full objectives list on the Orders tab.
+function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void }) {
+  const next = openObjectives(state, 1)[0];
+  if (!next) return null;
+  const prog = next.progress?.(state);
+  const ratio = prog ? Math.min(1, prog.current / prog.target) : null;
+  return (
+    <button
+      type="button"
+      onClick={onGoTo}
+      title={next.hint}
+      className="game-panel mb-4 flex w-full items-center gap-3 p-3 text-left"
+    >
+      <span className="eyebrow shrink-0">Next goal</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-black text-white">{next.label}</span>
+      {ratio !== null && (
+        <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-white/10">
+          <span className="block h-full rounded-full bg-amber-300" style={{ width: `${Math.max(4, ratio * 100)}%` }} />
+        </span>
+      )}
+      <span className="objective-reward shrink-0">+{formatCurrency(next.reward)}</span>
+    </button>
   );
 }
 
@@ -1787,6 +1904,7 @@ function ProgramToggle({
 
 function FrontOfficeTab({
   state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onPromoteLead, onConvert, onTerminate,
+  onHireSupervisor, onToggleAutoShift, onReset,
 }: {
   state: GameState;
   lineCost: number;
@@ -1796,12 +1914,52 @@ function FrontOfficeTab({
   onPromoteLead: (workerId: string, lineId: string) => void;
   onConvert: (workerId: string) => void;
   onTerminate: (worker: Worker) => void;
+  onHireSupervisor: () => void;
+  onToggleAutoShift: () => void;
+  onReset: () => void;
 }) {
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter(w => !w.permanent);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+        <div className="eyebrow">Operations</div>
+        <h2 className="text-2xl font-black text-white">Floor Supervisor</h2>
+        {!state.hasSupervisor ? (
+          <>
+            <p className="mt-1 text-sm font-semibold text-slate-300">
+              Hire a supervisor and the morning standup runs itself: shifts roll one into the next,
+              the crew is seated automatically, and the plant keeps earning <strong>even while you're away</strong>.
+              They also make the safe call on any floor decision you leave hanging.
+              Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
+            </p>
+            <button
+              type="button"
+              onClick={onHireSupervisor}
+              disabled={!canHireSupervisor(state)}
+              className="game-button game-button-hire mt-3"
+            >
+              Hire supervisor · {formatCurrency(SUPERVISOR_COST)}
+            </button>
+          </>
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <ProgramToggle
+              title="Supervisor runs the floor"
+              note={`Shifts roll automatically — staffed, started, and settled with no input. ${formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.`}
+              cost={SUPERVISOR_SALARY_PER_SHIFT}
+              active={state.autoShift}
+              onToggle={onToggleAutoShift}
+            />
+            <p className="self-center text-sm font-semibold text-slate-300">
+              Hands-on mornings still squeeze out more: the supervisor never hires, trains, or
+              staffs the support slots. Toggle off whenever you want the floor back.
+            </p>
+          </div>
+        )}
+      </section>
+
       <section className="game-panel p-4 sm:p-5">
         <div className="eyebrow">Capacity</div>
         <h2 className="text-2xl font-black text-white">Production Lines</h2>
@@ -1911,6 +2069,18 @@ function FrontOfficeTab({
           {temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert
         </div>
       </section>
+
+      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="eyebrow">Danger zone</div>
+            <p className="text-sm font-semibold text-slate-300">Wipe the save and start a fresh plant.</p>
+          </div>
+          <button type="button" onClick={onReset} className="game-button game-button-danger">
+            Reset run
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -1968,7 +2138,7 @@ function ObjectiveRow({ obj, state }: { obj: Objective; state: GameState }) {
 }
 
 // Compact list of the orders behind the hero contract — the visible backlog.
-function OrdersStrip({ orders, tick }: { orders: Order[]; tick: number }) {
+function OrdersStrip({ orders, tick, clients }: { orders: Order[]; tick: number; clients: GameState['clients'] }) {
   return (
     <section className="game-panel p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -1991,7 +2161,9 @@ function OrdersStrip({ orders, tick }: { orders: Order[]; tick: number }) {
               <div className="order-mini-rail">
                 <div style={{ width: `${Math.min(100, Math.max(2, progress * 100))}%` }} />
               </div>
-              <div className="order-mini-meta">{Math.round(o.unitsCompleted)} / {o.units}</div>
+              <div className="order-mini-meta">
+                {clients[o.clientId]?.name ?? o.clientId} · {Math.round(o.unitsCompleted)} / {o.units} · ${o.revenuePerUnit.toFixed(2)}/u
+              </div>
             </div>
           );
         })}
@@ -2036,6 +2208,10 @@ function toastForEvent(e: GameEvent): ToastSpec | null {
       return { text: `Order ${p.sku} blew its deadline`, tone: 'toast-bad', tag: 'LATE', sound: 'alert' };
     case 'CASH_WARNING':
       return { text: `Cash in the red — deliver orders or cut costs`, tone: 'toast-alert', tag: 'CASH', sound: 'alert' };
+    case 'CLIENT_UNLOCKED':
+      return { text: `New client: ${p.clientName} — better rates unlocked`, tone: 'toast-gold', tag: 'CLIENT', sound: 'win' };
+    case 'SUPERVISOR_HIRED':
+      return { text: `Supervisor hired — the floor now runs itself`, tone: 'toast-gold', tag: 'OPS', sound: 'win' };
     case 'GAME_OVER':
       return { text: `The plant shut down`, tone: 'toast-bad', tag: 'OVER', sound: 'over' };
     default:
@@ -2085,6 +2261,7 @@ function OfflineModal({ summary, onClose }: { summary: OfflineSummary; onClose: 
         </p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <SummaryStat label="Net cash" value={`${gain >= 0 ? '+' : '-'}${formatCurrency(Math.abs(gain))}`} good={gain >= 0} />
+          <SummaryStat label="Shifts run" value={`${(summary.ticks / TICKS_PER_SHIFT).toFixed(1)}`} good />
           <SummaryStat label="Orders shipped" value={`${summary.ordersCompleted}`} good />
           {summary.ordersMissed > 0 && <SummaryStat label="Orders missed" value={`${summary.ordersMissed}`} good={false} />}
           {summary.quits > 0 && <SummaryStat label="Walked off" value={`${summary.quits}`} good={false} />}
@@ -2126,11 +2303,13 @@ function GameOverOverlay({ state, onRestart }: { state: GameState; onRestart: ()
 // The morning standup: the clock is held while the player staffs from whoever
 // showed up. This is the core sim beat — every day you re-staff the lines.
 function MorningBanner({
-  state, condition, canRepeat, onRepeat, onStart,
+  state, condition, canRepeat, hasSupervisor, onAutoFill, onRepeat, onStart,
 }: {
   state: GameState;
   condition: DayConditionInfo;
   canRepeat: boolean;
+  hasSupervisor: boolean;
+  onAutoFill: () => void;
   onRepeat: () => void;
   onStart: () => void;
 }) {
@@ -2173,6 +2352,16 @@ function MorningBanner({
         )}
       </div>
       <div className="morning-actions">
+        {hasSupervisor && (
+          <button
+            type="button"
+            onClick={onAutoFill}
+            title="The supervisor seats yesterday's lineup, then fills gaps by best skill"
+            className="game-button game-button-muted"
+          >
+            Auto-fill
+          </button>
+        )}
         <button
           type="button"
           onClick={onRepeat}

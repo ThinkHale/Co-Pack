@@ -17,6 +17,7 @@ import {
   purchaseLine,
   nextLineCost,
   reputationPayMultiplier,
+  LATE_SALVAGE_RATE,
   fillRate,
   dayCondition,
   dayAttendanceModifier,
@@ -72,6 +73,22 @@ import {
   SUPPORT_STATION_ID,
   resolveShiftChallenge,
   workingWorkers,
+  hireSupervisor,
+  setAutoShift,
+  canHireSupervisor,
+  SUPERVISOR_COST,
+  SUPERVISOR_SALARY_PER_SHIFT,
+  autoAssignCrew,
+  facilityOverhead,
+  facilityRent,
+  processOverhead,
+  FACILITY_RENT_BASE,
+  FACILITY_RENT_PER_EXTRA_LINE,
+  CLIENT_TIERS,
+  clientTier,
+  unlockedTiers,
+  processClientUnlocks,
+  nextLockedTier,
   GameState,
   Worker,
   Order,
@@ -159,6 +176,18 @@ describe('reputation & missed orders', () => {
 
   it('pays more at high reputation than at low', () => {
     expect(reputationPayMultiplier(1)).toBeGreaterThan(reputationPayMultiplier(0.2));
+  });
+
+  it('a missed order still salvages partial work at the late rate', () => {
+    let state = createInitialState();
+    const order = { ...state.activeOrders[0], deadline: 1440, unitsCompleted: 200 };
+    state = { ...state, tick: 2000, activeOrders: [order] };
+    const payMult = reputationPayMultiplier(state.clients.c1.reputation);
+    const { state: after, events } = processOrders(state);
+    const missed = events.find(e => e.type === 'ORDER_MISSED')!;
+    const expected = 200 * order.revenuePerUnit * payMult * LATE_SALVAGE_RATE;
+    expect((missed.payload as any).salvage).toBeCloseTo(expected, 5);
+    expect(after.cash).toBeCloseTo(state.cash + expected, 5);
   });
 });
 
@@ -1051,6 +1080,137 @@ describe('daily re-staffing (sim loop)', () => {
     expect(tick(s).state.tick).toBe(s.tick); // frozen while awaiting staffing
     s = startShift(s).state;
     expect(tick(s).state.tick).toBe(s.tick + 1); // running again
+  });
+});
+
+describe('floor supervisor (the idle unlock)', () => {
+  it('hire charges the fee and turns auto-shift on', () => {
+    const state = { ...createInitialState(), cash: 10000 };
+    expect(canHireSupervisor(state)).toBe(true);
+    const { state: after, events } = hireSupervisor(state);
+    expect(after.cash).toBe(10000 - SUPERVISOR_COST);
+    expect(after.hasSupervisor).toBe(true);
+    expect(after.autoShift).toBe(true);
+    expect(events[0].type).toBe('SUPERVISOR_HIRED');
+    // Can't hire twice.
+    expect(hireSupervisor(after).events.length).toBe(0);
+  });
+
+  it('cannot toggle auto-shift without a supervisor', () => {
+    const { state: after, events } = setAutoShift(createInitialState(), true);
+    expect(after.autoShift).toBe(false);
+    expect(events.length).toBe(0);
+  });
+
+  it('rolls the shift boundary without holding when auto-shift is on', () => {
+    let s = { ...createInitialState(), cash: 50000 };
+    s = hireSupervisor(s).state;
+    s = tick(s).state; // tick 0 boundary: attendance + auto-staff, no hold
+    expect(s.awaitingStaffing).toBe(false);
+    const assigned = Object.values(s.lines).flatMap(l =>
+      l.stations.map(st => st.assignedWorkerId).filter(Boolean));
+    expect(assigned.length).toBe(3); // 3 present starters seated on 3 stations
+    // The clock keeps moving and the line produces with no player input at all.
+    for (let i = 0; i < TICKS_PER_SHIFT * 2; i++) s = tick(s).state;
+    expect(s.awaitingStaffing).toBe(false);
+    expect(s.day).toBe(2);
+    expect(s.completedOrders + s.activeOrders.reduce((u, o) => u + o.unitsCompleted, 0)).toBeGreaterThan(0);
+  });
+
+  it('still holds the morning standup with auto-shift switched off', () => {
+    let s = { ...createInitialState(), cash: 50000 };
+    s = hireSupervisor(s).state;
+    s = setAutoShift(s, false).state;
+    s = tick(s).state;
+    expect(s.awaitingStaffing).toBe(true);
+  });
+
+  it('auto-staffing seats workers on their best-skill stations', () => {
+    let s = createInitialState(); // w1→s1, w2→s2, w3→s3 trained, nobody assigned
+    s = autoAssignCrew(s);
+    const stations = s.lines.line1.stations;
+    expect(stations.find(st => st.id === 's1')?.assignedWorkerId).toBe('w1');
+    expect(stations.find(st => st.id === 's2')?.assignedWorkerId).toBe('w2');
+    expect(stations.find(st => st.id === 's3')?.assignedWorkerId).toBe('w3');
+  });
+
+  it('the supervisor resolves a stale floor decision in auto mode', () => {
+    let s = { ...createInitialState(), cash: 50000 };
+    s = hireSupervisor(s).state;
+    s = tick(s).state; // auto-staffed, running
+    s = {
+      ...s,
+      shiftChallenge: {
+        id: 'stale-jam', type: 'belt_jam' as const, title: 'Jam', note: 'Test',
+        lineId: 'line1', createdTick: s.tick - 100, outputMultiplier: 0.5, choices: [],
+      },
+    };
+    const { state: after, events } = tick(s);
+    expect(after.shiftChallenge).toBeNull();
+    expect(events.some(e => e.type === 'CHALLENGE_RESOLVED')).toBe(true);
+  });
+});
+
+describe('facility overhead (anti-coasting pressure)', () => {
+  it('charges rent every shift settle and scales with lines', () => {
+    const one = createInitialState();
+    expect(facilityRent(one)).toBe(FACILITY_RENT_BASE);
+    const two = purchaseLine({ ...one, cash: 10000 }).state;
+    expect(facilityRent(two)).toBe(FACILITY_RENT_BASE + FACILITY_RENT_PER_EXTRA_LINE);
+  });
+
+  it('includes the supervisor salary once hired', () => {
+    const plain = createInitialState();
+    const supervised = hireSupervisor({ ...plain, cash: 50000 }).state;
+    expect(facilityOverhead(supervised)).toBe(facilityOverhead(plain) + SUPERVISOR_SALARY_PER_SHIFT);
+  });
+
+  it('deducts the overhead and emits an event', () => {
+    const state = createInitialState();
+    const { state: after, events } = processOverhead(state);
+    expect(after.cash).toBe(state.cash - facilityOverhead(state));
+    expect(events[0].type).toBe('OVERHEAD');
+  });
+});
+
+describe('client ladder (growth incentive)', () => {
+  it('starts with only the launch client signed', () => {
+    const s = createInitialState();
+    expect(Object.keys(s.clients)).toEqual(['c1']);
+    expect(unlockedTiers(s).map(t => t.id)).toEqual(['c1']);
+    expect(nextLockedTier(s)?.id).toBe('c2');
+  });
+
+  it('signs a new client when the track record qualifies', () => {
+    const s = { ...createInitialState(), completedOrders: 6 };
+    const { state: after, events } = processClientUnlocks(s);
+    expect(after.clients.c2).toBeDefined();
+    expect(events.some(e => e.type === 'CLIENT_UNLOCKED')).toBe(true);
+    // Signing is once — a second pass is silent.
+    expect(processClientUnlocks(after).events.length).toBe(0);
+  });
+
+  it('gates the bigger tiers on capacity, not just track record', () => {
+    const s = { ...createInitialState(), completedOrders: 99 }; // 1 line only
+    const ids = unlockedTiers(s).map(t => t.id);
+    expect(ids).toContain('c2');
+    expect(ids).not.toContain('c3'); // needs 2 lines
+    expect(ids).not.toContain('c4'); // needs 3 lines
+  });
+
+  it('routes new orders to the best unlocked client without open work', () => {
+    let s = { ...createInitialState(), completedOrders: 6, activeOrders: [] as Order[] };
+    const { state: after } = processOrders(s);
+    expect(after.activeOrders.length).toBe(1);
+    expect(after.activeOrders[0].clientId).toBe('c2'); // Atlas outranks Cresco
+  });
+
+  it('higher tiers pay more per unit and ship bigger orders', () => {
+    for (let i = 1; i < CLIENT_TIERS.length; i++) {
+      expect(CLIENT_TIERS[i].revenueBase).toBeGreaterThan(CLIENT_TIERS[i - 1].revenueBase);
+      expect(CLIENT_TIERS[i].unitsBase).toBeGreaterThan(CLIENT_TIERS[i - 1].unitsBase);
+    }
+    expect(clientTier('c1')?.name).toBe('Cresco Distribution');
   });
 });
 
