@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, Modal } from 'react-native';
-import { GameState, OBJECTIVES, Worker } from '@copack/engine';
+import { GameState, OBJECTIVES, Worker, TICKS_PER_SHIFT } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency, formatAwayTime, profileForWorker } from '../format';
 import { Button, Eyebrow } from './common';
@@ -13,7 +13,7 @@ export function SplashScreen({ onStart }: { onStart: () => void }) {
   return (
     <View style={styles.splash}>
       <Image source={SPLASH} style={styles.splashImg} resizeMode="contain" />
-      <Text style={styles.splashTag}>Contract packaging simulation</Text>
+      <Text style={styles.splashTag}>Idle contract packaging simulation</Text>
       <Button label="Start Shift" tone="primary" onPress={onStart} style={{ paddingHorizontal: 44, paddingVertical: 14, marginTop: 24 }} />
     </View>
   );
@@ -41,6 +41,7 @@ export function OfflineModal({ summary, onClose }: { summary: OfflineSummary; on
           </Text>
           <View style={styles.sumGrid}>
             <SummaryStat label="Net cash" value={`${gain >= 0 ? '+' : '-'}${formatCurrency(Math.abs(gain))}`} good={gain >= 0} />
+            <SummaryStat label="Shifts run" value={(summary.ticks / TICKS_PER_SHIFT).toFixed(1)} good />
             <SummaryStat label="Orders shipped" value={`${summary.ordersCompleted}`} good />
             {summary.ordersMissed > 0 && <SummaryStat label="Orders missed" value={`${summary.ordersMissed}`} good={false} />}
             {summary.quits > 0 && <SummaryStat label="Walked off" value={`${summary.quits}`} good={false} />}

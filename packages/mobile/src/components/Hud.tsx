@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
 import {
   GameState,
-  totalThroughput, fillRate, FILL_RATE_TARGET, totalPayroll,
+  totalThroughput, fillRate, FILL_RATE_TARGET, totalPayroll, facilityOverhead,
   shoutoutReady, moraleBreakdown,
 } from '@copack/engine';
 import { colors, radius, hudTone } from '../theme';
@@ -13,7 +13,7 @@ import { Bar } from './common';
 const LOGO = require('../../assets/brand-logo.png');
 
 export function Hud({ state }: { state: GameState }) {
-  const { paused, speed, soundOn, setSpeed, togglePause, toggleSound, shoutout, toggleOvertime, reset } = useGameStore();
+  const { paused, speed, soundOn, setSpeed, togglePause, toggleSound, shoutout, toggleOvertime, toggleAutoShift } = useGameStore();
   const awaitingStaffing = state.awaitingStaffing;
   const workers = Object.values(state.workers);
   const throughput = totalThroughput(state);
@@ -24,12 +24,7 @@ export function Hud({ state }: { state: GameState }) {
   const total = Object.values(state.lines).reduce((s, l) => s + l.stations.length, 0);
   const canShout = shoutoutReady(state) && !paused;
   const payroll = totalPayroll(state);
-
-  const onReset = () =>
-    Alert.alert('Reset the run?', 'This wipes your save and starts a fresh shift.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Reset', style: 'destructive', onPress: reset },
-    ]);
+  const overhead = facilityOverhead(state);
 
   const status = awaitingStaffing ? 'Morning standup' : paused ? 'Paused' : 'Live run';
   const statusColor = awaitingStaffing ? colors.gold : paused ? colors.textMute : colors.green;
@@ -71,11 +66,13 @@ export function Hud({ state }: { state: GameState }) {
         <CtrlBtn label={paused ? 'Resume' : 'Pause'} onPress={togglePause} primary />
         <CtrlBtn label={canShout ? 'Shout-out' : 'Cooling'} onPress={shoutout} disabled={!canShout} />
         <CtrlBtn label={state.overtime ? 'OT ON' : 'Overtime'} onPress={toggleOvertime} active={state.overtime} />
-        <CtrlBtn label={soundOn ? '♪ Haptics' : '✕ Muted'} onPress={toggleSound} />
-        <CtrlBtn label="Reset" onPress={onReset} />
+        {state.hasSupervisor && (
+          <CtrlBtn label={state.autoShift ? 'Auto ON' : 'Auto'} onPress={toggleAutoShift} active={state.autoShift} />
+        )}
+        <CtrlBtn label={soundOn ? '♪' : '✕'} onPress={toggleSound} />
       </ScrollView>
 
-      <Text style={styles.payroll}>Payroll {formatCurrency(payroll)}/shift</Text>
+      <Text style={styles.payroll}>Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)} /shift</Text>
     </View>
   );
 }
@@ -88,12 +85,15 @@ function StatusPill({ text, color }: { text: string; color: string }) {
   );
 }
 
+// Dark glass tile with a per-stat accent — the number carries the color, the
+// chrome stays quiet. Ported from the web HUD restyle.
 function HudStat({ label, value, tone }: { label: string; value: string; tone: keyof typeof hudTone }) {
   const color = hudTone[tone];
   return (
-    <View style={[styles.hudStat, { backgroundColor: color }]}>
+    <View style={[styles.hudStat, { borderColor: `${color}4D` }]}>
       <Text style={styles.hudStatLabel} numberOfLines={1}>{label}</Text>
-      <Text style={styles.hudStatValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={[styles.hudStatValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <View style={[styles.hudStatAccent, { backgroundColor: color }]} />
     </View>
   );
 }
@@ -124,9 +124,19 @@ const styles = StyleSheet.create({
   statusPill: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: 'rgba(255,255,255,0.04)' },
   statusPillText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
   statsGrid: { flexDirection: 'row', gap: 6, marginTop: 10 },
-  hudStat: { flex: 1, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 7 },
-  hudStatLabel: { color: 'rgba(7,19,27,0.6)', fontSize: 8, fontWeight: '900', letterSpacing: 0.3, textTransform: 'uppercase' },
-  hudStatValue: { color: colors.bgDeep, fontSize: 15, fontWeight: '900', marginTop: 2 },
+  hudStat: {
+    flex: 1,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 7,
+    paddingBottom: 9,
+    backgroundColor: 'rgba(10,15,27,0.72)',
+    overflow: 'hidden',
+  },
+  hudStatLabel: { color: '#8fa3bd', fontSize: 8, fontWeight: '900', letterSpacing: 0.3, textTransform: 'uppercase' },
+  hudStatValue: { fontSize: 15, fontWeight: '900', marginTop: 2, fontVariant: ['tabular-nums'] },
+  hudStatAccent: { position: 'absolute', left: 0, right: '14%', bottom: 0, height: 2.5, opacity: 0.85 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingRight: 4 },
   speedToggle: { flexDirection: 'row', backgroundColor: colors.bgDeep, borderRadius: radius.sm, padding: 2, borderWidth: 1, borderColor: colors.border },
   speedBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },

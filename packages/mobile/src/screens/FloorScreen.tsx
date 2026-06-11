@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import {
   GameState, Line, Worker,
@@ -6,13 +6,13 @@ import {
   mealCost, incentiveCost, mealReady, incentiveReady,
   mealCooldownRemaining, incentiveCooldownRemaining,
   canRepeatStaffing, flightRisk, trainingCost, canTrain, effectiveWage,
-  lineThroughput, dayOfTick, weekday,
+  lineThroughput, dayOfTick, weekday, openObjectives,
   SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
 } from '@copack/engine';
 import { colors, radius, shared, STATION_NAMES, STATION_THEMES } from '../theme';
 import { formatCurrency, pct, profileForWorker } from '../format';
 import { useGameStore, HIRE_COST } from '../store/useGameStore';
-import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
+import { Panel, Eyebrow, Pill, Button, StatCell, Bar } from '../components/common';
 import { CharacterAvatar } from '../components/Avatar';
 import { MiniBar } from '../components/MiniBar';
 import { TraitChips } from '../components/TraitChips';
@@ -26,7 +26,7 @@ export function FloorScreen({ state }: { state: GameState }) {
   const {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
     hireWorker, train, buyMeal, runIncentive, repeatStaffing, startShift,
-    resolveChallenge, terminateWorker, soundOn, autoFillCrew,
+    resolveChallenge, terminateWorker, soundOn, autoFillCrew, paused, setTab,
   } = useGameStore();
 
   const awaitingStaffing = state.awaitingStaffing;
@@ -58,6 +58,8 @@ export function FloorScreen({ state }: { state: GameState }) {
 
   return (
     <View style={{ gap: 14 }}>
+      <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
+
       {awaitingStaffing && (
         <MorningBanner
           state={state}
@@ -111,6 +113,7 @@ export function FloorScreen({ state }: { state: GameState }) {
           workers={state.workers}
           lineRate={lineThroughput(state, line)}
           shiftActive={shiftActive}
+          paused={paused}
           selectedWorker={selectedWorker}
           onSelectWorker={selectWorker}
           onAssign={assignWorker}
@@ -182,6 +185,29 @@ function MorningBanner({
   );
 }
 
+// --- Next goal: one slim line of pull at the top of the Floor ----------------
+
+function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void }) {
+  const next = openObjectives(state, 1)[0];
+  if (!next) return null;
+  const prog = next.progress?.(state);
+  const ratio = prog ? Math.min(1, prog.current / prog.target) : null;
+  return (
+    <Pressable onPress={onGoTo} style={({ pressed }) => [styles.goalStrip, pressed && { opacity: 0.85 }]}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.goalEyebrow}>Next goal</Text>
+        <Text style={styles.goalReward}>+{formatCurrency(next.reward)}</Text>
+      </View>
+      <Text style={styles.goalLabel} numberOfLines={1}>{next.label}</Text>
+      {ratio !== null && (
+        <View style={{ marginTop: 6 }}>
+          <Bar value={Math.max(ratio, 0.04)} color={colors.gold} height={5} />
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 // --- Conditions + break-glass levers ----------------------------------------
 
 function ConditionsBar({
@@ -236,7 +262,10 @@ function ConditionsBar({
 
 // --- Last-shift people impact -----------------------------------------------
 
+// Collapsed by default — the one-line summary keeps the signal and the floor
+// uncluttered; the per-person detail is one tap away. Mirrors the web panel.
 function ShiftImpactPanel({ report }: { report: NonNullable<GameState['lastShiftReport']> }) {
+  const [open, setOpen] = useState(false);
   const ordered = [...report.workerImpacts].sort((a, b) => {
     const rank = { sent_home: 0, no_show: 1, worked: 2 } as const;
     return rank[a.status] - rank[b.status] || b.units - a.units;
@@ -248,22 +277,22 @@ function ShiftImpactPanel({ report }: { report: NonNullable<GameState['lastShift
 
   return (
     <Panel>
-      <View style={styles.rowBetween}>
+      <Pressable onPress={() => setOpen((o) => !o)} style={styles.rowBetween}>
         <View>
-          <Eyebrow>Last shift</Eyebrow>
+          <Eyebrow>Last shift {open ? '▾' : '▸'}</Eyebrow>
           <Text style={shared.h2}>People Impact</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={styles.bigScore}>{Math.round(report.totalUnits)}</Text>
           <Text style={shared.bodyMute}>units · {formatCurrency(report.payroll)}</Text>
         </View>
-      </View>
+      </Pressable>
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
         <StatCell label="Worked" value={`${report.workedCount}`} tone={colors.green} />
         <StatCell label="Sent home" value={`${report.sentHomeCount}`} tone={colors.amber} />
         <StatCell label="No-show" value={`${report.noShowCount}`} tone={colors.red} />
       </View>
-      <View style={{ marginTop: 10, gap: 6 }}>
+      {open && <View style={{ marginTop: 10, gap: 6 }}>
         {ordered.map((w) => (
           <View key={w.workerId} style={styles.impactRow}>
             <View style={[styles.impactDot, { backgroundColor: statusColor(w.status) }]} />
@@ -276,7 +305,7 @@ function ShiftImpactPanel({ report }: { report: NonNullable<GameState['lastShift
             </Text>
           </View>
         ))}
-      </View>
+      </View>}
     </Panel>
   );
 }
@@ -367,10 +396,10 @@ function WorkerActionBar({
 // --- A production line with its stations -------------------------------------
 
 function FloorLine({
-  lineId, line, workers, lineRate, shiftActive, selectedWorker, onSelectWorker, onAssign, onUnassign,
+  lineId, line, workers, lineRate, shiftActive, paused, selectedWorker, onSelectWorker, onAssign, onUnassign,
 }: {
   lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number;
-  shiftActive: boolean; selectedWorker: Worker | null;
+  shiftActive: boolean; paused: boolean; selectedWorker: Worker | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
@@ -378,7 +407,9 @@ function FloorLine({
   const presentCount = line.stations.filter((s) => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift).length;
   const isStopped = presentCount === 0;
   const isShort = presentCount > 0 && presentCount < line.stations.length;
-  const running = shiftActive && !isStopped;
+  // Paused freezes the belt (the sim clock is stopped) without flipping the
+  // status text into its morning "Ready/Staff" state.
+  const running = shiftActive && !isStopped && !paused;
   const supportWorkerId = line.supportWorkerIds?.[0];
   const supportWorker = supportWorkerId ? workers[supportWorkerId] : null;
 
@@ -402,8 +433,6 @@ function FloorLine({
         </View>
         <Text style={{ color: statusColor, fontSize: 11, fontWeight: '900' }}>{statusText}</Text>
       </View>
-
-      <ConveyorBelt running={running} rate={lineRate} />
 
       <View style={styles.stationGrid}>
         {line.stations.map((station) => {
@@ -429,6 +458,16 @@ function FloorLine({
             />
           );
         })}
+      </View>
+
+      {/* Takeaway belt below the stations — cartons get packed and taped as
+          they pass each zone, mirroring the web floor. */}
+      <View style={{ marginTop: 10 }}>
+        <ConveyorBelt
+          running={running}
+          rate={lineRate}
+          outlet={running ? undefined : isStopped && shiftActive ? 'STALLED' : '—'}
+        />
       </View>
 
       <SupportSlot
@@ -601,6 +640,19 @@ function BenchWorker({
 
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  goalStrip: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.gold,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  goalEyebrow: { color: colors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  goalReward: { color: colors.green, fontSize: 12, fontWeight: '900' },
+  goalLabel: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
   banner: { borderWidth: 1.5 },
   bannerOut: { color: colors.pinkSoft, fontSize: 11, fontWeight: '700' },
   bannerStations: { color: colors.textDim, fontSize: 11, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 8 },
