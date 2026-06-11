@@ -8,7 +8,7 @@ export function createInitialState(): GameState {
     id: 'w1', name: 'Marcus T.',
     appearance: generateAppearance(101), traits: ['hard_worker', 'early_bird', 'quick_hands'],
     tenureDays: 0,
-    reliability: 0.85, morale: 0.7, disposition: 0.70, wage: 90,
+    reliability: 0.85, morale: 0.7, disposition: 0.70, wage: 255, // $25.50/hr billed
     permanent: false, isLead: false,
     skills: [{ stationId: 's1', proficiency: 0.70 }], // trained: Induct
     presentThisShift: true,
@@ -18,7 +18,7 @@ export function createInitialState(): GameState {
     id: 'w2', name: 'Diana R.',
     appearance: generateAppearance(202), traits: ['mentor', 'loyal', 'perfect_attendance', 'optimist'],
     tenureDays: 45,
-    reliability: 0.92, morale: 0.8, disposition: 0.82, wage: 110,
+    reliability: 0.92, morale: 0.8, disposition: 0.82, wage: 275, // $27.50/hr billed
     permanent: false, isLead: false,
     skills: [{ stationId: 's2', proficiency: 0.85 }], // trained: Pack — loves the work
     presentThisShift: true,
@@ -28,7 +28,7 @@ export function createInitialState(): GameState {
     id: 'w3', name: 'Jerome K.',
     appearance: generateAppearance(303), traits: ['joker', 'sickness_prone', 'easygoing'],
     tenureDays: 12,
-    reliability: 0.75, morale: 0.6, disposition: 0.55, wage: 85,
+    reliability: 0.75, morale: 0.6, disposition: 0.55, wage: 245, // $24.50/hr billed
     permanent: false, isLead: false,
     skills: [{ stationId: 's3', proficiency: 0.65 }], // trained: Stage — harder to please
     presentThisShift: true,
@@ -50,7 +50,7 @@ export function createInitialState(): GameState {
     id: 'ord1', clientId: 'c1', sku: 'SKU-001',
     units: 300, unitsCompleted: 0,
     deadline: TICKS_PER_DAY * 2, // two shifts to land the first contract
-    revenuePerUnit: 2.50,
+    revenuePerUnit: 6.25,
     qualityThreshold: 0.9,
   };
 
@@ -60,7 +60,7 @@ export function createInitialState(): GameState {
   };
 
   return {
-    tick: 0, day: 0, cash: 6500, orderCount: 1, completedOrders: 0, missedOrders: 0,
+    tick: 0, day: 0, cash: 16000, orderCount: 1, completedOrders: 0, missedOrders: 0,
     lineCount: 1, overtime: false, shoutoutReadyTick: 0,
     mealToday: false, incentiveToday: false,
     mealCooldownUntil: 0, incentiveCooldownUntil: 0,

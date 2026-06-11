@@ -7,7 +7,7 @@ import { totalPayroll } from './payroll';
 // bankruptcy floor and the plant shuts down — the run is over. A one-time warning
 // fires as you cross into the red so the player feels the pressure before the wall.
 
-export const BANKRUPTCY_FLOOR = -4000;
+export const BANKRUPTCY_FLOOR = -10000;
 
 // We're "in the red" once cash can't cover the next payroll run.
 export function cashIsTight(state: GameState): boolean {

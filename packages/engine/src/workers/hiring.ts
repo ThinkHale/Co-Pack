@@ -1,7 +1,7 @@
 import { GameState, GameEvent, Worker } from '../types';
 import { generateWorker } from './generator';
 
-export const HIRE_COST = 500;
+export const HIRE_COST = 1250;
 
 // Request a worker from the agency. The agency honors your skill-mix request and,
 // if the referral program is running, sends people in through someone they know

@@ -6,7 +6,7 @@ import {
   fillRate, FILL_RATE_TARGET, flightRisk, trainingCost, canTrain,
   dayCondition, dayAttendanceModifier, mealCost, incentiveCost,
   mealReady, incentiveReady, mealCooldownRemaining, incentiveCooldownRemaining,
-  moraleBreakdown, effectiveWage,
+  moraleBreakdown, effectiveWage, effectiveHourly, SHIFT_HOURS,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
@@ -1306,7 +1306,7 @@ function WorkerActionBar({
             </div>
             <div className="text-xs text-amber-100/80">
               Click a station to assign · <span className={`risk-${risk}`}>{riskCopy}</span>
-              {' '}· {formatCurrency(effectiveWage(worker, payPolicy))}/shift
+              {' '}· ${effectiveHourly(worker, payPolicy).toFixed(2)}/hr ({formatCurrency(effectiveWage(worker, payPolicy))}/shift)
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               <span className="history-pill">Missed {worker.missedShifts ?? 0}</span>
@@ -1724,10 +1724,18 @@ function StaffingTab({
           <button type="button" className="pay-reset" onClick={() => onSetPayRate(PAY_RATE_DEFAULT)}>Reset to market</button>
           <span>{Math.round(PAY_RATE_MAX * 100)}%</span>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="staffing-stat">
             <span>Roster payroll</span>
             <strong>{formatCurrency(Object.values(state.workers).reduce((s, w) => s + effectiveWage(w, state.payPolicy), 0))}/shift</strong>
+          </div>
+          <div className="staffing-stat">
+            <span>Avg bill rate</span>
+            <strong>
+              ${headcount > 0
+                ? (Object.values(state.workers).reduce((s, w) => s + effectiveWage(w, state.payPolicy), 0) / headcount / SHIFT_HOURS).toFixed(2)
+                : '0.00'}/hr
+            </strong>
           </div>
           <div className="staffing-stat">
             <span>Headcount</span>

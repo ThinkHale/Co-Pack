@@ -1,6 +1,6 @@
 import { GameState, GameEvent, Line } from '../types';
 
-const LINE_BASE_COST = 3000; // 2nd line $3k, 3rd $6k, 4th $9k ...
+const LINE_BASE_COST = 7500; // 2nd line $7.5k, 3rd $15k, 4th $22.5k ...
 
 // Every line runs the same three roles, so role-trained workers fit any line.
 function makeLine(index: number): Line {

@@ -9,8 +9,8 @@ import { GameState, GameEvent } from '../types';
 // offline catch-up. The salary is the standing price of that freedom, and a
 // hands-on morning still out-manages the supervisor (no helpers, no hires).
 
-export const SUPERVISOR_COST = 4000;
-export const SUPERVISOR_SALARY_PER_SHIFT = 120;
+export const SUPERVISOR_COST = 10000;
+export const SUPERVISOR_SALARY_PER_SHIFT = 300;
 // How long the supervisor leaves a floor decision on the player's desk before
 // making the safe call themselves (auto-shift mode only).
 export const SUPERVISOR_CHALLENGE_GRACE_TICKS = 30;

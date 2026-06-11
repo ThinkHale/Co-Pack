@@ -36,14 +36,14 @@ export function dayCondition(day: number): DayCondition {
 // a cooldown so you can't lean on them every day. Frequent small morale nudges are
 // the free Shout-out's job; this is the break-glass button.
 
-const MEAL_FLAT = 600;
-const MEAL_PER_HEAD = 35;
+const MEAL_FLAT = 1500;
+const MEAL_PER_HEAD = 90;
 const MEAL_ATTENDANCE = 0.14;
 const MEAL_MORALE = 0.06;
 const MEAL_COOLDOWN_DAYS = 4;
 
-const INCENTIVE_FLAT = 1200;
-const INCENTIVE_PER_HEAD = 70;
+const INCENTIVE_FLAT = 3000;
+const INCENTIVE_PER_HEAD = 175;
 const INCENTIVE_ATTENDANCE = 0.24;
 const INCENTIVE_MORALE = 0.10;
 const INCENTIVE_COOLDOWN_DAYS = 6;

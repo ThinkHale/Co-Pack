@@ -7,11 +7,12 @@ import type { SpeedSetting, TabKey } from '../hooks/useGameStore';
 // the time they were away (at a reduced rate, capped) and hand back a summary the
 // UI can celebrate. The engine stays the source of truth — we just run its tick().
 
-// v2: the 10h-shift time model changed what tick/day mean, so v1 saves (built on
-// the old 8h-shift / 24h-day split) are intentionally not migrated — a clean start
-// on the fixed build beats a confusing mixed-model state.
-const SAVE_KEY = 'copack.save.v2';
-const SAVE_VERSION = 2;
+// v3: the economy moved to real temp-labor bill rates ($22–30/hr) and every
+// dollar flow rescaled with it. A v2 save's wages, prices, and bankroll are all
+// in the old currency scale, so v2 saves are intentionally not migrated — a
+// clean start on the rebalanced economy beats a broke, mixed-scale state.
+const SAVE_KEY = 'copack.save.v3';
+const SAVE_VERSION = 3;
 
 // Offline accrues 1 game-tick per real second (≈ the 1× live rate), capped so a
 // long absence is a warm welcome-back, not a game-breaking windfall. Without a
