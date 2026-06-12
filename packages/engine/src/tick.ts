@@ -6,7 +6,7 @@ import { processThroughput } from './lines/throughput';
 import { processOrders } from './clients/orders';
 import { processPayroll, totalPayroll } from './economy/payroll';
 import { processOverhead } from './economy/overhead';
-import { autoShiftActive, SUPERVISOR_CHALLENGE_GRACE_TICKS } from './economy/supervisor';
+import { supervisorOnDuty, SUPERVISOR_CHALLENGE_GRACE_TICKS } from './economy/supervisor';
 import { processIncidents } from './events/incidents';
 import { rollEvents } from './events/random';
 import { rollShiftChallenge, resolveShiftChallenge, supervisorChallengeChoice } from './events/challenges';
@@ -18,7 +18,13 @@ import { captureAssignments, clearAssignments, autoAssignCrew } from './lines/as
 import { finalizeShiftImpact } from './workers/impact';
 import { TICKS_PER_SHIFT, TICKS_PER_DAY } from './time';
 
-export function tick(state: GameState): { state: GameState; events: GameEvent[] } {
+/**
+ * Advance the sim one game-minute. `unattended` marks ticks run while the
+ * player is away (offline catch-up): a hired supervisor always runs the floor
+ * through those — but never wrestles a live player for the controls.
+ */
+export function tick(state: GameState, opts?: { unattended?: boolean }): { state: GameState; events: GameEvent[] } {
+  const unattended = opts?.unattended ?? false;
   const events: GameEvent[] = [];
   // A shut-down plant doesn't tick — the run is over until the player resets.
   if (state.gameOver) return { state, events };
@@ -69,13 +75,14 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
     s = r.state;
     events.push(...r.events);
 
-    // Remember the lineup and empty the stations. With a supervisor running the
-    // floor, they immediately re-staff and the shift rolls on — this is what
-    // makes the game genuinely idle. Otherwise, hold for the morning standup.
+    // Remember the lineup and empty the stations. The supervisor re-staffs and
+    // rolls the shift only when they're on duty — always during unattended
+    // (offline) time, but during live play only if the player opted into
+    // Auto-shift. Otherwise, hold for the player's morning standup.
     const previousAssignments = captureAssignments(s);
     s = clearAssignments(s);
     s = { ...s, previousAssignments, shiftChallenge: null };
-    if (autoShiftActive(s)) {
+    if (supervisorOnDuty(s, unattended)) {
       s = autoAssignCrew(s);
       events.push({
         type: 'SHIFT_START', tick: s.tick,
@@ -86,10 +93,10 @@ export function tick(state: GameState): { state: GameState; events: GameEvent[] 
     }
   }
 
-  // In auto-shift mode the supervisor won't leave a floor decision hanging
-  // forever: after a short grace window (the player's chance to weigh in),
+  // An on-duty supervisor won't leave a floor decision hanging forever: after
+  // a short grace window (the player's chance to weigh in, when present),
   // they make the safe call so an unattended run isn't quietly throttled.
-  if (s.shiftChallenge && autoShiftActive(s)
+  if (s.shiftChallenge && supervisorOnDuty(s, unattended)
     && s.tick - s.shiftChallenge.createdTick >= SUPERVISOR_CHALLENGE_GRACE_TICKS) {
     const ra = resolveShiftChallenge(s, supervisorChallengeChoice(s.shiftChallenge));
     s = ra.state;

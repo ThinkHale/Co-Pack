@@ -82,7 +82,7 @@ function makeChallenge(
       title: `Carton jam on ${line.name}`,
       note: 'The belt is crawling until someone clears the jam.',
       choices: [
-        { id: 'clear', label: 'Stop and clear', note: '-$300 maintenance, output restored' },
+        { id: 'clear', label: 'Stop and clear', note: '-$900 maintenance call-out, output restored' },
         { id: 'force', label: 'Push through', note: 'No cash cost, line morale -4%' },
       ],
     };
@@ -98,7 +98,7 @@ function makeChallenge(
       title: 'Client spot-check request',
       note: `${line.name} slows while the front office waits on your call.`,
       choices: [
-        { id: 'inspect', label: 'Run the check', note: '-$225, reputation +2%' },
+        { id: 'inspect', label: 'Run the check', note: '-$750 in samples & line time, reputation +2%' },
         { id: 'skip', label: 'Skip it', note: 'Output restored, reputation -4%' },
       ],
     };
@@ -145,8 +145,8 @@ export function resolveShiftChallenge(
 
   if (challenge.type === 'belt_jam') {
     if (choiceId === 'clear') {
-      s = { ...s, cash: s.cash - 300 };
-      payload.cashDelta = -300;
+      s = { ...s, cash: s.cash - 900 };
+      payload.cashDelta = -900;
       payload.result = 'Maintenance cleared the jam.';
     } else if (choiceId === 'force') {
       s = adjustLineMorale(s, challenge.lineId!, -0.04);
@@ -155,8 +155,8 @@ export function resolveShiftChallenge(
     }
   } else if (challenge.type === 'quality_check') {
     if (choiceId === 'inspect') {
-      s = adjustPrimaryClientReputation({ ...s, cash: s.cash - 225 }, 0.02);
-      payload.cashDelta = -225;
+      s = adjustPrimaryClientReputation({ ...s, cash: s.cash - 750 }, 0.02);
+      payload.cashDelta = -750;
       payload.reputationDelta = 0.02;
       payload.result = 'The spot check reassured the client.';
     } else if (choiceId === 'skip') {

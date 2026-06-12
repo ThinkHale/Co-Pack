@@ -6,7 +6,7 @@ import {
   mealCost, incentiveCost, mealReady, incentiveReady,
   mealCooldownRemaining, incentiveCooldownRemaining,
   canRepeatStaffing, flightRisk, trainingCost, canTrain, effectiveWage, effectiveHourly,
-  lineThroughput, dayOfTick, weekday, openObjectives,
+  lineThroughput, dayOfTick, weekday, openObjectives, hasUnlock,
   SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
 } from '@copack/engine';
 import { colors, radius, shared, STATION_NAMES, STATION_THEMES } from '../theme';
@@ -114,6 +114,7 @@ export function FloorScreen({ state }: { state: GameState }) {
           lineRate={lineThroughput(state, line)}
           shiftActive={shiftActive}
           paused={paused}
+          supportLocked={!hasUnlock(state, 'support')}
           selectedWorker={selectedWorker}
           onSelectWorker={selectWorker}
           onAssign={assignWorker}
@@ -396,10 +397,10 @@ function WorkerActionBar({
 // --- A production line with its stations -------------------------------------
 
 function FloorLine({
-  lineId, line, workers, lineRate, shiftActive, paused, selectedWorker, onSelectWorker, onAssign, onUnassign,
+  lineId, line, workers, lineRate, shiftActive, paused, supportLocked, selectedWorker, onSelectWorker, onAssign, onUnassign,
 }: {
   lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number;
-  shiftActive: boolean; paused: boolean; selectedWorker: Worker | null;
+  shiftActive: boolean; paused: boolean; supportLocked: boolean; selectedWorker: Worker | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
@@ -471,6 +472,7 @@ function FloorLine({
       </View>
 
       <SupportSlot
+        locked={supportLocked}
         worker={supportWorker}
         present={supportWorker?.presentThisShift ?? false}
         working={(supportWorker?.presentThisShift ?? false) && running}
@@ -530,11 +532,25 @@ function StationTile({
 }
 
 function SupportSlot({
-  worker, present, working, hasTarget, selectedFirstName, onPress, onClear,
+  locked, worker, present, working, hasTarget, selectedFirstName, onPress, onClear,
 }: {
-  worker: Worker | null; present: boolean; working: boolean; hasTarget: boolean;
+  locked: boolean; worker: Worker | null; present: boolean; working: boolean; hasTarget: boolean;
   selectedFirstName: string | null; onPress: () => void; onClear: () => void;
 }) {
+  // The Floater program is a purchased unlock — show the slot, sell the dream.
+  if (locked) {
+    return (
+      <View style={[styles.support, { opacity: 0.55 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.supportLabel}>Support 🔒</Text>
+          <Text style={styles.supportTitle} numberOfLines={1}>Floater program locked</Text>
+          <Text style={shared.bodyMute} numberOfLines={1}>
+            Unlock in Office → Upgrades · +{Math.round(SUPPORT_OUTPUT_BONUS * 100)}% lift
+          </Text>
+        </View>
+      </View>
+    );
+  }
   const profile = worker ? profileForWorker(worker) : null;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.support, working && { borderColor: colors.teal }, pressed && { opacity: 0.85 }]}>

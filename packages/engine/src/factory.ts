@@ -60,7 +60,9 @@ export function createInitialState(): GameState {
   };
 
   return {
-    tick: 0, day: 0, cash: 16000, orderCount: 1, completedOrders: 0, missedOrders: 0,
+    // Lean start: ~4 shifts of runway. You ship to fund your first hire, and
+    // overtime/floaters/HR programs are upgrades you save for — not givens.
+    tick: 0, day: 0, cash: 5000, orderCount: 1, completedOrders: 0, missedOrders: 0,
     lineCount: 1, overtime: false, shoutoutReadyTick: 0,
     mealToday: false, incentiveToday: false,
     mealCooldownUntil: 0, incentiveCooldownUntil: 0,
@@ -69,6 +71,7 @@ export function createInitialState(): GameState {
     programs: { attendance: false, referral: false },
     hasSupervisor: false,
     autoShift: false,
+    unlocks: [],
     nextWorkerId: 4, // w1..w3 already taken
     staffingHistory: [],
     completedObjectives: [],

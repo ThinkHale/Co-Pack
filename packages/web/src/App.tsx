@@ -18,7 +18,7 @@ import {
   TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
   canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
   facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor,
-  CLIENT_TIERS,
+  CLIENT_TIERS, FEATURE_UNLOCKS, hasUnlock, FeatureUnlockId,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, TabKey, HIRE_COST } from './hooks/useGameStore';
 import { playSound, unlockAudio, SoundKind } from './lib/sound';
@@ -238,13 +238,18 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
       };
     case 'SUPERVISOR_HIRED':
       return {
-        text: `Floor supervisor hired — shifts now run themselves. -$${(p.cost as number).toFixed(0)}`,
+        text: `Floor supervisor hired — the plant now runs while you're away. -$${(p.cost as number).toFixed(0)}`,
         tone: 'event-good', tag: 'OPS',
       };
     case 'AUTO_SHIFT_TOGGLED':
       return {
         text: `Auto-shift ${p.autoShift ? 'ON — the supervisor runs the mornings' : 'off — back to manual standups'}.`,
         tone: 'event-neutral', tag: 'OPS',
+      };
+    case 'FEATURE_UNLOCKED':
+      return {
+        text: `Upgrade purchased: ${p.name}. -$${(p.cost as number).toFixed(0)}`,
+        tone: 'event-good', tag: 'SHOP',
       };
     case 'OVERHEAD':
       return {
@@ -278,7 +283,7 @@ function Game() {
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker, terminateWorker,
-    hireSupervisor, toggleAutoShift, autoFillCrew,
+    hireSupervisor, toggleAutoShift, autoFillCrew, buyUnlock,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -444,10 +449,13 @@ function Game() {
               <button
                 type="button"
                 onClick={toggleOvertime}
-                title="Overtime: more output now, morale cost at shift end"
+                disabled={!hasUnlock(state, 'overtime')}
+                title={hasUnlock(state, 'overtime')
+                  ? 'Overtime: more output now, morale cost at shift end'
+                  : 'Locked — buy Overtime authorization in Front Office → Upgrades'}
                 className={`game-button ${state.overtime ? 'game-button-ot-on' : 'game-button-muted'}`}
               >
-                {state.overtime ? 'Overtime ON' : 'Overtime'}
+                {state.overtime ? 'Overtime ON' : hasUnlock(state, 'overtime') ? 'Overtime' : 'Overtime 🔒'}
               </button>
               {state.hasSupervisor && (
                 <button
@@ -544,6 +552,7 @@ function Game() {
                   lineRate={lineThroughput(state, line)}
                   shiftActive={shiftActive}
                   paused={paused}
+                  supportLocked={!hasUnlock(state, 'support')}
                   selectedWorkerId={selectedWorkerId}
                   onSelectWorker={selectWorker}
                   onAssign={assignWorker}
@@ -601,6 +610,7 @@ function Game() {
             onTerminate={onTerminateWorker}
             onHireSupervisor={hireSupervisor}
             onToggleAutoShift={toggleAutoShift}
+            onBuyUnlock={buyUnlock}
             onReset={() => { if (window.confirm('Reset the run? This wipes your save and starts a fresh shift.')) reset(); }}
           />
         )}
@@ -912,7 +922,7 @@ function OrderHero({
 const WORKER_DND_MIME = 'application/x-copack-worker';
 
 function FloorLine({
-  lineId, line, workers, lineRate, shiftActive, paused, selectedWorkerId,
+  lineId, line, workers, lineRate, shiftActive, paused, supportLocked, selectedWorkerId,
   onSelectWorker, onAssign, onUnassign,
 }: {
   lineId: string;
@@ -921,6 +931,7 @@ function FloorLine({
   lineRate: number;
   shiftActive: boolean;
   paused: boolean;
+  supportLocked: boolean;
   selectedWorkerId: string | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
@@ -1018,6 +1029,7 @@ function FloorLine({
       </div>
 
       <SupportSlot
+        locked={supportLocked}
         worker={supportWorker}
         present={supportPresent}
         working={supportPresent && running}
@@ -1141,8 +1153,9 @@ function StationTile({
 }
 
 function SupportSlot({
-  worker, present, working, selectedWorker, onPlace, onSelect, onUnassign,
+  locked, worker, present, working, selectedWorker, onPlace, onSelect, onUnassign,
 }: {
+  locked: boolean;
   worker: Worker | null;
   present: boolean;
   working: boolean;
@@ -1151,6 +1164,18 @@ function SupportSlot({
   onSelect: () => void;
   onUnassign: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
+  // The Floater program is a purchased unlock — show the slot, sell the dream.
+  if (locked) {
+    return (
+      <div className="support-slot empty opacity-60" title="Unlock the Floater program in Front Office → Upgrades">
+        <div className="support-copy">
+          <span className="support-label">Support 🔒</span>
+          <strong>Floater program locked</strong>
+          <small>Unlock in Front Office → Upgrades · +{Math.round(SUPPORT_OUTPUT_BONUS * 100)}% line lift</small>
+        </div>
+      </div>
+    );
+  }
   const hasTarget = selectedWorker !== null;
   const profile = worker ? profileForWorker(worker) : null;
   const selectedProfile = selectedWorker ? profileForWorker(selectedWorker) : null;
@@ -1780,7 +1805,12 @@ function StaffingTab({
           Always-on programs billed per head every shift. They run in the background, unlike the
           one-day meal or incentive on the Floor.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {!hasUnlock(state, 'programs') && (
+          <div className="mt-3 text-xs font-black uppercase tracking-[0.12em] text-amber-200">
+            🔒 Requires the HR partner retainer — Front Office → Upgrades
+          </div>
+        )}
+        <div className={`mt-4 grid gap-3 sm:grid-cols-2 ${hasUnlock(state, 'programs') ? '' : 'pointer-events-none opacity-50'}`}>
           <ProgramToggle
             title="Attendance program"
             note={`Crew-wide turnout boost. ${formatCurrency(ATTENDANCE_PROGRAM_PER_HEAD)}/head/shift`}
@@ -1825,7 +1855,7 @@ function ProgramToggle({
 
 function FrontOfficeTab({
   state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onPromoteLead, onConvert, onTerminate,
-  onHireSupervisor, onToggleAutoShift, onReset,
+  onHireSupervisor, onToggleAutoShift, onBuyUnlock, onReset,
 }: {
   state: GameState;
   lineCost: number;
@@ -1837,6 +1867,7 @@ function FrontOfficeTab({
   onTerminate: (worker: Worker) => void;
   onHireSupervisor: () => void;
   onToggleAutoShift: () => void;
+  onBuyUnlock: (id: FeatureUnlockId) => void;
   onReset: () => void;
 }) {
   const lines = Object.entries(state.lines);
@@ -1850,9 +1881,10 @@ function FrontOfficeTab({
         {!state.hasSupervisor ? (
           <>
             <p className="mt-1 text-sm font-semibold text-slate-300">
-              Hire a supervisor and the morning standup runs itself: shifts roll one into the next,
-              the crew is seated automatically, and the plant keeps earning <strong>even while you're away</strong>.
-              They also make the safe call on any floor decision you leave hanging.
+              Hire a supervisor and the plant keeps earning <strong>while you're away</strong>:
+              they run every morning standup, seat the crew, and make the safe call on floor
+              decisions until you're back. While you're playing, the floor stays yours —
+              they only step in if you flip Auto-shift on.
               Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
             </p>
             <button
@@ -1867,18 +1899,51 @@ function FrontOfficeTab({
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <ProgramToggle
-              title="Supervisor runs the floor"
-              note={`Shifts roll automatically — staffed, started, and settled with no input. ${formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.`}
+              title="Auto-shift (hands-free while you watch)"
+              note={`Off: you run the mornings; the supervisor covers you only while you're away. On: they roll shifts even while you watch. ${formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.`}
               cost={SUPERVISOR_SALARY_PER_SHIFT}
               active={state.autoShift}
               onToggle={onToggleAutoShift}
             />
             <p className="self-center text-sm font-semibold text-slate-300">
-              Hands-on mornings still squeeze out more: the supervisor never hires, trains, or
-              staffs the support slots. Toggle off whenever you want the floor back.
+              Away time is always covered — the supervisor staffs and runs every shift you miss.
+              Hands-on mornings still squeeze out more: they never hire, train, or staff the
+              support slots.
             </p>
           </div>
         )}
+      </section>
+
+      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+        <div className="eyebrow">Upgrades</div>
+        <h2 className="text-2xl font-black text-white">Capabilities</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-300">
+          One-time purchases that open up new levers. Earned, not given.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {FEATURE_UNLOCKS.map(u => {
+            const owned = state.unlocks.includes(u.id);
+            return (
+              <div key={u.id} className={`office-line ${owned ? '' : 'opacity-90'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black text-white">{owned ? u.name : `🔒 ${u.name}`}</span>
+                  {owned && <span className="program-pill on">OWNED</span>}
+                </div>
+                <div className="mt-1 text-xs font-semibold text-slate-300">{u.blurb}</div>
+                {!owned && (
+                  <button
+                    type="button"
+                    onClick={() => onBuyUnlock(u.id)}
+                    disabled={state.cash < u.cost}
+                    className="game-button game-button-auto mt-2 w-full"
+                  >
+                    Unlock · {formatCurrency(u.cost)}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section className="game-panel p-4 sm:p-5">
@@ -2132,7 +2197,9 @@ function toastForEvent(e: GameEvent): ToastSpec | null {
     case 'CLIENT_UNLOCKED':
       return { text: `New client: ${p.clientName} — better rates unlocked`, tone: 'toast-gold', tag: 'CLIENT', sound: 'win' };
     case 'SUPERVISOR_HIRED':
-      return { text: `Supervisor hired — the floor now runs itself`, tone: 'toast-gold', tag: 'OPS', sound: 'win' };
+      return { text: `Supervisor hired — the plant earns while you're away`, tone: 'toast-gold', tag: 'OPS', sound: 'win' };
+    case 'FEATURE_UNLOCKED':
+      return { text: `${p.name} unlocked`, tone: 'toast-gold', tag: 'SHOP', sound: 'win' };
     case 'GAME_OVER':
       return { text: `The plant shut down`, tone: 'toast-bad', tag: 'OVER', sound: 'over' };
     default:

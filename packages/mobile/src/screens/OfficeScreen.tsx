@@ -6,6 +6,7 @@ import {
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
   LEAD_COST, conversionCost,
   canHireSupervisor, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT,
+  FEATURE_UNLOCKS,
 } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency } from '../format';
@@ -13,7 +14,7 @@ import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
 
 export function OfficeScreen({ state }: { state: GameState }) {
-  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, reset } = useGameStore();
+  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, buyUnlock, reset } = useGameStore();
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter((w) => !w.permanent);
   const lineCost = nextLineCost(state);
@@ -34,8 +35,9 @@ export function OfficeScreen({ state }: { state: GameState }) {
         {!state.hasSupervisor ? (
           <>
             <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-              Hire a supervisor and the morning standup runs itself: shifts roll automatically and
-              the plant keeps earning even while you're away. Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
+              Hire a supervisor and the plant keeps earning while you're away — they run every
+              standup you miss. While you're playing, the floor stays yours unless you flip
+              Auto-shift on. Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
             </Text>
             <Button
               label={`Hire supervisor · ${formatCurrency(SUPERVISOR_COST)}`}
@@ -48,17 +50,49 @@ export function OfficeScreen({ state }: { state: GameState }) {
         ) : (
           <>
             <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-              Hands-on mornings still squeeze out more — the supervisor never hires, trains, or
-              staffs support slots. {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift salary either way.
+              Away time is always covered. Auto-shift is for watching hands-free — and a
+              hands-on morning still squeezes out more: the supervisor never hires, trains, or
+              staffs support slots. {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift either way.
             </Text>
             <Button
-              label={state.autoShift ? 'Auto-shift ON — supervisor runs the floor' : 'Auto-shift off — manual standups'}
+              label={state.autoShift ? 'Auto-shift ON — supervisor runs the floor' : 'Auto-shift off — you run the mornings'}
               tone={state.autoShift ? 'primary' : 'muted'}
               onPress={toggleAutoShift}
               style={{ marginTop: 10 }}
             />
           </>
         )}
+      </Panel>
+
+      <Panel>
+        <Eyebrow>Upgrades</Eyebrow>
+        <Text style={shared.h2}>Capabilities</Text>
+        <Text style={[shared.bodyMute, { marginTop: 4 }]}>
+          One-time purchases that open up new levers. Earned, not given.
+        </Text>
+        <View style={{ gap: 10, marginTop: 12 }}>
+          {FEATURE_UNLOCKS.map((u) => {
+            const owned = state.unlocks.includes(u.id);
+            return (
+              <View key={u.id} style={styles.officeLine}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.lineName}>{owned ? u.name : `🔒 ${u.name}`}</Text>
+                  {owned && <Pill color={colors.green} filled>OWNED</Pill>}
+                </View>
+                <Text style={[shared.bodyMute, { marginTop: 3 }]}>{u.blurb}</Text>
+                {!owned && (
+                  <Button
+                    label={`Unlock · ${formatCurrency(u.cost)}`}
+                    tone="muted"
+                    disabled={state.cash < u.cost}
+                    onPress={() => buyUnlock(u.id)}
+                    style={{ marginTop: 8 }}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </View>
       </Panel>
 
       <Panel>
