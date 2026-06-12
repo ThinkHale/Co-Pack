@@ -72,6 +72,7 @@ export function createInitialState(): GameState {
     hasSupervisor: false,
     autoShift: false,
     unlocks: [],
+    nightShift: false,
     nextWorkerId: 4, // w1..w3 already taken
     staffingHistory: [],
     completedObjectives: [],

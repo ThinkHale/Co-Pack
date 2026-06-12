@@ -113,6 +113,11 @@ export const OBJECTIVES: Objective[] = [
     progress: s => ({ current: Math.min(headcount(s), 8), target: 8 }),
   },
   {
+    id: 'night_shift', label: 'Open the night shift', reward: 8000,
+    hint: 'Front Office → Upgrades. Around-the-clock output — for a price.',
+    isComplete: s => s.unlocks.includes('night_shift'),
+  },
+  {
     id: 'land_northwind', label: 'Land Northwind Pharma', reward: 10000,
     hint: 'The premium contract: 30 shipped and three lines running.',
     isComplete: s => !!s.clients.c4,

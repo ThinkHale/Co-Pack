@@ -108,6 +108,7 @@ export type GameEventType =
   | 'AUTO_SHIFT_TOGGLED'
   | 'CLIENT_UNLOCKED'
   | 'FEATURE_UNLOCKED'
+  | 'NIGHT_SHIFT_TOGGLED'
   | 'OVERHEAD'
   | 'GAME_OVER';
 
@@ -195,7 +196,8 @@ export interface GameState {
   programs: StaffingPrograms;
   hasSupervisor: boolean;   // floor supervisor hired — unlocks hands-off shift rollover
   autoShift: boolean;       // supervisor runs the morning standup; shifts roll without holding
-  unlocks: string[];        // purchased feature unlocks (overtime, support, programs)
+  unlocks: string[];        // purchased feature unlocks (overtime, support, programs, night_shift)
+  nightShift: boolean;      // night crew running: more output, much higher running cost
   nextWorkerId: number;     // monotonic id counter so hires never collide after a quit
   staffingHistory: StaffingDay[]; // per-day labor coverage vs the schedule (the board)
   completedObjectives: string[];  // ids of progression goals already cleared (rewards paid once)

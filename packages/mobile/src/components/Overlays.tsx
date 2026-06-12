@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, Modal } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet, Modal, Pressable } from 'react-native';
 import { GameState, OBJECTIVES, Worker, TICKS_PER_SHIFT } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency, formatAwayTime, profileForWorker } from '../format';
@@ -79,6 +79,112 @@ export function GameOverOverlay({ state, onRestart }: { state: GameState; onRest
   );
 }
 
+export const AD_INTERVAL_DAYS = 5;
+
+// Interstitial placeholder: same shape a real ad SDK fills later (showAd →
+// network ad → dismiss callback). Countdown + remove-ads flow match the
+// production UX so the cadence can be playtested before AdMob/StoreKit land.
+export function AdModal({ adFree, onDismiss, onRemoveAds }: { adFree: boolean; onDismiss: () => void; onRemoveAds: () => void }) {
+  const [secondsLeft, setSecondsLeft] = useState(5);
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft]);
+
+  return (
+    <Modal transparent animationType="fade">
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Eyebrow>Ad break</Eyebrow>
+            <Text style={styles.adCounter}>{secondsLeft > 0 ? `${secondsLeft}s` : '✓'}</Text>
+          </View>
+          <View style={styles.adHouse}>
+            <View style={styles.adBadge}><Text style={styles.adBadgeText}>AD</Text></View>
+            <Text style={[shared.h2, { textAlign: 'center' }]}>Co-Pack runs on ads</Text>
+            <Text style={[shared.bodyMute, { marginTop: 6, textAlign: 'center' }]}>
+              A short break every {AD_INTERVAL_DAYS} shifts keeps the game free. (Placeholder — a
+              network ad renders here in production builds.)
+            </Text>
+          </View>
+          <Button
+            label={secondsLeft > 0 ? `Continue in ${secondsLeft}…` : 'Continue ▸'}
+            tone="primary"
+            disabled={secondsLeft > 0}
+            onPress={onDismiss}
+            style={{ marginTop: 14 }}
+          />
+          {!adFree && (
+            <Button
+              label="Remove ads · $2.99 (simulated in test builds)"
+              tone="muted"
+              onPress={onRemoveAds}
+              style={{ marginTop: 8 }}
+            />
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// First-play walkthrough card. `auto` steps advance when the player does the
+// thing; the rest wait for "Got it". Skippable, never shown again.
+export interface TutorialStep {
+  title: string;
+  text: string;
+  auto?: (ctx: { selected: string | null; staffed: number; shiftRunning: boolean }) => boolean;
+}
+
+export const TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: 'Welcome to the floor, boss',
+    text: 'Your crew is waiting on the bench below. Tap a worker card to pick them up.',
+    auto: (ctx) => ctx.selected !== null || ctx.staffed > 0,
+  },
+  {
+    title: 'Put them to work',
+    text: 'Now tap an empty station on Line A to seat them there.',
+    auto: (ctx) => ctx.staffed >= 1,
+  },
+  {
+    title: 'Cover every station',
+    text: 'A line only produces when Induct, Pack, AND Stage are covered. Seat the other two.',
+    auto: (ctx) => ctx.staffed >= 3,
+  },
+  {
+    title: 'Start the shift',
+    text: 'Hit "Start shift ▸". One shift = one 10-hour day — payroll and rent come out at the end of it.',
+    auto: (ctx) => ctx.shiftRunning,
+  },
+  {
+    title: 'Cartons are rolling',
+    text: 'The belt below the stations shows your live rate. The contract on the Orders tab pays per unit on delivery — beat its deadline or eat a reputation hit.',
+  },
+  {
+    title: 'Chase the next goal',
+    text: 'The NEXT GOAL strip up top always points at your best move, and it pays cash. Every shift you re-staff from whoever shows up. Good luck, boss.',
+  },
+];
+
+export function TutorialCard({ step, onNext, onSkip }: { step: number; onNext: () => void; onSkip: () => void }) {
+  const s = TUTORIAL_STEPS[Math.min(step, TUTORIAL_STEPS.length - 1)];
+  return (
+    <View style={styles.tutorial}>
+      <Eyebrow color={colors.cyan}>Tutorial · {Math.min(step + 1, TUTORIAL_STEPS.length)}/{TUTORIAL_STEPS.length}</Eyebrow>
+      <Text style={[shared.h2, { fontSize: 17, marginTop: 2 }]}>{s.title}</Text>
+      <Text style={[shared.body, { marginTop: 4 }]}>{s.text}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+        <Pressable onPress={onSkip}><Text style={styles.tutorialSkip}>Skip tutorial</Text></Pressable>
+        {!s.auto && (
+          <Button label={step >= TUTORIAL_STEPS.length - 1 ? 'Let\u2019s go!' : 'Got it'} tone="primary" small onPress={onNext} />
+        )}
+      </View>
+    </View>
+  );
+}
+
 // Sticky cue when a worker is picked — "tap a station to place".
 export function PlacingBar({ worker, onCancel, bottomInset }: { worker: Worker; onCancel: () => void; bottomInset: number }) {
   const profile = profileForWorker(worker);
@@ -108,4 +214,10 @@ const styles = StyleSheet.create({
   placing: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(13,20,36,0.98)', borderRadius: radius.lg, borderWidth: 1, borderColor: colors.cyan, padding: 12, zIndex: 40 },
   placingTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
   placingSub: { color: colors.textMute, fontSize: 11, fontWeight: '700' },
+  adCounter: { minWidth: 36, textAlign: 'center', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.1)', color: colors.textDim, fontSize: 12, fontWeight: '900', overflow: 'hidden' },
+  adHouse: { marginTop: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.22)', borderRadius: radius.md, padding: 18, backgroundColor: 'rgba(8,13,24,0.6)' },
+  adBadge: { position: 'absolute', top: 6, left: 6, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: colors.gold },
+  adBadgeText: { color: '#1b1405', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  tutorial: { borderWidth: 2, borderColor: 'rgba(104,216,255,0.55)', borderRadius: radius.lg, padding: 13, backgroundColor: colors.panel },
+  tutorialSkip: { color: colors.sky, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
 });

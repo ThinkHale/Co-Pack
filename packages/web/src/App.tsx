@@ -18,7 +18,8 @@ import {
   TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
   canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
   facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor,
-  CLIENT_TIERS, FEATURE_UNLOCKS, hasUnlock, FeatureUnlockId,
+  CLIENT_TIERS, FEATURE_UNLOCKS, hasUnlock, canBuyUnlock, FeatureUnlockId,
+  nightShiftActive, NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
 } from '@copack/engine';
 import { useGameStore, SpeedSetting, TabKey, HIRE_COST } from './hooks/useGameStore';
 import { playSound, unlockAudio, SoundKind } from './lib/sound';
@@ -251,6 +252,11 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         text: `Upgrade purchased: ${p.name}. -$${(p.cost as number).toFixed(0)}`,
         tone: 'event-good', tag: 'SHOP',
       };
+    case 'NIGHT_SHIFT_TOGGLED':
+      return {
+        text: `Night shift ${p.nightShift ? 'ON — the plant runs around the clock' : 'off — back to days only'}.`,
+        tone: p.nightShift ? 'event-warm' : 'event-neutral', tag: 'NIGHT',
+      };
     case 'OVERHEAD':
       return {
         text: `Overhead -$${(p.total as number).toFixed(0)} (rent${(p.supervisorSalary as number) > 0 ? ' + supervisor' : ''}).`,
@@ -283,16 +289,19 @@ function Game() {
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker, terminateWorker,
-    hireSupervisor, toggleAutoShift, autoFillCrew, buyUnlock,
+    hireSupervisor, toggleAutoShift, autoFillCrew, buyUnlock, toggleNightShift,
+    adsOn, adFree, lastAdDay, adVisible, showAd, dismissAd, removeAds, toggleAdsTesting,
+    tutorialDone, tutorialStep, advanceTutorial, finishTutorial,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gameOver = state.gameOver;
   const awaitingStaffing = state.awaitingStaffing;
 
-  // The sim clock. Stops when paused, during the morning standup, or after a shutdown.
+  // The sim clock. Stops when paused, during the morning standup, after a
+  // shutdown, or while an interstitial is on screen.
   useEffect(() => {
-    if (paused || gameOver || awaitingStaffing) {
+    if (paused || gameOver || awaitingStaffing || adVisible) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
@@ -301,7 +310,7 @@ function Game() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [runTick, paused, speed, gameOver, awaitingStaffing]);
+  }, [runTick, paused, speed, gameOver, awaitingStaffing, adVisible]);
 
   // Autosave: every few seconds and whenever the tab is hidden or closed, so a
   // refresh or a backgrounded phone never loses the run.
@@ -335,6 +344,23 @@ function Game() {
 
   const removeToast = useCallback((id: string) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
+  // Confetti on the golden moments (goals, new clients, upgrades).
+  const [confetti, setConfetti] = useState(0);
+  useEffect(() => {
+    if (!events || events.length === 0) return;
+    if (events.some(e => ['OBJECTIVE_COMPLETED', 'CLIENT_UNLOCKED', 'FEATURE_UNLOCKED', 'SUPERVISOR_HIRED'].includes(e.type))) {
+      setConfetti(c => c + 1);
+    }
+  }, [events]);
+
+  // Interstitial cadence: one ad every AD_INTERVAL_DAYS shifts, never during
+  // the tutorial and never twice for the same day. The seam where a real ad
+  // SDK (AdMob et al.) plugs in later is showAd/dismissAd.
+  useEffect(() => {
+    if (adFree || !adsOn || adVisible || gameOver || !tutorialDone) return;
+    if (state.day > 0 && state.day - lastAdDay >= AD_INTERVAL_DAYS) showAd();
+  }, [state.day, adFree, adsOn, adVisible, gameOver, tutorialDone, lastAdDay, showAd]);
+
   const throughput = totalThroughput(state);
   const sortedOrders = useMemo(
     () => [...state.activeOrders].sort((a, b) => (a.deadline - state.tick) - (b.deadline - state.tick)),
@@ -362,6 +388,17 @@ function Game() {
   );
   const totalStations = Object.values(state.lines).reduce((sum, line) => sum + line.stations.length, 0);
   const shiftActive = !awaitingStaffing && !gameOver;
+
+  // First-play tutorial: do-it-to-advance. Steps watch the live state and move
+  // on when the player actually performs the action.
+  const tutorialAuto = !tutorialDone && TUTORIAL_STEPS[tutorialStep]?.auto;
+  useEffect(() => {
+    if (!tutorialAuto) return;
+    if (tutorialAuto({ selected: selectedWorkerId, staffed: staffedStations, shiftRunning: !awaitingStaffing && state.tick > 1 })) {
+      advanceTutorial();
+    }
+  }, [tutorialAuto, selectedWorkerId, staffedStations, awaitingStaffing, state.tick, advanceTutorial]);
+
   const lineCost = nextLineCost(state);
   const canAffordLine = canBuyLine(state);
   const canShoutout = shoutoutReady(state) && !paused;
@@ -374,6 +411,7 @@ function Game() {
   const condition = dayCondition(state.day);
   const attendanceSwing = dayAttendanceModifier(state);
   const breakdown = moraleBreakdown(state.workers);
+  const cashBump = useBump(Math.round(state.cash));
   const onTerminateWorker = useCallback((worker: Worker) => {
     const missed = worker.missedShifts ?? 0;
     const sentHome = worker.sentHomeShifts ?? 0;
@@ -397,6 +435,7 @@ function Game() {
                 <span className={`status-pill ${awaitingStaffing ? 'status-standup' : paused ? 'status-paused' : 'status-live'}`}>
                   {awaitingStaffing ? 'Morning standup' : paused ? 'Paused' : 'Live run'}
                 </span>
+                {nightShiftActive(state) && <span className="status-pill status-night">🌙 Nights</span>}
               </div>
               <div className="shift-progress mt-2" title="Shift progress">
                 <div style={{ width: `${(shiftElapsedTicks(state.tick) / TICKS_PER_SHIFT) * 100}%` }} />
@@ -404,7 +443,7 @@ function Game() {
             </div>
 
             <div className="hud-stats-grid grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:min-w-[700px]">
-              <HudStat label="Cash" value={formatCurrency(state.cash)} tone="green" />
+              <HudStat label="Cash" value={formatCurrency(state.cash)} tone="green" bump={cashBump} />
               <HudStat
                 label={`Fill · goal ${pct(FILL_RATE_TARGET)}`}
                 value={pct(fill)}
@@ -482,6 +521,13 @@ function Game() {
           </div>
         </header>
 
+        {tab === 'floor' && !tutorialDone && (
+          <TutorialCard
+            step={tutorialStep}
+            onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
+            onSkip={finishTutorial}
+          />
+        )}
         {tab === 'floor' && <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />}
 
         {tab === 'floor' && awaitingStaffing && (
@@ -611,6 +657,10 @@ function Game() {
             onHireSupervisor={hireSupervisor}
             onToggleAutoShift={toggleAutoShift}
             onBuyUnlock={buyUnlock}
+            onToggleNightShift={toggleNightShift}
+            adsOn={adsOn}
+            adFree={adFree}
+            onToggleAdsTesting={toggleAdsTesting}
             onReset={() => { if (window.confirm('Reset the run? This wipes your save and starts a fresh shift.')) reset(); }}
           />
         )}
@@ -622,6 +672,8 @@ function Game() {
         <PlacingBar worker={selectedWorker} onCancel={() => selectWorker(null)} />
       )}
       <Toasts toasts={toasts} onDone={removeToast} />
+      {confetti > 0 && <ConfettiBurst burst={confetti} />}
+      {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && (
         <GameOverOverlay
@@ -852,9 +904,9 @@ function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void
   );
 }
 
-function HudStat({ label, value, tone }: { label: string; value: string; tone: 'green' | 'cyan' | 'pink' | 'gold' | 'red' }) {
+function HudStat({ label, value, tone, bump }: { label: string; value: string; tone: 'green' | 'cyan' | 'pink' | 'gold' | 'red'; bump?: boolean }) {
   return (
-    <div className={`hud-stat hud-stat-${tone}`}>
+    <div className={`hud-stat hud-stat-${tone} ${bump ? 'hud-stat-bump' : ''}`}>
       <div className="hud-stat-label">{label}</div>
       <div className="hud-stat-value">{value}</div>
     </div>
@@ -1855,7 +1907,7 @@ function ProgramToggle({
 
 function FrontOfficeTab({
   state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onPromoteLead, onConvert, onTerminate,
-  onHireSupervisor, onToggleAutoShift, onBuyUnlock, onReset,
+  onHireSupervisor, onToggleAutoShift, onBuyUnlock, onToggleNightShift, adsOn, adFree, onToggleAdsTesting, onReset,
 }: {
   state: GameState;
   lineCost: number;
@@ -1868,6 +1920,10 @@ function FrontOfficeTab({
   onHireSupervisor: () => void;
   onToggleAutoShift: () => void;
   onBuyUnlock: (id: FeatureUnlockId) => void;
+  onToggleNightShift: () => void;
+  adsOn: boolean;
+  adFree: boolean;
+  onToggleAdsTesting: () => void;
   onReset: () => void;
 }) {
   const lines = Object.entries(state.lines);
@@ -1905,11 +1961,21 @@ function FrontOfficeTab({
               active={state.autoShift}
               onToggle={onToggleAutoShift}
             />
-            <p className="self-center text-sm font-semibold text-slate-300">
-              Away time is always covered — the supervisor staffs and runs every shift you miss.
-              Hands-on mornings still squeeze out more: they never hire, train, or staff the
-              support slots.
-            </p>
+            {hasUnlock(state, 'night_shift') ? (
+              <ProgramToggle
+                title="Night shift"
+                note={`+${Math.round(NIGHT_OUTPUT_BONUS * 100)}% output · costs +${Math.round(NIGHT_LABOR_RATE * 100)}% payroll and ${formatCurrency(NIGHT_OVERHEAD)} overhead every shift.`}
+                cost={NIGHT_OVERHEAD}
+                active={state.nightShift}
+                onToggle={onToggleNightShift}
+              />
+            ) : (
+              <p className="self-center text-sm font-semibold text-slate-300">
+                Away time is always covered — the supervisor staffs and runs every shift you miss.
+                Hands-on mornings still squeeze out more: they never hire, train, or staff the
+                support slots.
+              </p>
+            )}
           </div>
         )}
       </section>
@@ -1931,14 +1997,21 @@ function FrontOfficeTab({
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-300">{u.blurb}</div>
                 {!owned && (
-                  <button
-                    type="button"
-                    onClick={() => onBuyUnlock(u.id)}
-                    disabled={state.cash < u.cost}
-                    className="game-button game-button-auto mt-2 w-full"
-                  >
-                    Unlock · {formatCurrency(u.cost)}
-                  </button>
+                  <>
+                    {u.requiresSupervisor && !state.hasSupervisor && (
+                      <div className="mt-1 text-xs font-black uppercase tracking-[0.1em] text-amber-200">
+                        Requires a floor supervisor
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onBuyUnlock(u.id)}
+                      disabled={!canBuyUnlock(state, u.id)}
+                      className="game-button game-button-auto mt-2 w-full"
+                    >
+                      Unlock · {formatCurrency(u.cost)}
+                    </button>
+                  </>
                 )}
               </div>
             );
@@ -2058,6 +2131,17 @@ function FrontOfficeTab({
 
       <section className="game-panel p-4 sm:p-5 lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="eyebrow">Settings · testing</div>
+            <p className="text-sm font-semibold text-slate-300">
+              Interstitial ads run every {AD_INTERVAL_DAYS} shifts{adFree ? ' — removed (purchase simulated) ✓' : ''}.
+            </p>
+          </div>
+          <button type="button" onClick={onToggleAdsTesting} className="game-button game-button-muted">
+            Ads: {adsOn ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
           <div>
             <div className="eyebrow">Danger zone</div>
             <p className="text-sm font-semibold text-slate-300">Wipe the save and start a fresh plant.</p>
@@ -2380,6 +2464,160 @@ function PlacingBar({ worker, onCancel }: { worker: Worker; onCancel: () => void
         <div className="placing-sub">Tap a station — or drag the card onto a slot</div>
       </div>
       <button type="button" className="placing-cancel" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// MONETIZATION + ONBOARDING + JUICE
+// ---------------------------------------------------------------------------
+
+const AD_INTERVAL_DAYS = 5;
+
+// Flash-on-change hook: true for a moment whenever the watched value moves.
+function useBump(value: number): boolean {
+  const [bump, setBump] = useState(false);
+  const prev = useRef(value);
+  useEffect(() => {
+    if (value === prev.current) return;
+    prev.current = value;
+    setBump(true);
+    const t = setTimeout(() => setBump(false), 650);
+    return () => clearTimeout(t);
+  }, [value]);
+  return bump;
+}
+
+// First-play walkthrough. `auto` steps advance when the player does the thing;
+// the rest wait for "Got it". Skippable at any point, never shown again.
+const TUTORIAL_STEPS: {
+  title: string;
+  text: string;
+  auto?: (ctx: { selected: string | null; staffed: number; shiftRunning: boolean }) => boolean;
+}[] = [
+  {
+    title: 'Welcome to the floor, boss',
+    text: 'Your crew is waiting on the bench. Tap a worker card to pick them up.',
+    auto: ctx => ctx.selected !== null || ctx.staffed > 0,
+  },
+  {
+    title: 'Put them to work',
+    text: 'Now tap an empty station on Line A to seat them there.',
+    auto: ctx => ctx.staffed >= 1,
+  },
+  {
+    title: 'Cover every station',
+    text: 'A line only produces when Induct, Pack, AND Stage are covered. Seat the other two.',
+    auto: ctx => ctx.staffed >= 3,
+  },
+  {
+    title: 'Start the shift',
+    text: 'Hit "Start shift ▸". One shift = one 10-hour day — payroll and rent come out at the end of it.',
+    auto: ctx => ctx.shiftRunning,
+  },
+  {
+    title: 'Cartons are rolling',
+    text: 'The belt below the stations shows your live rate. The contract on the Orders tab pays per unit on delivery — beat its deadline or eat a reputation hit.',
+  },
+  {
+    title: 'Chase the next goal',
+    text: 'The NEXT GOAL strip up top always points at your best move, and it pays cash. Every shift you re-staff from whoever shows up. Good luck, boss.',
+  },
+];
+
+function TutorialCard({ step, onNext, onSkip }: { step: number; onNext: () => void; onSkip: () => void }) {
+  const s = TUTORIAL_STEPS[Math.min(step, TUTORIAL_STEPS.length - 1)];
+  return (
+    <section className="tutorial-card mb-4">
+      <div className="min-w-0 flex-1">
+        <div className="eyebrow">Tutorial · {Math.min(step + 1, TUTORIAL_STEPS.length)}/{TUTORIAL_STEPS.length}</div>
+        <h2 className="text-lg font-black text-white">{s.title}</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-200">{s.text}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        {!s.auto && (
+          <button type="button" onClick={onNext} className="game-button game-button-primary">
+            {step >= TUTORIAL_STEPS.length - 1 ? 'Let\u2019s go!' : 'Got it'}
+          </button>
+        )}
+        <button type="button" onClick={onSkip} className="tutorial-skip">Skip tutorial</button>
+      </div>
+    </section>
+  );
+}
+
+// Interstitial placeholder: same shape a real ad SDK fills later (showAd →
+// network ad → dismiss callback). The countdown + remove-ads flow match the
+// production UX so the cadence can be playtested before AdMob/StoreKit land.
+function AdModal({ adFree, onDismiss, onRemoveAds }: { adFree: boolean; onDismiss: () => void; onRemoveAds: () => void }) {
+  const [secondsLeft, setSecondsLeft] = useState(5);
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft]);
+
+  return (
+    <div className="overlay" style={{ zIndex: 80 }}>
+      <div className="overlay-card">
+        <div className="flex items-center justify-between gap-3">
+          <div className="eyebrow">Ad break</div>
+          <span className="ad-counter">{secondsLeft > 0 ? `${secondsLeft}s` : '✓'}</span>
+        </div>
+        <div className="ad-house mt-3">
+          <div className="ad-house-badge">AD</div>
+          <h2 className="text-2xl font-black text-white">Co-Pack runs on ads</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-300">
+            A short break every {AD_INTERVAL_DAYS} shifts keeps the game free. (Placeholder — a
+            network ad renders here in production builds.)
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          disabled={secondsLeft > 0}
+          className="game-button game-button-primary mt-4 w-full"
+        >
+          {secondsLeft > 0 ? `Continue in ${secondsLeft}…` : 'Continue ▸'}
+        </button>
+        {!adFree && (
+          <button type="button" onClick={onRemoveAds} className="game-button game-button-muted mt-2 w-full">
+            Remove ads · $2.99 (simulated in test builds)
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// A burst of falling confetti for the golden moments. Pure CSS animation;
+// remounts (and so replays) on every new burst key, cleans itself up after.
+function ConfettiBurst({ burst }: { burst: number }) {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    setVisible(true);
+    const t = setTimeout(() => setVisible(false), 2000);
+    return () => clearTimeout(t);
+  }, [burst]);
+  if (!visible) return null;
+  const colors = ['#72ef8f', '#68d8ff', '#ffe66c', '#ff7a9a', '#7c6cff', '#35d0ba'];
+  return (
+    <div className="confetti-stage" key={burst} aria-hidden="true">
+      {Array.from({ length: 28 }).map((_, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{
+            left: `${4 + (i * 89) % 92}%`,
+            background: colors[i % colors.length],
+            animationDelay: `${(i % 7) * 0.07}s`,
+            animationDuration: `${1.2 + ((i * 37) % 10) / 12}s`,
+            '--confetti-drift': `${(((i * 53) % 11) - 5) * 14}px`,
+            '--confetti-spin': `${360 + ((i * 71) % 360)}deg`,
+          } as React.CSSProperties}
+        />
+      ))}
     </div>
   );
 }

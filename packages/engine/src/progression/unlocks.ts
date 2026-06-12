@@ -7,13 +7,14 @@ import { GameState, GameEvent } from '../types';
 // line/automation/supervisor tier — and makes every dollar a decision instead
 // of a score.
 
-export type FeatureUnlockId = 'overtime' | 'support' | 'programs';
+export type FeatureUnlockId = 'overtime' | 'support' | 'programs' | 'night_shift';
 
 export interface FeatureUnlock {
   id: FeatureUnlockId;
   name: string;
   cost: number;
   blurb: string;
+  requiresSupervisor?: boolean;
 }
 
 export const FEATURE_UNLOCKS: FeatureUnlock[] = [
@@ -28,6 +29,11 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   {
     id: 'support', name: 'Floater program', cost: 3500,
     blurb: 'Unlocks the support slot on every line — a paid helper for an output lift.',
+  },
+  {
+    id: 'night_shift', name: 'Second shift (nights)', cost: 20000,
+    blurb: 'License a night crew: +55% output, but +80% payroll and extra overhead every shift. Worth it once the plant runs hot.',
+    requiresSupervisor: true,
   },
 ];
 
@@ -45,7 +51,10 @@ export function hasUnlock(state: GameState, id: FeatureUnlockId): boolean {
 
 export function canBuyUnlock(state: GameState, id: FeatureUnlockId): boolean {
   const unlock = UNLOCK_BY_ID[id];
-  return !!unlock && !hasUnlock(state, id) && state.cash >= unlock.cost;
+  if (!unlock || hasUnlock(state, id) || state.cash < unlock.cost) return false;
+  // Nights need someone to run them — the supervisor is the prerequisite hire.
+  if (unlock.requiresSupervisor && !state.hasSupervisor) return false;
+  return true;
 }
 
 export function purchaseUnlock(state: GameState, id: FeatureUnlockId): { state: GameState; events: GameEvent[] } {

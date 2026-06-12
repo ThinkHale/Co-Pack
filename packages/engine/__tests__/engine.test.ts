@@ -96,6 +96,10 @@ import {
   canBuyUnlock,
   purchaseUnlock,
   toggleOvertime,
+  toggleNightShift,
+  NIGHT_OUTPUT_BONUS,
+  NIGHT_LABOR_RATE,
+  NIGHT_OVERHEAD,
   GameState,
   Worker,
   Order,
@@ -1304,6 +1308,42 @@ describe('purchasable feature unlocks (the upgrade cadence)', () => {
     const state = purchaseUnlock({ ...createInitialState(), cash: 10000 }, 'programs').state;
     const { state: after } = evaluateObjectives(state);
     expect(after.completedObjectives).toContain('first_unlock');
+  });
+});
+
+describe('second shift (nights): late-game output for a steep running cost', () => {
+  const supervised = () => hireSupervisor({ ...createInitialState(), cash: 60000 }).state;
+
+  it('cannot be licensed without a supervisor (someone has to run nights)', () => {
+    const rich = { ...createInitialState(), cash: 60000 };
+    expect(canBuyUnlock(rich, 'night_shift')).toBe(false);
+    expect(purchaseUnlock(rich, 'night_shift').events.length).toBe(0);
+    expect(canBuyUnlock(supervised(), 'night_shift')).toBe(true);
+  });
+
+  it('cannot be toggled until licensed', () => {
+    const { state: blocked, events } = toggleNightShift(createInitialState());
+    expect(blocked.nightShift).toBe(false);
+    expect(events.length).toBe(0);
+    const licensed = purchaseUnlock(supervised(), 'night_shift').state;
+    const { state: on, events: onEvents } = toggleNightShift(licensed);
+    expect(on.nightShift).toBe(true);
+    expect(onEvents[0].type).toBe('NIGHT_SHIFT_TOGGLED');
+  });
+
+  it('lifts every line output by the night bonus', () => {
+    const day = staffLineA(purchaseUnlock(supervised(), 'night_shift').state);
+    const night = toggleNightShift(day).state;
+    expect(lineThroughput(night, night.lines.line1))
+      .toBeCloseTo(lineThroughput(day, day.lines.line1) * (1 + NIGHT_OUTPUT_BONUS), 6);
+  });
+
+  it('bills the night crew on top of day payroll and raises overhead', () => {
+    const day = staffLineA(purchaseUnlock(supervised(), 'night_shift').state);
+    const night = toggleNightShift(day).state;
+    const dayWages = totalPayroll(day);
+    expect(totalPayroll(night)).toBe(dayWages + Math.round(dayWages * NIGHT_LABOR_RATE));
+    expect(facilityOverhead(night)).toBe(facilityOverhead(day) + NIGHT_OVERHEAD);
   });
 });
 

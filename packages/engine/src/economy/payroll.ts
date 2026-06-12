@@ -1,5 +1,6 @@
 import { GameState, GameEvent, Worker } from '../types';
 import { effectiveWage, programsPerShiftCost } from './staffing';
+import { nightShiftActive, NIGHT_LABOR_RATE } from './nightshift';
 import { assignedWorkerIds } from '../lines/assignments';
 
 // The set of workers actually on the clock: present AND seated at a station. A
@@ -10,11 +11,13 @@ export function workingWorkers(state: GameState): Worker[] {
   return Object.values(state.workers).filter(w => w.presentThisShift && assigned.has(w.id));
 }
 
-// Payroll = wages for the crew that actually worked + any standing program costs.
-// This is the spend pressure that makes "who do I deploy today?" a real call.
+// Payroll = wages for the crew that actually worked + any standing program
+// costs. With the night shift running, the night crew bills a steep fraction
+// of the day crew's wages on top — the second shift's real price tag.
 export function totalPayroll(state: GameState): number {
   const wages = workingWorkers(state).reduce((sum, w) => sum + effectiveWage(w, state.payPolicy), 0);
-  return wages + programsPerShiftCost(state);
+  const nightWages = nightShiftActive(state) ? Math.round(wages * NIGHT_LABOR_RATE) : 0;
+  return wages + nightWages + programsPerShiftCost(state);
 }
 
 export function processPayroll(state: GameState): { state: GameState; events: GameEvent[] } {

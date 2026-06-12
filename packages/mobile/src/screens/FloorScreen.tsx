@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import {
   GameState, Line, Worker,
@@ -17,6 +17,7 @@ import { CharacterAvatar } from '../components/Avatar';
 import { MiniBar } from '../components/MiniBar';
 import { TraitChips } from '../components/TraitChips';
 import { ConveyorBelt } from '../components/Belt';
+import { TutorialCard, TUTORIAL_STEPS } from '../components/Overlays';
 
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 const TONE_COLOR: Record<string, string> = { good: colors.green, bad: colors.red, neutral: colors.cyan };
@@ -27,6 +28,7 @@ export function FloorScreen({ state }: { state: GameState }) {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
     hireWorker, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, terminateWorker, soundOn, autoFillCrew, paused, setTab,
+    tutorialDone, tutorialStep, advanceTutorial, finishTutorial,
   } = useGameStore();
 
   const awaitingStaffing = state.awaitingStaffing;
@@ -56,8 +58,26 @@ export function FloorScreen({ state }: { state: GameState }) {
     );
   }, [terminateWorker]);
 
+  // First-play tutorial: do-it-to-advance, watching the live floor state.
+  const staffedCount = Object.values(state.lines).reduce(
+    (n, l) => n + l.stations.filter((s) => s.assignedWorkerId).length, 0);
+  const tutorialAuto = !tutorialDone && TUTORIAL_STEPS[tutorialStep]?.auto;
+  useEffect(() => {
+    if (!tutorialAuto) return;
+    if (tutorialAuto({ selected: selectedWorkerId, staffed: staffedCount, shiftRunning: !awaitingStaffing && state.tick > 1 })) {
+      advanceTutorial();
+    }
+  }, [tutorialAuto, selectedWorkerId, staffedCount, awaitingStaffing, state.tick, advanceTutorial]);
+
   return (
     <View style={{ gap: 14 }}>
+      {!tutorialDone && (
+        <TutorialCard
+          step={tutorialStep}
+          onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
+          onSkip={finishTutorial}
+        />
+      )}
       <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
 
       {awaitingStaffing && (
