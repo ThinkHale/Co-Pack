@@ -18,6 +18,7 @@ export * from './clients/roster';
 export * from './economy/payroll';
 export * from './economy/overhead';
 export * from './economy/supervisor';
+export * from './economy/nightshift';
 export * from './economy/lines';
 export * from './economy/staffing';
 export * from './economy/staffing-board';

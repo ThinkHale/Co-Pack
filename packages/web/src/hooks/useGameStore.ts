@@ -12,6 +12,7 @@ import {
   hireSupervisor as engineHireSupervisor, setAutoShift as engineSetAutoShift,
   autoAssignCrew,
   toggleOvertime as engineToggleOvertime,
+  toggleNightShift as engineToggleNightShift,
   purchaseUnlock as enginePurchaseUnlock, FeatureUnlockId,
 } from '@copack/engine';
 import {
@@ -69,6 +70,20 @@ interface GameStore {
   toggleAutoShift: () => void;
   autoFillCrew: () => void;
   buyUnlock: (id: FeatureUnlockId) => void;
+  toggleNightShift: () => void;
+  // Ads (interstitial every few shifts; SDK-ready seam) + first-play tutorial
+  adsOn: boolean;
+  adFree: boolean;
+  lastAdDay: number;
+  adVisible: boolean;
+  tutorialDone: boolean;
+  tutorialStep: number;
+  showAd: () => void;
+  dismissAd: () => void;
+  removeAds: () => void;
+  toggleAdsTesting: () => void;
+  advanceTutorial: () => void;
+  finishTutorial: () => void;
 }
 
 export { HIRE_COST };
@@ -80,7 +95,10 @@ const boot = (() => {
     const { state, summary } = runOfflineCatchUp(loaded.state, loaded.savedAt, loaded.prefs.paused);
     return { state, prefs: loaded.prefs, offlineSummary: summary, bootedFromSave: true };
   }
-  const prefs: UiPrefs = { speed: DEFAULT_SPEED, paused: false, tab: 'floor', soundOn: true };
+  const prefs: UiPrefs = {
+    speed: DEFAULT_SPEED, paused: false, tab: 'floor', soundOn: true,
+    adsOn: true, adFree: false, lastAdDay: 0, tutorialDone: false,
+  };
   return { state: createInitialState(), prefs, offlineSummary: null, bootedFromSave: false };
 })();
 
@@ -100,6 +118,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   soundOn: boot.prefs.soundOn,
   offlineSummary: boot.offlineSummary,
   bootedFromSave: boot.bootedFromSave,
+  adsOn: boot.prefs.adsOn,
+  adFree: boot.prefs.adFree,
+  lastAdDay: boot.prefs.lastAdDay,
+  adVisible: false,
+  tutorialDone: boot.prefs.tutorialDone,
+  tutorialStep: 0,
 
   runTick: () =>
     set((store) => {
@@ -145,7 +169,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   save: () => {
     const s = get();
-    saveGame(s.state, { speed: s.speed, paused: s.paused, tab: s.tab, soundOn: s.soundOn });
+    saveGame(s.state, {
+      speed: s.speed, paused: s.paused, tab: s.tab, soundOn: s.soundOn,
+      adsOn: s.adsOn, adFree: s.adFree, lastAdDay: s.lastAdDay, tutorialDone: s.tutorialDone,
+    });
   },
 
   hireWorker: () => set((store) => applyEngineResult(store, engineHire(store.state))),
@@ -194,6 +221,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hireSupervisor: () => set((store) => applyEngineResult(store, engineHireSupervisor(store.state))),
 
   buyUnlock: (id) => set((store) => applyEngineResult(store, enginePurchaseUnlock(store.state, id))),
+
+  toggleNightShift: () => set((store) => applyEngineResult(store, engineToggleNightShift(store.state))),
+
+  // Marking lastAdDay at show-time (not dismiss) keeps the trigger effect from
+  // re-firing while the interstitial is up.
+  showAd: () => set((store) => ({ adVisible: true, lastAdDay: store.state.day })),
+  dismissAd: () => set({ adVisible: false }),
+  // The IAP seam: when StoreKit lands, the purchase callback calls this.
+  removeAds: () => set({ adFree: true, adVisible: false }),
+  toggleAdsTesting: () => set((store) => ({ adsOn: !store.adsOn })),
+  advanceTutorial: () => set((store) => ({ tutorialStep: store.tutorialStep + 1 })),
+  finishTutorial: () => set({ tutorialDone: true }),
 
   toggleAutoShift: () =>
     set((store) => applyEngineResult(store, engineSetAutoShift(store.state, !store.state.autoShift))),

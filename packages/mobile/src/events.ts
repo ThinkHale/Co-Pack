@@ -88,6 +88,8 @@ export function formatEvent(e: GameEvent): EventLine {
       return { text: `Auto-shift ${p.autoShift ? 'ON — the supervisor runs the mornings' : 'off — back to manual standups'}.`, tone: 'neutral', tag: 'OPS' };
     case 'FEATURE_UNLOCKED':
       return { text: `Upgrade purchased: ${p.name}. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'SHOP' };
+    case 'NIGHT_SHIFT_TOGGLED':
+      return { text: `Night shift ${p.nightShift ? 'ON — the plant runs around the clock' : 'off — back to days only'}.`, tone: p.nightShift ? 'warm' : 'neutral', tag: 'NIGHT' };
     case 'OVERHEAD':
       return { text: `Overhead -$${(p.total as number).toFixed(0)} (rent${(p.supervisorSalary as number) > 0 ? ' + supervisor' : ''}).`, tone: 'alert', tag: 'RENT' };
     case 'OBJECTIVE_COMPLETED':

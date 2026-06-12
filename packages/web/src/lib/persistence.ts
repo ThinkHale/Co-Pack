@@ -27,6 +27,11 @@ export interface UiPrefs {
   paused: boolean;
   tab: TabKey;
   soundOn: boolean;
+  // Monetization + onboarding live in prefs, NOT GameState — the sim stays pure.
+  adsOn: boolean;        // testing master switch for interstitials
+  adFree: boolean;       // remove-ads purchased (simulated until the IAP SDK lands)
+  lastAdDay: number;     // last game-day an interstitial was shown
+  tutorialDone: boolean; // first-play walkthrough completed or skipped
 }
 
 interface SaveBlob {
@@ -115,6 +120,7 @@ export function loadGame(): LoadedSave | null {
       hasSupervisor: s.hasSupervisor ?? false,
       autoShift: s.autoShift ?? false,
       unlocks: s.unlocks ?? [],
+      nightShift: s.nightShift ?? false,
       shiftChallenge: s.shiftChallenge ?? null,
       challengeCooldownUntil: s.challengeCooldownUntil ?? 0,
       lastShiftReport: s.lastShiftReport ?? null,
@@ -126,6 +132,10 @@ export function loadGame(): LoadedSave | null {
       paused: blob.prefs?.paused ?? false,
       tab: blob.prefs?.tab ?? 'floor',
       soundOn: blob.prefs?.soundOn ?? true,
+      adsOn: blob.prefs?.adsOn ?? true,
+      adFree: blob.prefs?.adFree ?? false,
+      lastAdDay: blob.prefs?.lastAdDay ?? 0,
+      tutorialDone: blob.prefs?.tutorialDone ?? false,
     };
     return { state, prefs, savedAt: blob.savedAt };
   } catch {

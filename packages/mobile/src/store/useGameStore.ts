@@ -12,6 +12,7 @@ import {
   hireSupervisor as engineHireSupervisor, setAutoShift as engineSetAutoShift,
   autoAssignCrew,
   toggleOvertime as engineToggleOvertime,
+  toggleNightShift as engineToggleNightShift,
   purchaseUnlock as enginePurchaseUnlock, FeatureUnlockId,
 } from '@copack/engine';
 import {
@@ -68,6 +69,20 @@ interface GameStore {
   toggleAutoShift: () => void;
   autoFillCrew: () => void;
   buyUnlock: (id: FeatureUnlockId) => void;
+  toggleNightShift: () => void;
+  // Ads (interstitial cadence; SDK-ready seam) + first-play tutorial
+  adsOn: boolean;
+  adFree: boolean;
+  lastAdDay: number;
+  adVisible: boolean;
+  tutorialDone: boolean;
+  tutorialStep: number;
+  showAd: () => void;
+  dismissAd: () => void;
+  removeAds: () => void;
+  toggleAdsTesting: () => void;
+  advanceTutorial: () => void;
+  finishTutorial: () => void;
 }
 
 export { HIRE_COST };
@@ -91,6 +106,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   offlineSummary: null,
   bootedFromSave: false,
   hydrated: false,
+  adsOn: true,
+  adFree: false,
+  lastAdDay: 0,
+  adVisible: false,
+  tutorialDone: false,
+  tutorialStep: 0,
 
   hydrate: async () => {
     if (get().hydrated) return;
@@ -105,6 +126,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         speed: loaded.prefs.speed,
         tab: loaded.prefs.tab,
         soundOn: loaded.prefs.soundOn,
+        adsOn: loaded.prefs.adsOn,
+        adFree: loaded.prefs.adFree,
+        lastAdDay: loaded.prefs.lastAdDay,
+        tutorialDone: loaded.prefs.tutorialDone,
         hydrated: true,
       });
     } else {
@@ -154,7 +179,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   save: () => {
     const s = get();
-    void saveGame(s.state, { speed: s.speed, paused: s.paused, tab: s.tab, soundOn: s.soundOn });
+    void saveGame(s.state, {
+      speed: s.speed, paused: s.paused, tab: s.tab, soundOn: s.soundOn,
+      adsOn: s.adsOn, adFree: s.adFree, lastAdDay: s.lastAdDay, tutorialDone: s.tutorialDone,
+    });
   },
 
   hireWorker: () => set((store) => applyEngineResult(store, engineHire(store.state))),
@@ -203,6 +231,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hireSupervisor: () => set((store) => applyEngineResult(store, engineHireSupervisor(store.state))),
 
   buyUnlock: (id) => set((store) => applyEngineResult(store, enginePurchaseUnlock(store.state, id))),
+
+  toggleNightShift: () => set((store) => applyEngineResult(store, engineToggleNightShift(store.state))),
+
+  // Marking lastAdDay at show-time keeps the trigger from re-firing while up.
+  showAd: () => set((store) => ({ adVisible: true, lastAdDay: store.state.day })),
+  dismissAd: () => set({ adVisible: false }),
+  // The IAP seam: when StoreKit lands, the purchase callback calls this.
+  removeAds: () => set({ adFree: true, adVisible: false }),
+  toggleAdsTesting: () => set((store) => ({ adsOn: !store.adsOn })),
+  advanceTutorial: () => set((store) => ({ tutorialStep: store.tutorialStep + 1 })),
+  finishTutorial: () => set({ tutorialDone: true }),
 
   toggleAutoShift: () =>
     set((store) => applyEngineResult(store, engineSetAutoShift(store.state, !store.state.autoShift))),

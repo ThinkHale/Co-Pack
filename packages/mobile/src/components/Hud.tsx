@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
 import {
   GameState,
   totalThroughput, fillRate, FILL_RATE_TARGET, totalPayroll, facilityOverhead,
-  shoutoutReady, moraleBreakdown, hasUnlock,
+  shoutoutReady, moraleBreakdown, hasUnlock, nightShiftActive,
 } from '@copack/engine';
 import { colors, radius, hudTone } from '../theme';
 import { formatCurrency, pct, shiftLabel, shiftClock, shiftProgress, averageMorale } from '../format';
@@ -37,6 +37,7 @@ export function Hud({ state }: { state: GameState }) {
           <StatusPill text={shiftLabel(state.tick)} color={colors.cyan} />
           <StatusPill text={`⏱ ${shiftClock(state.tick)}`} color={colors.sky} />
           <StatusPill text={status} color={statusColor} />
+          {nightShiftActive(state) && <StatusPill text="🌙 Nights" color={colors.purple} />}
         </View>
       </View>
 
@@ -45,7 +46,7 @@ export function Hud({ state }: { state: GameState }) {
       </View>
 
       <View style={styles.statsGrid}>
-        <HudStat label="Cash" value={formatCurrency(state.cash)} tone="green" />
+        <CashStat value={formatCurrency(state.cash)} raw={Math.round(state.cash)} />
         <HudStat label={`Fill · ${pct(FILL_RATE_TARGET)}`} value={pct(fill)} tone={fillLow ? 'red' : 'green'} />
         <HudStat label="Output" value={`${throughput.toFixed(2)}/m`} tone="cyan" />
         <HudStat label="Crew" value={`${staffed}/${total}`} tone="pink" />
@@ -92,6 +93,34 @@ function StatusPill({ text, color }: { text: string; color: string }) {
 
 // Dark glass tile with a per-stat accent — the number carries the color, the
 // chrome stays quiet. Ported from the web HUD restyle.
+// The cash tile pulses when money moves — the heartbeat stat.
+function CashStat({ value, raw }: { value: string; raw: number }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const prev = useRef(raw);
+  useEffect(() => {
+    if (raw === prev.current) return;
+    prev.current = raw;
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.14, duration: 140, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
+    ]).start();
+  }, [raw, scale]);
+  const color = hudTone.green;
+  return (
+    <View style={[styles.hudStat, { borderColor: `${color}4D` }]}>
+      <Text style={styles.hudStatLabel} numberOfLines={1}>Cash</Text>
+      <Animated.Text
+        style={[styles.hudStatValue, { color, transform: [{ scale }] }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {value}
+      </Animated.Text>
+      <View style={[styles.hudStatAccent, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
 function HudStat({ label, value, tone }: { label: string; value: string; tone: keyof typeof hudTone }) {
   const color = hudTone[tone];
   return (

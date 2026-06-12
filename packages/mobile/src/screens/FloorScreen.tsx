@@ -1,12 +1,12 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
 import {
-  GameState, Line, Worker,
+  GameState, Line, Worker, StationSkill,
   dayCondition, dayAttendanceModifier,
   mealCost, incentiveCost, mealReady, incentiveReady,
   mealCooldownRemaining, incentiveCooldownRemaining,
   canRepeatStaffing, flightRisk, trainingCost, canTrain, effectiveWage, effectiveHourly,
-  lineThroughput, dayOfTick, weekday, openObjectives, hasUnlock,
+  lineThroughput, dayOfTick, weekday, openObjectives, hasUnlock, UNTRAINED_PROFICIENCY,
   SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
 } from '@copack/engine';
 import { colors, radius, shared, STATION_NAMES, STATION_THEMES } from '../theme';
@@ -17,6 +17,7 @@ import { CharacterAvatar } from '../components/Avatar';
 import { MiniBar } from '../components/MiniBar';
 import { TraitChips } from '../components/TraitChips';
 import { ConveyorBelt } from '../components/Belt';
+import { TutorialCard, TUTORIAL_STEPS } from '../components/Overlays';
 
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 const TONE_COLOR: Record<string, string> = { good: colors.green, bad: colors.red, neutral: colors.cyan };
@@ -27,6 +28,7 @@ export function FloorScreen({ state }: { state: GameState }) {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
     hireWorker, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, terminateWorker, soundOn, autoFillCrew, paused, setTab,
+    tutorialDone, tutorialStep, advanceTutorial, finishTutorial,
   } = useGameStore();
 
   const awaitingStaffing = state.awaitingStaffing;
@@ -56,8 +58,39 @@ export function FloorScreen({ state }: { state: GameState }) {
     );
   }, [terminateWorker]);
 
+  // Station-first staffing: tap an empty station → pick from a best-fit list
+  // right there. Kills the bench↔station scroll round-trips on big floors.
+  const [picker, setPicker] = useState<{ lineId: string; stationId: string; stationName: string } | null>(null);
+  const pickerCandidates = picker
+    ? benchWorkers
+        .filter((w) => w.presentThisShift)
+        .map((w) => ({
+          worker: w,
+          prof: w.skills.find((sk: StationSkill) => sk.stationId === picker.stationId)?.proficiency ?? null,
+        }))
+        .sort((a, b) => (b.prof ?? UNTRAINED_PROFICIENCY) - (a.prof ?? UNTRAINED_PROFICIENCY))
+    : [];
+
+  // First-play tutorial: do-it-to-advance, watching the live floor state.
+  const staffedCount = Object.values(state.lines).reduce(
+    (n, l) => n + l.stations.filter((s) => s.assignedWorkerId).length, 0);
+  const tutorialAuto = !tutorialDone && TUTORIAL_STEPS[tutorialStep]?.auto;
+  useEffect(() => {
+    if (!tutorialAuto) return;
+    if (tutorialAuto({ selected: selectedWorkerId, staffed: staffedCount, shiftRunning: !awaitingStaffing && state.tick > 1 })) {
+      advanceTutorial();
+    }
+  }, [tutorialAuto, selectedWorkerId, staffedCount, awaitingStaffing, state.tick, advanceTutorial]);
+
   return (
     <View style={{ gap: 14 }}>
+      {!tutorialDone && (
+        <TutorialCard
+          step={tutorialStep}
+          onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
+          onSkip={finishTutorial}
+        />
+      )}
       <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
 
       {awaitingStaffing && (
@@ -71,6 +104,40 @@ export function FloorScreen({ state }: { state: GameState }) {
           onStart={startShift}
         />
       )}
+
+      {state.shiftChallenge && (
+        <ShiftChallengeCard challenge={state.shiftChallenge} onResolve={resolveChallenge} />
+      )}
+
+      {selectedWorker && (
+        <WorkerActionBar
+          worker={selectedWorker}
+          cash={state.cash}
+          payPolicy={state.payPolicy}
+          onTrain={train}
+          onTerminate={confirmTerminate}
+          onCancel={() => selectWorker(null)}
+        />
+      )}
+
+      {/* Lines first — staffing is the floor's job; ambient info reads below. */}
+      {Object.entries(state.lines).map(([lineId, line]) => (
+        <FloorLine
+          key={lineId}
+          lineId={lineId}
+          line={line}
+          workers={state.workers}
+          lineRate={lineThroughput(state, line)}
+          shiftActive={shiftActive}
+          paused={paused}
+          supportLocked={!hasUnlock(state, 'support')}
+          selectedWorker={selectedWorker}
+          onSelectWorker={selectWorker}
+          onAssign={assignWorker}
+          onUnassign={unassignStation}
+          onOpenPicker={(stationId, stationName) => setPicker({ lineId, stationId, stationName })}
+        />
+      ))}
 
       <ConditionsBar
         condition={condition}
@@ -90,38 +157,6 @@ export function FloorScreen({ state }: { state: GameState }) {
 
       {state.lastShiftReport && <ShiftImpactPanel report={state.lastShiftReport} />}
 
-      {state.shiftChallenge && (
-        <ShiftChallengeCard challenge={state.shiftChallenge} onResolve={resolveChallenge} />
-      )}
-
-      {selectedWorker && (
-        <WorkerActionBar
-          worker={selectedWorker}
-          cash={state.cash}
-          payPolicy={state.payPolicy}
-          onTrain={train}
-          onTerminate={confirmTerminate}
-          onCancel={() => selectWorker(null)}
-        />
-      )}
-
-      {Object.entries(state.lines).map(([lineId, line]) => (
-        <FloorLine
-          key={lineId}
-          lineId={lineId}
-          line={line}
-          workers={state.workers}
-          lineRate={lineThroughput(state, line)}
-          shiftActive={shiftActive}
-          paused={paused}
-          supportLocked={!hasUnlock(state, 'support')}
-          selectedWorker={selectedWorker}
-          onSelectWorker={selectWorker}
-          onAssign={assignWorker}
-          onUnassign={unassignStation}
-        />
-      ))}
-
       <CrewBench
         benchWorkers={benchWorkers}
         selectedWorkerId={selectedWorkerId}
@@ -130,6 +165,43 @@ export function FloorScreen({ state }: { state: GameState }) {
         onSelectWorker={selectWorker}
         onTerminate={confirmTerminate}
       />
+
+      {/* Best-fit picker for the tapped station. */}
+      <Modal transparent visible={picker !== null} animationType="slide" onRequestClose={() => setPicker(null)}>
+        <Pressable style={styles.pickerScrim} onPress={() => setPicker(null)}>
+          <Pressable style={styles.pickerSheet} onPress={() => {}}>
+            <Text style={styles.pickerTitle}>Staff {picker?.stationName ?? 'station'}</Text>
+            <Text style={styles.pickerSub}>Best fit first · untrained workers run at {Math.round(UNTRAINED_PROFICIENCY * 100)}%</Text>
+            <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
+              {pickerCandidates.length === 0 && (
+                <Text style={styles.pickerEmpty}>Nobody available — everyone present is already placed. Hire, or pull someone off another station.</Text>
+              )}
+              {pickerCandidates.map(({ worker, prof }) => (
+                <Pressable
+                  key={worker.id}
+                  onPress={() => {
+                    if (picker) assignWorker(worker.id, picker.lineId, picker.stationId);
+                    setPicker(null);
+                  }}
+                  style={({ pressed }) => [styles.pickerRow, pressed && { opacity: 0.8 }]}
+                >
+                  <CharacterAvatar worker={worker} size="sm" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.pickerName} numberOfLines={1}>{worker.name}</Text>
+                    <Text style={shared.bodyMute} numberOfLines={1}>
+                      Mood {pct(worker.morale)} · Trust {pct(worker.reliability)}
+                    </Text>
+                  </View>
+                  <Text style={[styles.pickerProf, { color: prof != null ? colors.green : colors.textMute }]}>
+                    {prof != null ? pct(prof) : 'untrained'}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Button label="Cancel" tone="ghost" onPress={() => setPicker(null)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -397,13 +469,14 @@ function WorkerActionBar({
 // --- A production line with its stations -------------------------------------
 
 function FloorLine({
-  lineId, line, workers, lineRate, shiftActive, paused, supportLocked, selectedWorker, onSelectWorker, onAssign, onUnassign,
+  lineId, line, workers, lineRate, shiftActive, paused, supportLocked, selectedWorker, onSelectWorker, onAssign, onUnassign, onOpenPicker,
 }: {
   lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number;
   shiftActive: boolean; paused: boolean; supportLocked: boolean; selectedWorker: Worker | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
+  onOpenPicker: (stationId: string, stationName: string) => void;
 }) {
   const presentCount = line.stations.filter((s) => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift).length;
   const isStopped = presentCount === 0;
@@ -454,6 +527,8 @@ function FloorLine({
               onPress={() => {
                 if (selectedWorker) onAssign(selectedWorker.id, lineId, station.id);
                 else if (worker) onSelectWorker(worker.id);
+                // Empty station, nothing picked up: staff from right here.
+                else onOpenPicker(station.id, station.name);
               }}
               onClear={() => onUnassign(lineId, station.id)}
             />
@@ -521,7 +596,7 @@ function StationTile({
           <>
             <Text style={styles.emptyIcon}>{theme.note}</Text>
             <Text style={{ color: isMatch ? colors.green : hasTarget ? colors.cyan : colors.textMute, fontSize: 11, fontWeight: '800', textAlign: 'center' }}>
-              {hasTarget ? (isMatch ? `${selectedFirstName ?? 'Crew'} fits` : `Place ${selectedFirstName ?? 'crew'}`) : 'Open'}
+              {hasTarget ? (isMatch ? `${selectedFirstName ?? 'Crew'} fits` : `Place ${selectedFirstName ?? 'crew'}`) : 'Tap to staff'}
             </Text>
           </>
         )}
@@ -571,23 +646,26 @@ function SupportSlot({
 
 // --- Crew bench --------------------------------------------------------------
 
+// Collapsed by default: with the crew dock + station picker handling staffing,
+// this panel is for management (traits, history, terminate) — not the main flow.
 function CrewBench({
   benchWorkers, selectedWorkerId, cash, onHire, onSelectWorker, onTerminate,
 }: {
   benchWorkers: Worker[]; selectedWorkerId: string | null; cash: number;
   onHire: () => void; onSelectWorker: (id: string | null) => void; onTerminate: (worker: Worker) => void;
 }) {
+  const [open, setOpen] = useState(benchWorkers.length <= 3);
   return (
     <Panel>
       <View style={styles.rowBetween}>
-        <View style={{ flex: 1 }}>
-          <Eyebrow>Crew bench</Eyebrow>
-          <Text style={shared.h2}>{benchWorkers.length === 0 ? 'All Deployed' : 'Ready Crew'}</Text>
+        <Pressable style={{ flex: 1 }} onPress={() => setOpen((o) => !o)}>
+          <Eyebrow>Crew bench {open ? '▾' : '▸'}</Eyebrow>
+          <Text style={shared.h2}>{benchWorkers.length === 0 ? 'All Deployed' : `${benchWorkers.length} on the bench`}</Text>
           <Text style={[shared.bodyMute, { marginTop: 2 }]}>Present crew left here go home unpaid and lose morale.</Text>
-        </View>
+        </Pressable>
         <Button label={`Hire ${formatCurrency(HIRE_COST)}`} tone="primary" disabled={cash < HIRE_COST} onPress={onHire} />
       </View>
-      <View style={{ gap: 10, marginTop: 12 }}>
+      {open && <View style={{ gap: 10, marginTop: 12 }}>
         {benchWorkers.length === 0 ? (
           <Text style={styles.emptyBench}>Every available worker is already on the floor.</Text>
         ) : benchWorkers.map((worker) => (
@@ -599,7 +677,7 @@ function CrewBench({
             onTerminate={() => onTerminate(worker)}
           />
         ))}
-      </View>
+      </View>}
     </Panel>
   );
 }
@@ -705,6 +783,14 @@ const styles = StyleSheet.create({
   supportLabel: { color: colors.teal, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   supportTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 1 },
   emptyBench: { color: colors.textMute, fontSize: 13, fontWeight: '700', textAlign: 'center', paddingVertical: 18 },
+  pickerScrim: { flex: 1, backgroundColor: 'rgba(7,19,27,0.7)', justifyContent: 'flex-end' },
+  pickerSheet: { backgroundColor: colors.panel, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, borderWidth: 1, borderColor: colors.borderStrong, padding: 16, paddingBottom: 28 },
+  pickerTitle: { color: colors.text, fontSize: 19, fontWeight: '900' },
+  pickerSub: { color: colors.textMute, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  pickerEmpty: { color: colors.textMute, fontSize: 13, fontWeight: '700', textAlign: 'center', paddingVertical: 16 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 10 },
+  pickerName: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  pickerProf: { fontSize: 13, fontWeight: '900' },
   crewCard: { flexDirection: 'row', gap: 10, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1.5, padding: 10 },
   crewName: { color: colors.text, fontSize: 17, fontWeight: '900' },
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },

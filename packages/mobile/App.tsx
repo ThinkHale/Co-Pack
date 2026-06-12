@@ -9,7 +9,9 @@ import { toastForEvent } from './src/events';
 import { Hud } from './src/components/Hud';
 import { TabBar } from './src/components/TabBar';
 import { Toasts, ToastItem } from './src/components/Toasts';
-import { SplashScreen, OfflineModal, GameOverOverlay, PlacingBar } from './src/components/Overlays';
+import { SplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS } from './src/components/Overlays';
+import { ConfettiBurst } from './src/components/Confetti';
+import { CrewDock } from './src/components/CrewDock';
 import { FloorScreen } from './src/screens/FloorScreen';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { StaffingScreen } from './src/screens/StaffingScreen';
@@ -60,19 +62,32 @@ function Game() {
   const soundOn = useGameStore((s) => s.soundOn);
   const offlineSummary = useGameStore((s) => s.offlineSummary);
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
-  const { runTick, save, setTab, dismissOffline, selectWorker, reset } = useGameStore();
+  const adsOn = useGameStore((s) => s.adsOn);
+  const adFree = useGameStore((s) => s.adFree);
+  const lastAdDay = useGameStore((s) => s.lastAdDay);
+  const adVisible = useGameStore((s) => s.adVisible);
+  const tutorialDone = useGameStore((s) => s.tutorialDone);
+  const { runTick, save, setTab, dismissOffline, selectWorker, reset, showAd, dismissAd, removeAds } = useGameStore();
 
   const insets = useSafeAreaInsets();
   const gameOver = state.gameOver;
   const awaitingStaffing = state.awaitingStaffing;
   const selectedWorker = selectedWorkerId ? state.workers[selectedWorkerId] : null;
 
-  // Sim clock — holds when paused, during the morning standup, or after shutdown.
+  // Sim clock — holds when paused, during the morning standup, after shutdown,
+  // or while an interstitial is on screen.
   useEffect(() => {
-    if (paused || gameOver || awaitingStaffing) return;
+    if (paused || gameOver || awaitingStaffing || adVisible) return;
     const id = setInterval(runTick, 1000 / speed);
     return () => clearInterval(id);
-  }, [runTick, paused, speed, gameOver, awaitingStaffing]);
+  }, [runTick, paused, speed, gameOver, awaitingStaffing, adVisible]);
+
+  // Interstitial cadence: one ad every AD_INTERVAL_DAYS shifts, never during
+  // the tutorial. showAd/dismissAd is the seam a real ad SDK plugs into.
+  useEffect(() => {
+    if (adFree || !adsOn || adVisible || gameOver || !tutorialDone) return;
+    if (state.day > 0 && state.day - lastAdDay >= AD_INTERVAL_DAYS) showAd();
+  }, [state.day, adFree, adsOn, adVisible, gameOver, tutorialDone, lastAdDay, showAd]);
 
   // Autosave every few seconds + whenever the app is backgrounded.
   useEffect(() => {
@@ -97,10 +112,31 @@ function Game() {
     if (fresh.length) setToasts((prev) => [...prev, ...fresh].slice(-4));
   }, [events, soundOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Confetti on the golden moments (goals, new clients, upgrades).
+  const [confetti, setConfetti] = useState(0);
+  useEffect(() => {
+    if (!events || events.length === 0) return;
+    if (events.some((e) => ['OBJECTIVE_COMPLETED', 'CLIENT_UNLOCKED', 'FEATURE_UNLOCKED', 'SUPERVISOR_HIRED'].includes(e.type))) {
+      setConfetti((c) => c + 1);
+    }
+  }, [events]);
+
   const removeToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
 
   const fillLow = fillRate(state) < FILL_RATE_TARGET;
   const showPlacing = !!selectedWorker && tab === 'floor';
+
+  // The crew dock keeps the bench at your thumb while you scroll the lines.
+  // Hidden while a worker is picked up (the PlacingBar takes that slot).
+  const assignedIds = new Set(
+    Object.values(state.lines).flatMap((l) => [
+      ...(l.stations.map((s) => s.assignedWorkerId).filter(Boolean) as string[]),
+      ...(l.supportWorkerIds ?? []),
+    ])
+  );
+  const benchWorkers = Object.values(state.workers).filter((w) => !assignedIds.has(w.id));
+  const showDock = tab === 'floor' && !showPlacing && !gameOver
+    && benchWorkers.some((w) => w.presentThisShift);
 
   return (
     <View style={[styles.shell, { paddingTop: insets.top }]}>
@@ -110,7 +146,7 @@ function Game() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scroll, { paddingBottom: showPlacing ? 150 : 24 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: showPlacing || showDock ? 150 : 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {tab === 'floor' && <FloorScreen state={state} />}
@@ -130,8 +166,13 @@ function Game() {
       {showPlacing && selectedWorker && (
         <PlacingBar worker={selectedWorker} onCancel={() => selectWorker(null)} bottomInset={insets.bottom} />
       )}
+      {showDock && (
+        <CrewDock benchWorkers={benchWorkers} onSelectWorker={selectWorker} bottomInset={insets.bottom} />
+      )}
 
       <Toasts toasts={toasts} onDone={removeToast} topInset={insets.top} />
+      {confetti > 0 && <ConfettiBurst burst={confetti} />}
+      {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && <GameOverOverlay state={state} onRestart={reset} />}
     </View>

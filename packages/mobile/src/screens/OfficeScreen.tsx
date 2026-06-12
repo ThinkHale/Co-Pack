@@ -6,7 +6,8 @@ import {
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
   LEAD_COST, conversionCost,
   canHireSupervisor, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT,
-  FEATURE_UNLOCKS,
+  FEATURE_UNLOCKS, canBuyUnlock, hasUnlock,
+  NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
 } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency } from '../format';
@@ -14,7 +15,7 @@ import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
 
 export function OfficeScreen({ state }: { state: GameState }) {
-  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, buyUnlock, reset } = useGameStore();
+  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, buyUnlock, toggleNightShift, adsOn, adFree, toggleAdsTesting, reset } = useGameStore();
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter((w) => !w.permanent);
   const lineCost = nextLineCost(state);
@@ -60,6 +61,16 @@ export function OfficeScreen({ state }: { state: GameState }) {
               onPress={toggleAutoShift}
               style={{ marginTop: 10 }}
             />
+            {hasUnlock(state, 'night_shift') && (
+              <Button
+                label={state.nightShift
+                  ? `🌙 Night shift ON · +${Math.round(NIGHT_OUTPUT_BONUS * 100)}% output, +${Math.round(NIGHT_LABOR_RATE * 100)}% payroll`
+                  : `Night shift off · +${Math.round(NIGHT_OUTPUT_BONUS * 100)}% output for +${Math.round(NIGHT_LABOR_RATE * 100)}% payroll + ${formatCurrency(NIGHT_OVERHEAD)}/shift`}
+                tone={state.nightShift ? 'accent' : 'muted'}
+                onPress={toggleNightShift}
+                style={{ marginTop: 8 }}
+              />
+            )}
           </>
         )}
       </Panel>
@@ -81,13 +92,20 @@ export function OfficeScreen({ state }: { state: GameState }) {
                 </View>
                 <Text style={[shared.bodyMute, { marginTop: 3 }]}>{u.blurb}</Text>
                 {!owned && (
-                  <Button
-                    label={`Unlock · ${formatCurrency(u.cost)}`}
-                    tone="muted"
-                    disabled={state.cash < u.cost}
-                    onPress={() => buyUnlock(u.id)}
-                    style={{ marginTop: 8 }}
-                  />
+                  <>
+                    {u.requiresSupervisor && !state.hasSupervisor && (
+                      <Text style={{ color: colors.gold, fontSize: 10, fontWeight: '900', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                        Requires a floor supervisor
+                      </Text>
+                    )}
+                    <Button
+                      label={`Unlock · ${formatCurrency(u.cost)}`}
+                      tone="muted"
+                      disabled={!canBuyUnlock(state, u.id)}
+                      onPress={() => buyUnlock(u.id)}
+                      style={{ marginTop: 8 }}
+                    />
+                  </>
                 )}
               </View>
             );
@@ -184,6 +202,15 @@ export function OfficeScreen({ state }: { state: GameState }) {
 
       <Panel>
         <View style={styles.rowBetween}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Settings · testing</Eyebrow>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
+              Interstitial ads every 5 shifts{adFree ? ' — removed (purchase simulated) ✓' : ''}.
+            </Text>
+          </View>
+          <Button label={`Ads: ${adsOn ? 'ON' : 'OFF'}`} tone="muted" onPress={toggleAdsTesting} />
+        </View>
+        <View style={[styles.rowBetween, { marginTop: 14, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 }]}>
           <View style={{ flex: 1 }}>
             <Eyebrow color={colors.red}>Danger zone</Eyebrow>
             <Text style={[shared.bodyMute, { marginTop: 3 }]}>Wipe the save and start a fresh plant.</Text>
