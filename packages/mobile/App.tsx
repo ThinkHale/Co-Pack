@@ -11,6 +11,7 @@ import { TabBar } from './src/components/TabBar';
 import { Toasts, ToastItem } from './src/components/Toasts';
 import { SplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS } from './src/components/Overlays';
 import { ConfettiBurst } from './src/components/Confetti';
+import { CrewDock } from './src/components/CrewDock';
 import { FloorScreen } from './src/screens/FloorScreen';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { StaffingScreen } from './src/screens/StaffingScreen';
@@ -125,6 +126,18 @@ function Game() {
   const fillLow = fillRate(state) < FILL_RATE_TARGET;
   const showPlacing = !!selectedWorker && tab === 'floor';
 
+  // The crew dock keeps the bench at your thumb while you scroll the lines.
+  // Hidden while a worker is picked up (the PlacingBar takes that slot).
+  const assignedIds = new Set(
+    Object.values(state.lines).flatMap((l) => [
+      ...(l.stations.map((s) => s.assignedWorkerId).filter(Boolean) as string[]),
+      ...(l.supportWorkerIds ?? []),
+    ])
+  );
+  const benchWorkers = Object.values(state.workers).filter((w) => !assignedIds.has(w.id));
+  const showDock = tab === 'floor' && !showPlacing && !gameOver
+    && benchWorkers.some((w) => w.presentThisShift);
+
   return (
     <View style={[styles.shell, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -133,7 +146,7 @@ function Game() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scroll, { paddingBottom: showPlacing ? 150 : 24 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: showPlacing || showDock ? 150 : 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {tab === 'floor' && <FloorScreen state={state} />}
@@ -152,6 +165,9 @@ function Game() {
 
       {showPlacing && selectedWorker && (
         <PlacingBar worker={selectedWorker} onCancel={() => selectWorker(null)} bottomInset={insets.bottom} />
+      )}
+      {showDock && (
+        <CrewDock benchWorkers={benchWorkers} onSelectWorker={selectWorker} bottomInset={insets.bottom} />
       )}
 
       <Toasts toasts={toasts} onDone={removeToast} topInset={insets.top} />

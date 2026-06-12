@@ -16,7 +16,7 @@ import {
   totalThroughput, lineThroughput,
   openObjectives, OBJECTIVES, Objective,
   TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
-  canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
+  canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS, UNTRAINED_PROFICIENCY,
   facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor,
   CLIENT_TIERS, FEATURE_UNLOCKS, hasUnlock, canBuyUnlock, FeatureUnlockId,
   nightShiftActive, NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
@@ -344,6 +344,10 @@ function Game() {
 
   const removeToast = useCallback((id: string) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
+  // Station-first staffing: click an empty station → best-fit picker appears
+  // right there. Kills bench↔station round trips on multi-line floors.
+  const [pickerTarget, setPickerTarget] = useState<{ lineId: string; stationId: string; stationName: string } | null>(null);
+
   // Confetti on the golden moments (goals, new clients, upgrades).
   const [confetti, setConfetti] = useState(0);
   useEffect(() => {
@@ -545,24 +549,6 @@ function Game() {
         {tab === 'floor' && (
           <div className="floor-grid grid gap-4 md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_360px]">
             <section className="space-y-4">
-              <ConditionsBar
-                condition={condition}
-                swing={attendanceSwing}
-                mealActive={state.mealToday}
-                incentiveActive={state.incentiveToday}
-                mealReady={mealReady(state)}
-                incentiveReady={incentiveReady(state)}
-                mealCooldown={mealCooldownRemaining(state)}
-                incentiveCooldown={incentiveCooldownRemaining(state)}
-                mealCost={mealCost(state)}
-                incentiveCost={incentiveCost(state)}
-                cash={state.cash}
-                onMeal={buyMeal}
-                onIncentive={runIncentive}
-              />
-
-              {state.lastShiftReport && <ShiftImpactPanel report={state.lastShiftReport} />}
-
               <MobileCrewDock
                 benchWorkers={benchWorkers}
                 selectedWorkerId={selectedWorkerId}
@@ -589,6 +575,7 @@ function Game() {
                 />
               )}
 
+              {/* Lines first — staffing is the floor's job; ambient info reads below. */}
               {Object.entries(state.lines).map(([lineId, line]) => (
                 <FloorLine
                   key={lineId}
@@ -603,8 +590,27 @@ function Game() {
                   onSelectWorker={selectWorker}
                   onAssign={assignWorker}
                   onUnassign={unassignStation}
+                  onOpenPicker={(stationId, stationName) => setPickerTarget({ lineId, stationId, stationName })}
                 />
               ))}
+
+              <ConditionsBar
+                condition={condition}
+                swing={attendanceSwing}
+                mealActive={state.mealToday}
+                incentiveActive={state.incentiveToday}
+                mealReady={mealReady(state)}
+                incentiveReady={incentiveReady(state)}
+                mealCooldown={mealCooldownRemaining(state)}
+                incentiveCooldown={incentiveCooldownRemaining(state)}
+                mealCost={mealCost(state)}
+                incentiveCost={incentiveCost(state)}
+                cash={state.cash}
+                onMeal={buyMeal}
+                onIncentive={runIncentive}
+              />
+
+              {state.lastShiftReport && <ShiftImpactPanel report={state.lastShiftReport} />}
             </section>
 
             <aside className="floor-sidebar space-y-4">
@@ -672,6 +678,17 @@ function Game() {
         <PlacingBar worker={selectedWorker} onCancel={() => selectWorker(null)} />
       )}
       <Toasts toasts={toasts} onDone={removeToast} />
+      {pickerTarget && (
+        <StationPicker
+          target={pickerTarget}
+          benchWorkers={benchWorkers}
+          onPick={(workerId) => {
+            assignWorker(workerId, pickerTarget.lineId, pickerTarget.stationId);
+            setPickerTarget(null);
+          }}
+          onClose={() => setPickerTarget(null)}
+        />
+      )}
       {confetti > 0 && <ConfettiBurst burst={confetti} />}
       {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
@@ -975,7 +992,7 @@ const WORKER_DND_MIME = 'application/x-copack-worker';
 
 function FloorLine({
   lineId, line, workers, lineRate, shiftActive, paused, supportLocked, selectedWorkerId,
-  onSelectWorker, onAssign, onUnassign,
+  onSelectWorker, onAssign, onUnassign, onOpenPicker,
 }: {
   lineId: string;
   line: Line;
@@ -988,6 +1005,7 @@ function FloorLine({
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
+  onOpenPicker: (stationId: string, stationName: string) => void;
 }) {
   const presentCount = line.stations.filter(
     s => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift
@@ -1050,7 +1068,7 @@ function FloorLine({
                 isSkillMatch={isSkillMatch}
                 selectedWorker={selectedWorker}
                 onPlace={(wid) => onAssign(wid, lineId, station.id)}
-                onSelect={() => worker && onSelectWorker(worker.id)}
+                onSelect={() => (worker ? onSelectWorker(worker.id) : onOpenPicker(station.id, station.name))}
                 onUnassign={(event) => {
                   event.stopPropagation();
                   onUnassign(lineId, station.id);
@@ -1187,7 +1205,7 @@ function StationTile({
                 ? isSkillMatch
                   ? `${selectedProfile?.firstName ?? 'Crew'} fits`
                   : `Place ${selectedProfile?.firstName ?? 'crew'}`
-                : 'Open'}
+                : 'Tap to staff'}
             </div>
           </div>
         )}
@@ -1198,7 +1216,7 @@ function StationTile({
           <MiniBar label="Mood" value={worker.morale} />
         </div>
       ) : (
-        <div className="station-hint">{hasTarget ? 'Tap / drop here' : 'Pick a worker'}</div>
+        <div className="station-hint">{hasTarget ? 'Tap / drop here' : 'Tap to staff'}</div>
       )}
     </button>
   );
@@ -2468,6 +2486,65 @@ function PlacingBar({ worker, onCancel }: { worker: Worker; onCancel: () => void
   );
 }
 
+
+
+// Best-fit picker for a tapped station: present, unassigned workers sorted by
+// proficiency at exactly that station. Staffing happens where the need is —
+// no scrolling back to the bench.
+function StationPicker({
+  target, benchWorkers, onPick, onClose,
+}: {
+  target: { lineId: string; stationId: string; stationName: string };
+  benchWorkers: Worker[];
+  onPick: (workerId: string) => void;
+  onClose: () => void;
+}) {
+  const candidates = benchWorkers
+    .filter(w => w.presentThisShift)
+    .map(w => ({ worker: w, prof: w.skills.find(sk => sk.stationId === target.stationId)?.proficiency ?? null }))
+    .sort((a, b) => (b.prof ?? UNTRAINED_PROFICIENCY) - (a.prof ?? UNTRAINED_PROFICIENCY));
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="overlay-card" onClick={e => e.stopPropagation()}>
+        <div className="eyebrow">Staff this station</div>
+        <h2 className="mt-1 text-2xl font-black text-white">{target.stationName}</h2>
+        <p className="mt-1 text-xs font-semibold text-slate-400">
+          Best fit first · untrained workers run at {Math.round(UNTRAINED_PROFICIENCY * 100)}%
+        </p>
+        <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+          {candidates.length === 0 && (
+            <div className="empty-bench">
+              Nobody available — everyone present is already placed. Hire, or pull someone off another station.
+            </div>
+          )}
+          {candidates.map(({ worker, prof }) => (
+            <button
+              key={worker.id}
+              type="button"
+              onClick={() => onPick(worker.id)}
+              className="picker-row"
+            >
+              <CharacterAvatar worker={worker} size="sm" />
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-black text-white">{worker.name}</span>
+                <span className="block truncate text-xs font-bold text-slate-400">
+                  Mood {pct(worker.morale)} · Trust {pct(worker.reliability)}
+                </span>
+              </span>
+              <span className={`text-sm font-black ${prof != null ? 'text-emerald-300' : 'text-slate-500'}`}>
+                {prof != null ? pct(prof) : 'untrained'}
+              </span>
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={onClose} className="game-button game-button-muted mt-4 w-full">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // MONETIZATION + ONBOARDING + JUICE

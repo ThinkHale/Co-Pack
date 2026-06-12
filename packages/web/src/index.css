@@ -2508,3 +2508,22 @@ button {
   .order-mini-rail > div::after { animation: none; }
   .confetti-piece { display: none; }
 }
+
+/* --- Station-first staffing picker --- */
+.picker-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  padding: 0.5rem 0.6rem;
+  background: rgba(13, 20, 36, 0.7);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+.picker-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(104, 216, 255, 0.6);
+  background: rgba(104, 216, 255, 0.08);
+}

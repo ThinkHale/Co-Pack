@@ -140,7 +140,7 @@ export interface TutorialStep {
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     title: 'Welcome to the floor, boss',
-    text: 'Your crew is waiting on the bench below. Tap a worker card to pick them up.',
+    text: 'Your crew waits in the dock at the bottom of the screen. Tap a worker chip to pick them up — or tap any empty station to staff it directly.',
     auto: (ctx) => ctx.selected !== null || ctx.staffed > 0,
   },
   {
