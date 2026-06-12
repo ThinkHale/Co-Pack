@@ -9,7 +9,7 @@ import { toastForEvent } from './src/events';
 import { Hud } from './src/components/Hud';
 import { TabBar } from './src/components/TabBar';
 import { Toasts, ToastItem } from './src/components/Toasts';
-import { SplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS } from './src/components/Overlays';
+import { SplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS, WelcomeModal } from './src/components/Overlays';
 import { ConfettiBurst } from './src/components/Confetti';
 import { CrewDock } from './src/components/CrewDock';
 import { FloorScreen } from './src/screens/FloorScreen';
@@ -67,7 +67,8 @@ function Game() {
   const lastAdDay = useGameStore((s) => s.lastAdDay);
   const adVisible = useGameStore((s) => s.adVisible);
   const tutorialDone = useGameStore((s) => s.tutorialDone);
-  const { runTick, save, setTab, dismissOffline, selectWorker, reset, showAd, dismissAd, removeAds } = useGameStore();
+  const tutorialActive = useGameStore((s) => s.tutorialActive);
+  const { runTick, save, setTab, dismissOffline, selectWorker, reset, showAd, dismissAd, removeAds, startTutorial, finishTutorial } = useGameStore();
 
   const insets = useSafeAreaInsets();
   const gameOver = state.gameOver;
@@ -172,6 +173,12 @@ function Game() {
 
       <Toasts toasts={toasts} onDone={removeToast} topInset={insets.top} />
       {confetti > 0 && <ConfettiBurst burst={confetti} />}
+      {!tutorialDone && !tutorialActive && (
+        <WelcomeModal
+          onStart={finishTutorial}
+          onTutorial={() => { setTab('floor'); startTutorial(); }}
+        />
+      )}
       {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && <GameOverOverlay state={state} onRestart={reset} />}

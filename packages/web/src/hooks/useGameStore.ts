@@ -76,12 +76,14 @@ interface GameStore {
   adFree: boolean;
   lastAdDay: number;
   adVisible: boolean;
-  tutorialDone: boolean;
+  tutorialDone: boolean;   // persisted: the welcome choice has been made (skipped or completed)
+  tutorialActive: boolean; // transient: the guided walkthrough is running right now
   tutorialStep: number;
   showAd: () => void;
   dismissAd: () => void;
   removeAds: () => void;
   toggleAdsTesting: () => void;
+  startTutorial: () => void;
   advanceTutorial: () => void;
   finishTutorial: () => void;
 }
@@ -123,6 +125,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastAdDay: boot.prefs.lastAdDay,
   adVisible: false,
   tutorialDone: boot.prefs.tutorialDone,
+  tutorialActive: false,
   tutorialStep: 0,
 
   runTick: () =>
@@ -231,8 +234,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // The IAP seam: when StoreKit lands, the purchase callback calls this.
   removeAds: () => set({ adFree: true, adVisible: false }),
   toggleAdsTesting: () => set((store) => ({ adsOn: !store.adsOn })),
+  // The welcome modal's two doors: dive in (skip), or run the guided walkthrough.
+  startTutorial: () => set({ tutorialActive: true, tutorialStep: 0 }),
   advanceTutorial: () => set((store) => ({ tutorialStep: store.tutorialStep + 1 })),
-  finishTutorial: () => set({ tutorialDone: true }),
+  finishTutorial: () => set({ tutorialDone: true, tutorialActive: false }),
 
   toggleAutoShift: () =>
     set((store) => applyEngineResult(store, engineSetAutoShift(store.state, !store.state.autoShift))),

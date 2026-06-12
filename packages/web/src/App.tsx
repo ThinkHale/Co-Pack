@@ -291,7 +291,7 @@ function Game() {
     resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker, terminateWorker,
     hireSupervisor, toggleAutoShift, autoFillCrew, buyUnlock, toggleNightShift,
     adsOn, adFree, lastAdDay, adVisible, showAd, dismissAd, removeAds, toggleAdsTesting,
-    tutorialDone, tutorialStep, advanceTutorial, finishTutorial,
+    tutorialDone, tutorialActive, tutorialStep, startTutorial, advanceTutorial, finishTutorial,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -395,13 +395,24 @@ function Game() {
 
   // First-play tutorial: do-it-to-advance. Steps watch the live state and move
   // on when the player actually performs the action.
-  const tutorialAuto = !tutorialDone && TUTORIAL_STEPS[tutorialStep]?.auto;
+  const tutorialAuto = tutorialActive && TUTORIAL_STEPS[tutorialStep]?.auto;
   useEffect(() => {
     if (!tutorialAuto) return;
     if (tutorialAuto({ selected: selectedWorkerId, staffed: staffedStations, shiftRunning: !awaitingStaffing && state.tick > 1 })) {
       advanceTutorial();
     }
   }, [tutorialAuto, selectedWorkerId, staffedStations, awaitingStaffing, state.tick, advanceTutorial]);
+
+  // Spotlight: while the guided walkthrough runs, the current step's target gets
+  // a pulsing ring (driven by a body class so deeply-nested targets light up
+  // without threading refs through the whole tree).
+  const tutorialTarget = tutorialActive ? TUTORIAL_STEPS[tutorialStep]?.target : undefined;
+  useEffect(() => {
+    const classes = ['tut-stations', 'tut-start', 'tut-goal'];
+    document.body.classList.remove(...classes);
+    if (tutorialTarget) document.body.classList.add(`tut-${tutorialTarget}`);
+    return () => document.body.classList.remove(...classes);
+  }, [tutorialTarget]);
 
   const lineCost = nextLineCost(state);
   const canAffordLine = canBuyLine(state);
@@ -525,7 +536,7 @@ function Game() {
           </div>
         </header>
 
-        {tab === 'floor' && !tutorialDone && (
+        {tab === 'floor' && tutorialActive && (
           <TutorialCard
             step={tutorialStep}
             onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
@@ -690,6 +701,12 @@ function Game() {
         />
       )}
       {confetti > 0 && <ConfettiBurst burst={confetti} />}
+      {!tutorialDone && !tutorialActive && (
+        <WelcomeModal
+          onStart={() => { if (soundOn) playSound('click'); finishTutorial(); }}
+          onTutorial={() => { if (soundOn) playSound('click'); setTab('floor'); startTutorial(); }}
+        />
+      )}
       {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && (
@@ -905,6 +922,7 @@ function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void
   return (
     <button
       type="button"
+      data-tut="goal"
       onClick={onGoTo}
       title={next.hint}
       className="game-panel goal-strip mb-4 flex w-full items-center gap-3 p-3 text-left"
@@ -1525,7 +1543,7 @@ function MobileCrewDock({
           {canStart && presentBench > 0 && <small>{presentBench} home risk</small>}
         </div>
         {canStart ? (
-          <button type="button" onClick={onStartShift} className="mobile-start-button">
+          <button type="button" data-tut="start" onClick={onStartShift} className="mobile-start-button">
             Start
           </button>
         ) : (
@@ -2461,7 +2479,7 @@ function MorningBanner({
         >
           Repeat yesterday
         </button>
-        <button type="button" onClick={onStart} className="game-button game-button-primary">
+        <button type="button" data-tut="start" onClick={onStart} className="game-button game-button-primary">
           Start shift ▸
         </button>
       </div>
@@ -2566,42 +2584,77 @@ function useBump(value: number): boolean {
   return bump;
 }
 
-// First-play walkthrough. `auto` steps advance when the player does the thing;
-// the rest wait for "Got it". Skippable at any point, never shown again.
+// Guided walkthrough (entered from the Welcome modal). `auto` steps advance
+// when the player does the thing; the rest wait for "Got it". `target` lights
+// up the button they need to press next. Skippable at any point.
 const TUTORIAL_STEPS: {
   title: string;
   text: string;
+  target?: 'stations' | 'start' | 'goal';
   auto?: (ctx: { selected: string | null; staffed: number; shiftRunning: boolean }) => boolean;
 }[] = [
   {
-    title: 'Welcome to the floor, boss',
-    text: 'Your crew is waiting on the bench. Tap a worker card to pick them up.',
-    auto: ctx => ctx.selected !== null || ctx.staffed > 0,
-  },
-  {
-    title: 'Put them to work',
-    text: 'Now tap an empty station on Line A to seat them there.',
+    title: 'Staff your first station',
+    text: 'Tap a glowing station. Your crew is on the bench — pick whoever fits best (the list sorts by skill for you).',
+    target: 'stations',
     auto: ctx => ctx.staffed >= 1,
   },
   {
-    title: 'Cover every station',
-    text: 'A line only produces when Induct, Pack, AND Stage are covered. Seat the other two.',
+    title: 'Cover all three stations',
+    text: 'A line only produces when Induct, Pack, AND Stage are all staffed. Fill the other two glowing slots.',
+    target: 'stations',
     auto: ctx => ctx.staffed >= 3,
   },
   {
     title: 'Start the shift',
-    text: 'Hit "Start shift ▸". One shift = one 10-hour day — payroll and rent come out at the end of it.',
+    text: 'Hit the glowing Start button. One shift = one 10-hour day — payroll and rent settle at the end of it.',
+    target: 'start',
     auto: ctx => ctx.shiftRunning,
   },
   {
     title: 'Cartons are rolling',
-    text: 'The belt below the stations shows your live rate. The contract on the Orders tab pays per unit on delivery — beat its deadline or eat a reputation hit.',
+    text: 'The belt under the stations shows your live rate. Your contract on the Orders tab pays per unit on delivery — beat the deadline or take a reputation hit.',
   },
   {
-    title: 'Chase the next goal',
-    text: 'The NEXT GOAL strip up top always points at your best move, and it pays cash. Every shift you re-staff from whoever shows up. Good luck, boss.',
+    title: 'Your people decide everything',
+    text: 'Tomorrow some of this crew won’t show. You can’t force attendance — but you can pay well, lift morale, and build a deep bench. The glowing Next Goal always points at your best next move. Good luck, boss.',
+    target: 'goal',
   },
 ];
+
+// The first thing a new boss sees: the pitch, and the fork — dive in, or be
+// walked through it. Frames the game's core tension up front.
+function WelcomeModal({ onStart, onTutorial }: { onStart: () => void; onTutorial: () => void }) {
+  return (
+    <div className="overlay" style={{ zIndex: 85 }}>
+      <div className="overlay-card welcome-card">
+        <div className="eyebrow">Welcome to</div>
+        <h2 className="welcome-title">Co-Pack</h2>
+        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-200">
+          You run a contract packaging plant. Lines, automation, and capital are yours to
+          command — but the input that decides whether you ship or sink is the one you
+          control <strong className="text-white">least</strong>: your workforce.
+        </p>
+        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-300">
+          People no-show, burn out, quit, or shine. You can’t make them clock in — only
+          read them, pay them right, and keep a bench deep enough to absorb the morning
+          you’re three bodies short. Master the crew and the cartons take care of themselves.
+        </p>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={onTutorial} className="game-button game-button-primary py-3">
+            Take the tutorial
+          </button>
+          <button type="button" onClick={onStart} className="game-button game-button-muted py-3">
+            Start now
+          </button>
+        </div>
+        <p className="mt-3 text-center text-xs font-bold text-slate-500">
+          The tutorial highlights each step — about a minute.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function TutorialCard({ step, onNext, onSkip }: { step: number; onNext: () => void; onSkip: () => void }) {
   const s = TUTORIAL_STEPS[Math.min(step, TUTORIAL_STEPS.length - 1)];

@@ -76,11 +76,13 @@ interface GameStore {
   lastAdDay: number;
   adVisible: boolean;
   tutorialDone: boolean;
+  tutorialActive: boolean;
   tutorialStep: number;
   showAd: () => void;
   dismissAd: () => void;
   removeAds: () => void;
   toggleAdsTesting: () => void;
+  startTutorial: () => void;
   advanceTutorial: () => void;
   finishTutorial: () => void;
 }
@@ -111,6 +113,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastAdDay: 0,
   adVisible: false,
   tutorialDone: false,
+  tutorialActive: false,
   tutorialStep: 0,
 
   hydrate: async () => {
@@ -240,8 +243,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // The IAP seam: when StoreKit lands, the purchase callback calls this.
   removeAds: () => set({ adFree: true, adVisible: false }),
   toggleAdsTesting: () => set((store) => ({ adsOn: !store.adsOn })),
+  startTutorial: () => set({ tutorialActive: true, tutorialStep: 0 }),
   advanceTutorial: () => set((store) => ({ tutorialStep: store.tutorialStep + 1 })),
-  finishTutorial: () => set({ tutorialDone: true }),
+  finishTutorial: () => set({ tutorialDone: true, tutorialActive: false }),
 
   toggleAutoShift: () =>
     set((store) => applyEngineResult(store, engineSetAutoShift(store.state, !store.state.autoShift))),
