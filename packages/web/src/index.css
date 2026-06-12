@@ -1034,7 +1034,8 @@ button {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* SKU layouts run 3-5 stations; the grid flexes with the product. */
+  grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
   gap: 0.55rem;
 }
 
@@ -2526,4 +2527,91 @@ button {
   transform: translateY(-1px);
   border-color: rgba(104, 216, 255, 0.6);
   background: rgba(104, 216, 255, 0.08);
+}
+
+/* --- Welcome modal --- */
+.welcome-card {
+  width: min(94vw, 30rem);
+  text-align: left;
+}
+.welcome-title {
+  margin-top: 0.1rem;
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(100deg, #47e3bf, #ffe66c 55%, #ff7a6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* --- Tutorial spotlight: a pulsing ring on the next button to press --- */
+body.tut-stations .station-card.empty,
+body.tut-start [data-tut="start"],
+body.tut-goal [data-tut="goal"] {
+  position: relative;
+  z-index: 41;
+  animation: tut-pulse 1.35s ease-in-out infinite;
+}
+@keyframes tut-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(104, 216, 255, 0.55), 0 0 0 0 rgba(104, 216, 255, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(104, 216, 255, 1), 0 0 22px 5px rgba(104, 216, 255, 0.6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.tut-stations .station-card.empty,
+  body.tut-start [data-tut="start"],
+  body.tut-goal [data-tut="goal"] {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(104, 216, 255, 0.9);
+  }
+}
+
+/* --- SKU weight chips --- */
+.sku-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(255, 230, 108, 0.4);
+  background: rgba(255, 230, 108, 0.1);
+  color: #ffe9a3;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* --- Planning panel --- */
+.forecast-chip {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 2px solid rgba(104, 216, 255, 0.4);
+  padding: 0.45rem 0.7rem;
+  background: rgba(8, 13, 24, 0.6);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 900;
+  max-width: 20rem;
+}
+.forecast-chip small { color: #94a3b8; font-size: 0.66rem; font-weight: 700; }
+.forecast-chip.tone-bad { border-color: rgba(255, 107, 129, 0.55); }
+.forecast-chip.tone-good { border-color: rgba(114, 239, 143, 0.5); }
+.planning-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  padding: 0.4rem 0.55rem;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+@media (max-width: 700px) {
+  .station-grid { grid-template-columns: repeat(auto-fit, minmax(5.6rem, 1fr)); }
 }

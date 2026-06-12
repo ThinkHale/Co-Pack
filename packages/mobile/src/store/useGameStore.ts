@@ -12,6 +12,7 @@ import {
   hireSupervisor as engineHireSupervisor, setAutoShift as engineSetAutoShift,
   autoAssignCrew,
   toggleOvertime as engineToggleOvertime,
+  requestWorkers as engineRequestWorkers,
   toggleNightShift as engineToggleNightShift,
   purchaseUnlock as enginePurchaseUnlock, FeatureUnlockId,
 } from '@copack/engine';
@@ -21,7 +22,7 @@ import {
 } from '../lib/persistence';
 
 export type SpeedSetting = 1 | 4 | 16;
-export type TabKey = 'floor' | 'orders' | 'staffing' | 'office';
+export type TabKey = 'floor' | 'orders' | 'staffing' | 'office' | 'corporate';
 
 const DEFAULT_SPEED: SpeedSetting = 4;
 
@@ -51,6 +52,7 @@ interface GameStore {
   repeatStaffing: () => void;
   startShift: () => void;
   hireWorker: () => void;
+  requestWorkers: (count?: number) => void;
   buyLine: () => void;
   toggleOvertime: () => void;
   shoutout: () => void;
@@ -76,11 +78,13 @@ interface GameStore {
   lastAdDay: number;
   adVisible: boolean;
   tutorialDone: boolean;
+  tutorialActive: boolean;
   tutorialStep: number;
   showAd: () => void;
   dismissAd: () => void;
   removeAds: () => void;
   toggleAdsTesting: () => void;
+  startTutorial: () => void;
   advanceTutorial: () => void;
   finishTutorial: () => void;
 }
@@ -111,6 +115,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastAdDay: 0,
   adVisible: false,
   tutorialDone: false,
+  tutorialActive: false,
   tutorialStep: 0,
 
   hydrate: async () => {
@@ -187,6 +192,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   hireWorker: () => set((store) => applyEngineResult(store, engineHire(store.state))),
 
+  // Agency advance order: reserved tonight, on the floor at tomorrow's standup.
+  requestWorkers: (count = 1) =>
+    set((store) => applyEngineResult(store, engineRequestWorkers(store.state, count))),
+
   buyLine: () => set((store) => applyEngineResult(store, purchaseLine(store.state))),
 
   // Engine-owned (and gated behind the 'overtime' feature unlock).
@@ -240,8 +249,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // The IAP seam: when StoreKit lands, the purchase callback calls this.
   removeAds: () => set({ adFree: true, adVisible: false }),
   toggleAdsTesting: () => set((store) => ({ adsOn: !store.adsOn })),
+  startTutorial: () => set({ tutorialActive: true, tutorialStep: 0 }),
   advanceTutorial: () => set((store) => ({ tutorialStep: store.tutorialStep + 1 })),
-  finishTutorial: () => set({ tutorialDone: true }),
+  finishTutorial: () => set({ tutorialDone: true, tutorialActive: false }),
 
   toggleAutoShift: () =>
     set((store) => applyEngineResult(store, engineSetAutoShift(store.state, !store.state.autoShift))),

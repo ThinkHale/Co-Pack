@@ -129,42 +129,70 @@ export function AdModal({ adFree, onDismiss, onRemoveAds }: { adFree: boolean; o
   );
 }
 
-// First-play walkthrough card. `auto` steps advance when the player does the
-// thing; the rest wait for "Got it". Skippable, never shown again.
+// The first thing a new boss sees: the pitch, and the fork — dive in, or be
+// walked through it. Frames the game's core tension up front.
+export function WelcomeModal({ onStart, onTutorial }: { onStart: () => void; onTutorial: () => void }) {
+  return (
+    <Modal transparent animationType="fade">
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <Eyebrow>Welcome to</Eyebrow>
+          <Text style={styles.welcomeTitle}>Co-Pack</Text>
+          <Text style={[shared.body, { marginTop: 8, lineHeight: 19 }]}>
+            You run a contract packaging plant. Lines, automation, and capital are yours to
+            command — but the input that decides whether you ship or sink is the one you
+            control <Text style={{ color: colors.text, fontWeight: '900' }}>least</Text>: your workforce.
+          </Text>
+          <Text style={[shared.bodyMute, { marginTop: 8, lineHeight: 18 }]}>
+            People no-show, burn out, quit, or shine. You can't make them clock in — only read
+            them, pay them right, and keep a bench deep enough to absorb the morning you're three
+            bodies short. Master the crew and the cartons take care of themselves.
+          </Text>
+          <Button label="Take the tutorial" tone="primary" onPress={onTutorial} style={{ marginTop: 18 }} />
+          <Button label="Start now" tone="muted" onPress={onStart} style={{ marginTop: 8 }} />
+          <Text style={styles.welcomeFoot}>The tutorial highlights each step — about a minute.</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// Guided walkthrough card. `auto` steps advance when the player does the thing;
+// the rest wait for "Got it". `target` lights up the next button to press.
 export interface TutorialStep {
   title: string;
   text: string;
+  target?: 'stations' | 'start' | 'goal';
   auto?: (ctx: { selected: string | null; staffed: number; shiftRunning: boolean }) => boolean;
 }
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
-    title: 'Welcome to the floor, boss',
-    text: 'Your crew waits in the dock at the bottom of the screen. Tap a worker chip to pick them up — or tap any empty station to staff it directly.',
-    auto: (ctx) => ctx.selected !== null || ctx.staffed > 0,
-  },
-  {
-    title: 'Put them to work',
-    text: 'Now tap an empty station on Line A to seat them there.',
+    title: 'Staff your first station',
+    text: 'Tap a glowing station. Your crew is on the bench — pick whoever fits best (the list sorts by skill for you).',
+    target: 'stations',
     auto: (ctx) => ctx.staffed >= 1,
   },
   {
-    title: 'Cover every station',
-    text: 'A line only produces when Induct, Pack, AND Stage are covered. Seat the other two.',
+    title: 'Cover all three stations',
+    text: 'A line only produces when Induct, Pack, AND Stage are all staffed. Fill the other two glowing slots.',
+    target: 'stations',
     auto: (ctx) => ctx.staffed >= 3,
   },
   {
     title: 'Start the shift',
-    text: 'Hit "Start shift ▸". One shift = one 10-hour day — payroll and rent come out at the end of it.',
+    text: 'Hit the glowing Start button. One shift = one 10-hour day — payroll and rent settle at the end of it.',
+    target: 'start',
     auto: (ctx) => ctx.shiftRunning,
   },
   {
     title: 'Cartons are rolling',
-    text: 'The belt below the stations shows your live rate. The contract on the Orders tab pays per unit on delivery — beat its deadline or eat a reputation hit.',
+    text: 'The belt under the stations shows your live rate. Your contract on the Orders tab pays per unit on delivery — beat the deadline or take a reputation hit.',
   },
   {
-    title: 'Chase the next goal',
-    text: 'The NEXT GOAL strip up top always points at your best move, and it pays cash. Every shift you re-staff from whoever shows up. Good luck, boss.',
+    title: 'Your people decide everything',
+    text: 'Tomorrow some of this crew won’t show. You can’t force attendance — but you can pay well, lift morale, and build a deep bench. The glowing Next Goal always points at your best next move. Good luck, boss.',
+    target: 'goal',
   },
 ];
 
@@ -220,4 +248,6 @@ const styles = StyleSheet.create({
   adBadgeText: { color: '#1b1405', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   tutorial: { borderWidth: 2, borderColor: 'rgba(104,216,255,0.55)', borderRadius: radius.lg, padding: 13, backgroundColor: colors.panel },
   tutorialSkip: { color: colors.sky, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  welcomeTitle: { color: colors.cyan, fontSize: 40, fontWeight: '900', letterSpacing: -1, marginTop: 2 },
+  welcomeFoot: { color: colors.textFaint, fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 12 },
 });

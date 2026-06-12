@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
 import {
-  GameState, Line, Worker, StationSkill,
+  GameState, Line, Order, Worker, StationSkill, stationRole, orderProfile,
   dayCondition, dayAttendanceModifier,
   mealCost, incentiveCost, mealReady, incentiveReady,
   mealCooldownRemaining, incentiveCooldownRemaining,
@@ -18,6 +18,7 @@ import { MiniBar } from '../components/MiniBar';
 import { TraitChips } from '../components/TraitChips';
 import { ConveyorBelt } from '../components/Belt';
 import { TutorialCard, TUTORIAL_STEPS } from '../components/Overlays';
+import { Spotlight } from '../components/Spotlight';
 
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 const TONE_COLOR: Record<string, string> = { good: colors.green, bad: colors.red, neutral: colors.cyan };
@@ -28,8 +29,9 @@ export function FloorScreen({ state }: { state: GameState }) {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
     hireWorker, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, terminateWorker, soundOn, autoFillCrew, paused, setTab,
-    tutorialDone, tutorialStep, advanceTutorial, finishTutorial,
+    tutorialActive, tutorialStep, advanceTutorial, finishTutorial,
   } = useGameStore();
+  const tutTarget = tutorialActive ? TUTORIAL_STEPS[tutorialStep]?.target : undefined;
 
   const awaitingStaffing = state.awaitingStaffing;
   const gameOver = state.gameOver;
@@ -60,13 +62,13 @@ export function FloorScreen({ state }: { state: GameState }) {
 
   // Station-first staffing: tap an empty station → pick from a best-fit list
   // right there. Kills the bench↔station scroll round-trips on big floors.
-  const [picker, setPicker] = useState<{ lineId: string; stationId: string; stationName: string } | null>(null);
+  const [picker, setPicker] = useState<{ lineId: string; stationId: string; stationName: string; role: string } | null>(null);
   const pickerCandidates = picker
     ? benchWorkers
         .filter((w) => w.presentThisShift)
         .map((w) => ({
           worker: w,
-          prof: w.skills.find((sk: StationSkill) => sk.stationId === picker.stationId)?.proficiency ?? null,
+          prof: w.skills.find((sk: StationSkill) => sk.stationId === picker.role)?.proficiency ?? null,
         }))
         .sort((a, b) => (b.prof ?? UNTRAINED_PROFICIENCY) - (a.prof ?? UNTRAINED_PROFICIENCY))
     : [];
@@ -74,7 +76,7 @@ export function FloorScreen({ state }: { state: GameState }) {
   // First-play tutorial: do-it-to-advance, watching the live floor state.
   const staffedCount = Object.values(state.lines).reduce(
     (n, l) => n + l.stations.filter((s) => s.assignedWorkerId).length, 0);
-  const tutorialAuto = !tutorialDone && TUTORIAL_STEPS[tutorialStep]?.auto;
+  const tutorialAuto = tutorialActive && TUTORIAL_STEPS[tutorialStep]?.auto;
   useEffect(() => {
     if (!tutorialAuto) return;
     if (tutorialAuto({ selected: selectedWorkerId, staffed: staffedCount, shiftRunning: !awaitingStaffing && state.tick > 1 })) {
@@ -84,14 +86,16 @@ export function FloorScreen({ state }: { state: GameState }) {
 
   return (
     <View style={{ gap: 14 }}>
-      {!tutorialDone && (
+      {tutorialActive && (
         <TutorialCard
           step={tutorialStep}
           onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
           onSkip={finishTutorial}
         />
       )}
-      <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
+      <Spotlight active={tutTarget === 'goal'} radius={radius.md}>
+        <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
+      </Spotlight>
 
       {awaitingStaffing && (
         <MorningBanner
@@ -99,6 +103,7 @@ export function FloorScreen({ state }: { state: GameState }) {
           condition={condition}
           canRepeat={canRepeatStaffing(state)}
           hasSupervisor={state.hasSupervisor}
+          highlightStart={tutTarget === 'start'}
           onAutoFill={autoFillCrew}
           onRepeat={repeatStaffing}
           onStart={startShift}
@@ -128,14 +133,16 @@ export function FloorScreen({ state }: { state: GameState }) {
           line={line}
           workers={state.workers}
           lineRate={lineThroughput(state, line)}
+          runningOrder={state.activeOrders.find((o) => o.id === line.orderId)}
           shiftActive={shiftActive}
           paused={paused}
           supportLocked={!hasUnlock(state, 'support')}
+          highlightEmpty={tutTarget === 'stations'}
           selectedWorker={selectedWorker}
           onSelectWorker={selectWorker}
           onAssign={assignWorker}
           onUnassign={unassignStation}
-          onOpenPicker={(stationId, stationName) => setPicker({ lineId, stationId, stationName })}
+          onOpenPicker={(stationId, stationName, role) => setPicker({ lineId, stationId, stationName, role })}
         />
       ))}
 
@@ -209,12 +216,13 @@ export function FloorScreen({ state }: { state: GameState }) {
 // --- Morning standup ---------------------------------------------------------
 
 function MorningBanner({
-  state, condition, canRepeat, hasSupervisor, onAutoFill, onRepeat, onStart,
+  state, condition, canRepeat, hasSupervisor, highlightStart, onAutoFill, onRepeat, onStart,
 }: {
   state: GameState;
   condition: DayConditionInfo;
   canRepeat: boolean;
   hasSupervisor: boolean;
+  highlightStart: boolean;
   onAutoFill: () => void;
   onRepeat: () => void;
   onStart: () => void;
@@ -252,7 +260,9 @@ function MorningBanner({
       <View style={styles.bannerActions}>
         {hasSupervisor && <Button label="Auto-fill" tone="muted" onPress={onAutoFill} style={{ flex: 1 }} />}
         <Button label="Repeat yesterday" tone="muted" disabled={!canRepeat} onPress={onRepeat} style={{ flex: 1 }} />
-        <Button label="Start shift ▸" tone="primary" onPress={onStart} style={{ flex: 1 }} />
+        <Spotlight active={highlightStart} radius={radius.sm} style={{ flex: 1 }}>
+          <Button label="Start shift ▸" tone="primary" onPress={onStart} style={{ width: '100%' }} />
+        </Spotlight>
       </View>
     </Panel>
   );
@@ -469,14 +479,14 @@ function WorkerActionBar({
 // --- A production line with its stations -------------------------------------
 
 function FloorLine({
-  lineId, line, workers, lineRate, shiftActive, paused, supportLocked, selectedWorker, onSelectWorker, onAssign, onUnassign, onOpenPicker,
+  lineId, line, workers, lineRate, runningOrder, shiftActive, paused, supportLocked, highlightEmpty, selectedWorker, onSelectWorker, onAssign, onUnassign, onOpenPicker,
 }: {
-  lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number;
-  shiftActive: boolean; paused: boolean; supportLocked: boolean; selectedWorker: Worker | null;
+  lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number; runningOrder?: Order;
+  shiftActive: boolean; paused: boolean; supportLocked: boolean; highlightEmpty: boolean; selectedWorker: Worker | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
-  onOpenPicker: (stationId: string, stationName: string) => void;
+  onOpenPicker: (stationId: string, stationName: string, role: string) => void;
 }) {
   const presentCount = line.stations.filter((s) => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift).length;
   const isStopped = presentCount === 0;
@@ -502,6 +512,9 @@ function FloorLine({
       <View style={[styles.rowBetween, { marginBottom: 10 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Pill color={colors.sky} filled>{line.name}</Pill>
+          {runningOrder && (
+            <Pill color={colors.gold}>{runningOrder.sku} · {orderProfile(runningOrder).short}</Pill>
+          )}
           {line.automation > 0 && <Pill color={colors.cyan}>⚙ L{line.automation}</Pill>}
           {line.leadId && workers[line.leadId] && <Pill color={colors.gold}>LEAD</Pill>}
         </View>
@@ -512,23 +525,26 @@ function FloorLine({
         {line.stations.map((station) => {
           const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
           const present = worker?.presentThisShift ?? false;
-          const isMatch = selectedWorker?.skills.some((sk) => sk.stationId === station.id) ?? false;
+          const role = stationRole(station);
+          const isMatch = selectedWorker?.skills.some((sk) => sk.stationId === role) ?? false;
           return (
             <StationTile
               key={station.id}
               stationName={station.name}
               stationId={station.id}
+              role={role}
               worker={worker}
               present={present}
               working={present && running}
               hasTarget={selectedWorker !== null}
               isMatch={isMatch}
+              highlight={highlightEmpty && !worker}
               selectedFirstName={selectedWorker ? profileForWorker(selectedWorker).firstName : null}
               onPress={() => {
                 if (selectedWorker) onAssign(selectedWorker.id, lineId, station.id);
                 else if (worker) onSelectWorker(worker.id);
                 // Empty station, nothing picked up: staff from right here.
-                else onOpenPicker(station.id, station.name);
+                else onOpenPicker(station.id, station.name, role);
               }}
               onClear={() => onUnassign(lineId, station.id)}
             />
@@ -542,6 +558,7 @@ function FloorLine({
         <ConveyorBelt
           running={running}
           rate={lineRate}
+          zones={line.stations.length}
           outlet={running ? undefined : isStopped && shiftActive ? 'STALLED' : '—'}
         />
       </View>
@@ -564,15 +581,16 @@ function FloorLine({
 }
 
 function StationTile({
-  stationName, stationId, worker, present, working, hasTarget, isMatch, selectedFirstName, onPress, onClear,
+  stationName, stationId, role, worker, present, working, hasTarget, isMatch, highlight, selectedFirstName, onPress, onClear,
 }: {
-  stationName: string; stationId: string; worker: Worker | null;
-  present: boolean; working: boolean; hasTarget: boolean; isMatch: boolean;
+  stationName: string; stationId: string; role: string; worker: Worker | null;
+  present: boolean; working: boolean; hasTarget: boolean; isMatch: boolean; highlight: boolean;
   selectedFirstName: string | null; onPress: () => void; onClear: () => void;
 }) {
-  const theme = STATION_THEMES[stationId] ?? STATION_THEMES.s1;
+  const theme = STATION_THEMES[role] ?? STATION_THEMES.s1;
   const borderColor = isMatch ? colors.green : hasTarget ? theme.color : worker && !present ? colors.red : colors.border;
   return (
+    <Spotlight active={highlight} radius={radius.md} style={{ flex: 1 }}>
     <Pressable onPress={onPress} style={({ pressed }) => [styles.station, { borderColor }, pressed && { opacity: 0.85 }]}>
       <View style={styles.stationTop}>
         <View style={[styles.stationCode, { backgroundColor: theme.color }]}>
@@ -603,6 +621,7 @@ function StationTile({
       </View>
       {worker && <MiniBar label="Mood" value={worker.morale} color={present ? colors.green : colors.red} />}
     </Pressable>
+    </Spotlight>
   );
 }
 
@@ -769,7 +788,7 @@ const styles = StyleSheet.create({
   trainStation: { color: colors.text, fontSize: 12, fontWeight: '900' },
   trainProf: { color: colors.cyan, fontSize: 11, fontWeight: '800' },
   trainCost: { color: colors.gold, fontSize: 11, fontWeight: '800' },
-  stationGrid: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  stationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   station: { flex: 1, backgroundColor: 'rgba(8,13,24,0.5)', borderRadius: radius.md, borderWidth: 1.5, padding: 8, gap: 6, minHeight: 132 },
   stationTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stationCode: { width: 22, height: 18, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },

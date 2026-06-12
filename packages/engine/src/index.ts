@@ -12,6 +12,7 @@ export * from './workers/generator';
 export * from './workers/traits';
 export * from './workers/appearance';
 export * from './lines/throughput';
+export * from './lines/skus';
 export * from './lines/assignments';
 export * from './clients/orders';
 export * from './clients/roster';

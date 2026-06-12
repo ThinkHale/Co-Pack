@@ -2,6 +2,7 @@ import { GameState, GameEvent, Order, Client } from '../types';
 import { seededRandom } from '../utils/random';
 import { TICKS_PER_DAY } from '../time';
 import { ClientTier, CLIENT_TIERS, unlockedTiers, processClientUnlocks } from './roster';
+import { pickSkuProfile } from '../lines/skus';
 
 // Reputation pays. A trusted shop earns full price; a struggling one gets squeezed.
 const REP_ON_COMPLETE = 0.03; // recover trust by delivering
@@ -135,5 +136,6 @@ function generateNextOrder(state: GameState, count: number, level: number, tier:
     deadline: state.tick + TICKS_PER_DAY * tier.deadlineShifts,
     revenuePerUnit: +(tier.revenueBase + seededRandom(count * 12345) * tier.revenueSpread).toFixed(2),
     qualityThreshold: 0.9,
+    skuProfileId: pickSkuProfile(tier.id, count).id,
   };
 }

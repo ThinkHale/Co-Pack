@@ -1,4 +1,4 @@
-import { GameState, GameEvent, Line } from '../types';
+import { GameState, GameEvent, Line, stationRole } from '../types';
 import { hasUnlock } from '../progression/unlocks';
 
 // --- Staffing the lines (engine-owned, source of truth) ---
@@ -164,8 +164,9 @@ export function autoAssignCrew(state: GameState): GameState {
       if (bench.length === 0) return s;
       let bestIdx = 0;
       let bestScore = -1;
+      const role = stationRole(s.lines[lineId].stations.find(st => st.id === stationId)!);
       bench.forEach((w, i) => {
-        const prof = w.skills.find(sk => sk.stationId === stationId)?.proficiency ?? 0;
+        const prof = w.skills.find(sk => sk.stationId === role)?.proficiency ?? 0;
         if (prof > bestScore) { bestScore = prof; bestIdx = i; }
       });
       const [worker] = bench.splice(bestIdx, 1);

@@ -1,5 +1,7 @@
 import { GameState, GameEvent } from './types';
 import { processAttendance } from './workers/attendance';
+import { processArrivals } from './workers/hiring';
+import { dealOrdersToLines } from './lines/skus';
 import { processMorale } from './workers/morale';
 import { processRetention } from './workers/retention';
 import { processThroughput } from './lines/throughput';
@@ -75,12 +77,21 @@ export function tick(state: GameState, opts?: { unattended?: boolean }): { state
     s = r.state;
     events.push(...r.events);
 
+    // Advance-ordered workers walk in with the morning crew, guaranteed present.
+    const rh = processArrivals(s);
+    s = rh.state;
+    events.push(...rh.events);
+
     // Remember the lineup and empty the stations. The supervisor re-staffs and
     // rolls the shift only when they're on duty — always during unattended
     // (offline) time, but during live play only if the player opted into
     // Auto-shift. Otherwise, hold for the player's morning standup.
     const previousAssignments = captureAssignments(s);
     s = clearAssignments(s);
+    // The morning deal: each line takes an open order and reconfigures its
+    // stations to that SKU's layout — today's staffing problem is the
+    // product's, not a constant.
+    s = dealOrdersToLines(s);
     s = { ...s, previousAssignments, shiftChallenge: null };
     if (supervisorOnDuty(s, unattended)) {
       s = autoAssignCrew(s);

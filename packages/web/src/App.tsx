@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  GameState, GameEvent, Line, Order, Worker,
+  GameState, GameEvent, Line, Order, Worker, Station,
   nextLineCost, canBuyLine, shoutoutReady, totalPayroll,
   reputationPayMultiplier,
   fillRate, FILL_RATE_TARGET, flightRisk, trainingCost, canTrain,
@@ -17,7 +17,8 @@ import {
   openObjectives, OBJECTIVES, Objective,
   TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
   canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS, UNTRAINED_PROFICIENCY,
-  facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor,
+  stationRole, orderProfile, skuProfile, tomorrowPositions, expectedAttendance, ADVANCE_HIRE_COST,
+  facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor, AUTOMATION_UPKEEP_PER_LEVEL,
   CLIENT_TIERS, FEATURE_UNLOCKS, hasUnlock, canBuyUnlock, FeatureUnlockId,
   nightShiftActive, NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
 } from '@copack/engine';
@@ -166,7 +167,9 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         tone: 'event-good', tag: 'TRAIN',
       };
     case 'WORKER_HIRED':
-      return { text: `${p.workerName} hired${p.referred ? ' (referral)' : ''}. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'HIRE' };
+      return p.preordered
+        ? { text: `${p.workerName} arrived from the agency (advance order).`, tone: 'event-good', tag: 'HIRE' }
+        : { text: `${p.workerName} hired${p.referred ? ' (referral)' : ''}. -$${(p.cost as number).toFixed(0)}`, tone: 'event-good', tag: 'HIRE' };
     case 'WORKER_CONVERTED':
       return { text: `${p.workerName} converted to company employee.`, tone: 'event-good', tag: 'PERM' };
     case 'WORKER_TERMINATED':
@@ -252,16 +255,26 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         text: `Upgrade purchased: ${p.name}. -$${(p.cost as number).toFixed(0)}`,
         tone: 'event-good', tag: 'SHOP',
       };
+    case 'WORKERS_REQUESTED':
+      return {
+        text: `Reserved ${p.count} worker${(p.count as number) > 1 ? 's' : ''} for tomorrow's standup. -$${(p.cost as number).toFixed(0)}`,
+        tone: 'event-good', tag: 'PLAN',
+      };
     case 'NIGHT_SHIFT_TOGGLED':
       return {
         text: `Night shift ${p.nightShift ? 'ON — the plant runs around the clock' : 'off — back to days only'}.`,
         tone: p.nightShift ? 'event-warm' : 'event-neutral', tag: 'NIGHT',
       };
-    case 'OVERHEAD':
+    case 'OVERHEAD': {
+      const parts = ['rent'];
+      if ((p.automation as number) > 0) parts.push('automation');
+      if ((p.supervisorSalary as number) > 0) parts.push('supervisor');
+      if ((p.night as number) > 0) parts.push('nights');
       return {
-        text: `Overhead -$${(p.total as number).toFixed(0)} (rent${(p.supervisorSalary as number) > 0 ? ' + supervisor' : ''}).`,
+        text: `Overhead -$${(p.total as number).toFixed(0)} (${parts.join(' + ')}).`,
         tone: 'event-alert', tag: 'RENT',
       };
+    }
     case 'OBJECTIVE_COMPLETED':
       return { text: `Goal cleared: ${p.label} +$${(p.reward as number).toFixed(0)}`, tone: 'event-good', tag: 'GOAL' };
     case 'CASH_WARNING':
@@ -289,9 +302,9 @@ function Game() {
     selectedWorkerId, selectWorker, assignWorker, unassignStation, hireWorker,
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker, terminateWorker,
-    hireSupervisor, toggleAutoShift, autoFillCrew, buyUnlock, toggleNightShift,
+    hireSupervisor, toggleAutoShift, autoFillCrew, buyUnlock, toggleNightShift, requestWorkers,
     adsOn, adFree, lastAdDay, adVisible, showAd, dismissAd, removeAds, toggleAdsTesting,
-    tutorialDone, tutorialStep, advanceTutorial, finishTutorial,
+    tutorialDone, tutorialActive, tutorialStep, startTutorial, advanceTutorial, finishTutorial,
   } = useGameStore();
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -346,7 +359,7 @@ function Game() {
 
   // Station-first staffing: click an empty station → best-fit picker appears
   // right there. Kills bench↔station round trips on multi-line floors.
-  const [pickerTarget, setPickerTarget] = useState<{ lineId: string; stationId: string; stationName: string } | null>(null);
+  const [pickerTarget, setPickerTarget] = useState<{ lineId: string; stationId: string; stationName: string; role: string } | null>(null);
 
   // Confetti on the golden moments (goals, new clients, upgrades).
   const [confetti, setConfetti] = useState(0);
@@ -395,13 +408,24 @@ function Game() {
 
   // First-play tutorial: do-it-to-advance. Steps watch the live state and move
   // on when the player actually performs the action.
-  const tutorialAuto = !tutorialDone && TUTORIAL_STEPS[tutorialStep]?.auto;
+  const tutorialAuto = tutorialActive && TUTORIAL_STEPS[tutorialStep]?.auto;
   useEffect(() => {
     if (!tutorialAuto) return;
     if (tutorialAuto({ selected: selectedWorkerId, staffed: staffedStations, shiftRunning: !awaitingStaffing && state.tick > 1 })) {
       advanceTutorial();
     }
   }, [tutorialAuto, selectedWorkerId, staffedStations, awaitingStaffing, state.tick, advanceTutorial]);
+
+  // Spotlight: while the guided walkthrough runs, the current step's target gets
+  // a pulsing ring (driven by a body class so deeply-nested targets light up
+  // without threading refs through the whole tree).
+  const tutorialTarget = tutorialActive ? TUTORIAL_STEPS[tutorialStep]?.target : undefined;
+  useEffect(() => {
+    const classes = ['tut-stations', 'tut-start', 'tut-goal'];
+    document.body.classList.remove(...classes);
+    if (tutorialTarget) document.body.classList.add(`tut-${tutorialTarget}`);
+    return () => document.body.classList.remove(...classes);
+  }, [tutorialTarget]);
 
   const lineCost = nextLineCost(state);
   const canAffordLine = canBuyLine(state);
@@ -525,7 +549,7 @@ function Game() {
           </div>
         </header>
 
-        {tab === 'floor' && !tutorialDone && (
+        {tab === 'floor' && tutorialActive && (
           <TutorialCard
             step={tutorialStep}
             onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
@@ -583,6 +607,7 @@ function Game() {
                   line={line}
                   workers={state.workers}
                   lineRate={lineThroughput(state, line)}
+                  runningOrder={state.activeOrders.find(o => o.id === line.orderId)}
                   shiftActive={shiftActive}
                   paused={paused}
                   supportLocked={!hasUnlock(state, 'support')}
@@ -590,7 +615,7 @@ function Game() {
                   onSelectWorker={selectWorker}
                   onAssign={assignWorker}
                   onUnassign={unassignStation}
-                  onOpenPicker={(stationId, stationName) => setPickerTarget({ lineId, stationId, stationName })}
+                  onOpenPicker={(stationId, stationName, role) => setPickerTarget({ lineId, stationId, stationName, role })}
                 />
               ))}
 
@@ -651,19 +676,26 @@ function Game() {
         )}
 
         {tab === 'office' && (
-          <FrontOfficeTab
+          <OfficeTab
+            state={state}
+            onRequestWorkers={requestWorkers}
+            onHireSupervisor={hireSupervisor}
+            onToggleAutoShift={toggleAutoShift}
+            onToggleNightShift={toggleNightShift}
+            onPromoteLead={promoteLead}
+            onConvert={convertWorker}
+            onTerminate={onTerminateWorker}
+          />
+        )}
+
+        {tab === 'corporate' && (
+          <CorporateTab
             state={state}
             lineCost={lineCost}
             canAffordLine={canAffordLine}
             onBuyLine={buyLine}
             onUpgradeAutomation={upgradeAutomation}
-            onPromoteLead={promoteLead}
-            onConvert={convertWorker}
-            onTerminate={onTerminateWorker}
-            onHireSupervisor={hireSupervisor}
-            onToggleAutoShift={toggleAutoShift}
             onBuyUnlock={buyUnlock}
-            onToggleNightShift={toggleNightShift}
             adsOn={adsOn}
             adFree={adFree}
             onToggleAdsTesting={toggleAdsTesting}
@@ -690,6 +722,12 @@ function Game() {
         />
       )}
       {confetti > 0 && <ConfettiBurst burst={confetti} />}
+      {!tutorialDone && !tutorialActive && (
+        <WelcomeModal
+          onStart={() => { if (soundOn) playSound('click'); finishTutorial(); }}
+          onTutorial={() => { if (soundOn) playSound('click'); setTab('floor'); startTutorial(); }}
+        />
+      )}
       {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && (
@@ -709,7 +747,8 @@ function TabBar({
     { key: 'floor', label: 'Floor', icon: '▚' },
     { key: 'orders', label: 'Orders', icon: '◫' },
     { key: 'staffing', label: 'Staffing', icon: '☰' },
-    { key: 'office', label: 'Office', icon: '★' },
+    { key: 'office', label: 'Office', icon: '▦' },
+    { key: 'corporate', label: 'Corporate', icon: '★' },
   ];
   return (
     <nav className="tab-bar" aria-label="Main sections">
@@ -905,6 +944,7 @@ function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void
   return (
     <button
       type="button"
+      data-tut="goal"
       onClick={onGoTo}
       title={next.hint}
       className="game-panel goal-strip mb-4 flex w-full items-center gap-3 p-3 text-left"
@@ -955,6 +995,9 @@ function OrderHero({
             <span className={`rep-chip ${repLow ? 'low' : ''}`}>
               {clientName} · Rep {pct(reputation)}
             </span>
+            <span className="rep-chip" title={orderProfile(order).blurb}>
+              {orderProfile(order).name} · {orderProfile(order).roles.length} crew
+            </span>
           </div>
           <p className="mt-3 max-w-2xl text-sm font-semibold text-slate-900/70">
             Pays <strong>${effectivePay.toFixed(2)}</strong>/unit at current reputation
@@ -991,13 +1034,14 @@ function OrderHero({
 const WORKER_DND_MIME = 'application/x-copack-worker';
 
 function FloorLine({
-  lineId, line, workers, lineRate, shiftActive, paused, supportLocked, selectedWorkerId,
+  lineId, line, workers, lineRate, runningOrder, shiftActive, paused, supportLocked, selectedWorkerId,
   onSelectWorker, onAssign, onUnassign, onOpenPicker,
 }: {
   lineId: string;
   line: Line;
   workers: Record<string, Worker>;
   lineRate: number;
+  runningOrder?: Order;
   shiftActive: boolean;
   paused: boolean;
   supportLocked: boolean;
@@ -1005,7 +1049,7 @@ function FloorLine({
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
-  onOpenPicker: (stationId: string, stationName: string) => void;
+  onOpenPicker: (stationId: string, stationName: string, role: string) => void;
 }) {
   const presentCount = line.stations.filter(
     s => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift
@@ -1030,6 +1074,14 @@ function FloorLine({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="line-tag" style={{ '--station-color': '#7dd3fc' } as React.CSSProperties}>{line.name}</span>
+          {runningOrder && (
+            <span
+              className="sku-chip"
+              title={`${orderProfile(runningOrder).name} — ${orderProfile(runningOrder).blurb} Needs ${line.stations.length} crew.`}
+            >
+              {runningOrder.sku} · {orderProfile(runningOrder).short}
+            </span>
+          )}
           {line.automation > 0 && <span className="auto-chip">⚙ L{line.automation}</span>}
           {line.leadId && workers[line.leadId] && <span className="tag-lead">LEAD</span>}
         </div>
@@ -1052,8 +1104,9 @@ function FloorLine({
             const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
             const present = worker?.presentThisShift ?? false;
             const hasTarget = selectedWorkerId !== null;
-            const isSkillMatch = selectedWorker?.skills.some(sk => sk.stationId === station.id) ?? false;
-            const theme = STATION_THEMES[station.id] ?? STATION_THEMES.s1;
+            const role = stationRole(station);
+            const isSkillMatch = selectedWorker?.skills.some(sk => sk.stationId === role) ?? false;
+            const theme = STATION_THEMES[role] ?? STATION_THEMES.s1;
 
             return (
               <StationTile
@@ -1068,7 +1121,7 @@ function FloorLine({
                 isSkillMatch={isSkillMatch}
                 selectedWorker={selectedWorker}
                 onPlace={(wid) => onAssign(wid, lineId, station.id)}
-                onSelect={() => (worker ? onSelectWorker(worker.id) : onOpenPicker(station.id, station.name))}
+                onSelect={() => (worker ? onSelectWorker(worker.id) : onOpenPicker(station.id, station.name, role))}
                 onUnassign={(event) => {
                   event.stopPropagation();
                   onUnassign(lineId, station.id);
@@ -1083,7 +1136,7 @@ function FloorLine({
         <div className="belt-lane" aria-hidden="true">
           <div className="belt-tread" />
           <div className="belt-stage-marks">
-            <span /><span /><span />
+            {line.stations.map(st => <span key={st.id} />)}
           </div>
           {running && Array.from({ length: boxCount }).map((_, i) => (
             <span
@@ -1525,7 +1578,7 @@ function MobileCrewDock({
           {canStart && presentBench > 0 && <small>{presentBench} home risk</small>}
         </div>
         {canStart ? (
-          <button type="button" onClick={onStartShift} className="mobile-start-button">
+          <button type="button" data-tut="start" onClick={onStartShift} className="mobile-start-button">
             Start
           </button>
         ) : (
@@ -1923,32 +1976,115 @@ function ProgramToggle({
 // FRONT OFFICE TAB — capital decisions: lines, automation, leads, conversions
 // ---------------------------------------------------------------------------
 
-function FrontOfficeTab({
-  state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onPromoteLead, onConvert, onTerminate,
-  onHireSupervisor, onToggleAutoShift, onBuyUnlock, onToggleNightShift, adsOn, adFree, onToggleAdsTesting, onReset,
+// ---------------------------------------------------------------------------
+// OFFICE TAB — day-to-day operations & planning
+// ---------------------------------------------------------------------------
+
+// Tomorrow, today: the weather forecast, the SKU lineup the board will deal,
+// and whether your roster covers it — with the agency advance-order as the
+// payoff for reading it. This is where "the workforce is the critical
+// element" becomes a planning game instead of a morning surprise.
+function PlanningPanel({ state, onRequestWorkers }: { state: GameState; onRequestWorkers: (count?: number) => void }) {
+  const tomorrow = dayCondition(state.day + 1);
+  const positions = tomorrowPositions(state);
+  const roster = Object.keys(state.workers).length;
+  const expected = expectedAttendance(state, 1);
+  const arriving = state.pendingHires;
+  const projected = expected + arriving;
+  const short = Math.ceil(positions - projected);
+  const lineCount = Object.values(state.lines).filter(l => l.active).length;
+  const lineup = [...state.activeOrders]
+    .filter(o => o.unitsCompleted < o.units)
+    .sort((a, b) => a.deadline - b.deadline)
+    .slice(0, lineCount);
+
+  return (
+    <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="eyebrow">Planning · tomorrow</div>
+          <h2 className="text-2xl font-black text-white">Day {state.day + 2} Forecast</h2>
+        </div>
+        <div className={`forecast-chip tone-${tomorrow.tone}`}>
+          {tomorrow.label}
+          <small>{tomorrow.note}{tomorrow.modifier !== 0 ? ` · attendance ${tomorrow.modifier > 0 ? '+' : ''}${Math.round(tomorrow.modifier * 100)}%` : ''}</small>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div>
+          <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">Tomorrow's SKU lineup</div>
+          <div className="mt-2 space-y-1.5">
+            {lineup.map(o => (
+              <div key={o.id} className="planning-row">
+                <span className="font-black text-white">{o.sku}</span>
+                <span className="text-slate-300">{orderProfile(o).name}</span>
+                <span className="text-cyan-200">{orderProfile(o).roles.length} crew</span>
+              </div>
+            ))}
+            {lineup.length < lineCount && (
+              <div className="planning-row opacity-70">
+                <span className="font-black text-white">New contract</span>
+                <span className="text-slate-300">dealt in the morning</span>
+                <span className="text-cyan-200">~3 crew</span>
+              </div>
+            )}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">Labor coverage</div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="staffing-stat"><span>Positions</span><strong>{positions}</strong></div>
+            <div className="staffing-stat"><span>Expected in</span><strong>~{expected.toFixed(1)}</strong></div>
+            <div className="staffing-stat"><span>Reserved</span><strong>{arriving}</strong></div>
+          </div>
+          {short > 0 ? (
+            <div className="mt-2 text-xs font-black uppercase tracking-[0.1em] text-amber-200">
+              ⚠ Likely short {short} — reserve tonight or scramble tomorrow.
+            </div>
+          ) : (
+            <div className="mt-2 text-xs font-black uppercase tracking-[0.1em] text-emerald-200">
+              Coverage looks good ({roster} on roster).
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => onRequestWorkers(1)}
+            disabled={state.cash < ADVANCE_HIRE_COST}
+            className="game-button game-button-hire mt-3 w-full"
+            title="Reserved tonight at the advance rate — guaranteed on the floor at tomorrow's standup"
+          >
+            Reserve a worker for tomorrow · {formatCurrency(ADVANCE_HIRE_COST)}
+          </button>
+          <div className="mt-1 text-center text-[0.66rem] font-bold text-slate-500">
+            Advance rate beats the {formatCurrency(HIRE_COST)} same-day walk-in — and arrivals never no-show day one.
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OfficeTab({
+  state, onRequestWorkers, onHireSupervisor, onToggleAutoShift, onToggleNightShift,
+  onPromoteLead, onConvert, onTerminate,
 }: {
   state: GameState;
-  lineCost: number;
-  canAffordLine: boolean;
-  onBuyLine: () => void;
-  onUpgradeAutomation: (lineId: string) => void;
+  onRequestWorkers: (count?: number) => void;
+  onHireSupervisor: () => void;
+  onToggleAutoShift: () => void;
+  onToggleNightShift: () => void;
   onPromoteLead: (workerId: string, lineId: string) => void;
   onConvert: (workerId: string) => void;
   onTerminate: (worker: Worker) => void;
-  onHireSupervisor: () => void;
-  onToggleAutoShift: () => void;
-  onBuyUnlock: (id: FeatureUnlockId) => void;
-  onToggleNightShift: () => void;
-  adsOn: boolean;
-  adFree: boolean;
-  onToggleAdsTesting: () => void;
-  onReset: () => void;
 }) {
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter(w => !w.permanent);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <PlanningPanel state={state} onRequestWorkers={onRequestWorkers} />
+
       <section className="game-panel p-4 sm:p-5 lg:col-span-2">
         <div className="eyebrow">Operations</div>
         <h2 className="text-2xl font-black text-white">Floor Supervisor</h2>
@@ -1999,85 +2135,6 @@ function FrontOfficeTab({
       </section>
 
       <section className="game-panel p-4 sm:p-5 lg:col-span-2">
-        <div className="eyebrow">Upgrades</div>
-        <h2 className="text-2xl font-black text-white">Capabilities</h2>
-        <p className="mt-1 text-sm font-semibold text-slate-300">
-          One-time purchases that open up new levers. Earned, not given.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          {FEATURE_UNLOCKS.map(u => {
-            const owned = state.unlocks.includes(u.id);
-            return (
-              <div key={u.id} className={`office-line ${owned ? '' : 'opacity-90'}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-black text-white">{owned ? u.name : `🔒 ${u.name}`}</span>
-                  {owned && <span className="program-pill on">OWNED</span>}
-                </div>
-                <div className="mt-1 text-xs font-semibold text-slate-300">{u.blurb}</div>
-                {!owned && (
-                  <>
-                    {u.requiresSupervisor && !state.hasSupervisor && (
-                      <div className="mt-1 text-xs font-black uppercase tracking-[0.1em] text-amber-200">
-                        Requires a floor supervisor
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onBuyUnlock(u.id)}
-                      disabled={!canBuyUnlock(state, u.id)}
-                      className="game-button game-button-auto mt-2 w-full"
-                    >
-                      Unlock · {formatCurrency(u.cost)}
-                    </button>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="game-panel p-4 sm:p-5">
-        <div className="eyebrow">Capacity</div>
-        <h2 className="text-2xl font-black text-white">Production Lines</h2>
-        <button
-          type="button"
-          onClick={onBuyLine}
-          disabled={!canAffordLine}
-          className="game-button game-button-line mt-3 w-full"
-        >
-          Open Line {String.fromCharCode(64 + state.lineCount + 1)} · {formatCurrency(lineCost)}
-        </button>
-
-        <div className="mt-4 space-y-3">
-          {lines.map(([lineId, line]) => {
-            const cost = automationCost(line);
-            const upgradable = canAutomate(line) && state.cash >= cost;
-            return (
-              <div key={lineId} className="office-line">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-base font-black text-white">{line.name}</span>
-                  <span className="auto-chip">+{Math.round((automationMultiplier(line) - 1) * 100)}% output</span>
-                </div>
-                <div className="mt-1 text-xs font-bold text-slate-300">
-                  Automation L{line.automation}/{AUTOMATION_MAX_LEVEL}
-                  {line.leadId && state.workers[line.leadId] ? ` · Lead: ${state.workers[line.leadId].name}` : ' · No lead'}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onUpgradeAutomation(lineId)}
-                  disabled={!upgradable}
-                  className="game-button game-button-auto mt-2 w-full"
-                >
-                  {canAutomate(line) ? `Upgrade automation · ${formatCurrency(cost)}` : 'Fully automated'}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="game-panel p-4 sm:p-5">
         <div className="eyebrow">People moves</div>
         <h2 className="text-2xl font-black text-white">Leads & Conversions</h2>
         <p className="mt-1 text-sm font-semibold text-slate-300">
@@ -2144,6 +2201,112 @@ function FrontOfficeTab({
         </div>
         <div className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
           {temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CORPORATE TAB — capital: upgrades, capacity, settings
+// ---------------------------------------------------------------------------
+
+function CorporateTab({
+  state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onBuyUnlock,
+  adsOn, adFree, onToggleAdsTesting, onReset,
+}: {
+  state: GameState;
+  lineCost: number;
+  canAffordLine: boolean;
+  onBuyLine: () => void;
+  onUpgradeAutomation: (lineId: string) => void;
+  onBuyUnlock: (id: FeatureUnlockId) => void;
+  adsOn: boolean;
+  adFree: boolean;
+  onToggleAdsTesting: () => void;
+  onReset: () => void;
+}) {
+  const lines = Object.entries(state.lines);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+        <div className="eyebrow">Upgrades</div>
+        <h2 className="text-2xl font-black text-white">Capabilities</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-300">
+          One-time purchases that open up new levers. Earned, not given.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {FEATURE_UNLOCKS.map(u => {
+            const owned = state.unlocks.includes(u.id);
+            return (
+              <div key={u.id} className={`office-line ${owned ? '' : 'opacity-90'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black text-white">{owned ? u.name : `🔒 ${u.name}`}</span>
+                  {owned && <span className="program-pill on">OWNED</span>}
+                </div>
+                <div className="mt-1 text-xs font-semibold text-slate-300">{u.blurb}</div>
+                {!owned && (
+                  <>
+                    {u.requiresSupervisor && !state.hasSupervisor && (
+                      <div className="mt-1 text-xs font-black uppercase tracking-[0.1em] text-amber-200">
+                        Requires a floor supervisor
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onBuyUnlock(u.id)}
+                      disabled={!canBuyUnlock(state, u.id)}
+                      className="game-button game-button-auto mt-2 w-full"
+                    >
+                      Unlock · {formatCurrency(u.cost)}
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+        <div className="eyebrow">Capacity</div>
+        <h2 className="text-2xl font-black text-white">Production Lines</h2>
+        <button
+          type="button"
+          onClick={onBuyLine}
+          disabled={!canAffordLine}
+          className="game-button game-button-line mt-3 w-full"
+        >
+          Open Line {String.fromCharCode(64 + state.lineCount + 1)} · {formatCurrency(lineCost)}
+        </button>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {lines.map(([lineId, line]) => {
+            const cost = automationCost(line);
+            const upgradable = canAutomate(line) && state.cash >= cost;
+            return (
+              <div key={lineId} className="office-line">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-base font-black text-white">{line.name}</span>
+                  <span className="auto-chip">+{Math.round((automationMultiplier(line) - 1) * 100)}% output</span>
+                </div>
+                <div className="mt-1 text-xs font-bold text-slate-300">
+                  Automation L{line.automation}/{AUTOMATION_MAX_LEVEL}
+                  {line.automation > 0 && ` · upkeep ${formatCurrency(line.automation * AUTOMATION_UPKEEP_PER_LEVEL)}/shift`}
+                  {line.leadId && state.workers[line.leadId] ? ` · Lead: ${state.workers[line.leadId].name}` : ' · No lead'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUpgradeAutomation(lineId)}
+                  disabled={!upgradable}
+                  className="game-button game-button-auto mt-2 w-full"
+                >
+                  {canAutomate(line) ? `Upgrade automation · ${formatCurrency(cost)}` : 'Fully automated'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -2250,7 +2413,7 @@ function OrdersStrip({ orders, tick, clients }: { orders: Order[]; tick: number;
                 <div style={{ width: `${Math.min(100, Math.max(2, progress * 100))}%` }} />
               </div>
               <div className="order-mini-meta">
-                {clients[o.clientId]?.name ?? o.clientId} · {Math.round(o.unitsCompleted)} / {o.units} · ${o.revenuePerUnit.toFixed(2)}/u
+                {clients[o.clientId]?.name ?? o.clientId} · {orderProfile(o).short} · {Math.round(o.unitsCompleted)} / {o.units} · ${o.revenuePerUnit.toFixed(2)}/u
               </div>
             </div>
           );
@@ -2461,7 +2624,7 @@ function MorningBanner({
         >
           Repeat yesterday
         </button>
-        <button type="button" onClick={onStart} className="game-button game-button-primary">
+        <button type="button" data-tut="start" onClick={onStart} className="game-button game-button-primary">
           Start shift ▸
         </button>
       </div>
@@ -2494,14 +2657,14 @@ function PlacingBar({ worker, onCancel }: { worker: Worker; onCancel: () => void
 function StationPicker({
   target, benchWorkers, onPick, onClose,
 }: {
-  target: { lineId: string; stationId: string; stationName: string };
+  target: { lineId: string; stationId: string; stationName: string; role: string };
   benchWorkers: Worker[];
   onPick: (workerId: string) => void;
   onClose: () => void;
 }) {
   const candidates = benchWorkers
     .filter(w => w.presentThisShift)
-    .map(w => ({ worker: w, prof: w.skills.find(sk => sk.stationId === target.stationId)?.proficiency ?? null }))
+    .map(w => ({ worker: w, prof: w.skills.find(sk => sk.stationId === target.role)?.proficiency ?? null }))
     .sort((a, b) => (b.prof ?? UNTRAINED_PROFICIENCY) - (a.prof ?? UNTRAINED_PROFICIENCY));
 
   return (
@@ -2566,42 +2729,77 @@ function useBump(value: number): boolean {
   return bump;
 }
 
-// First-play walkthrough. `auto` steps advance when the player does the thing;
-// the rest wait for "Got it". Skippable at any point, never shown again.
+// Guided walkthrough (entered from the Welcome modal). `auto` steps advance
+// when the player does the thing; the rest wait for "Got it". `target` lights
+// up the button they need to press next. Skippable at any point.
 const TUTORIAL_STEPS: {
   title: string;
   text: string;
+  target?: 'stations' | 'start' | 'goal';
   auto?: (ctx: { selected: string | null; staffed: number; shiftRunning: boolean }) => boolean;
 }[] = [
   {
-    title: 'Welcome to the floor, boss',
-    text: 'Your crew is waiting on the bench. Tap a worker card to pick them up.',
-    auto: ctx => ctx.selected !== null || ctx.staffed > 0,
-  },
-  {
-    title: 'Put them to work',
-    text: 'Now tap an empty station on Line A to seat them there.',
+    title: 'Staff your first station',
+    text: 'Tap a glowing station. Your crew is on the bench — pick whoever fits best (the list sorts by skill for you).',
+    target: 'stations',
     auto: ctx => ctx.staffed >= 1,
   },
   {
-    title: 'Cover every station',
-    text: 'A line only produces when Induct, Pack, AND Stage are covered. Seat the other two.',
+    title: 'Cover all three stations',
+    text: 'A line only produces when Induct, Pack, AND Stage are all staffed. Fill the other two glowing slots.',
+    target: 'stations',
     auto: ctx => ctx.staffed >= 3,
   },
   {
     title: 'Start the shift',
-    text: 'Hit "Start shift ▸". One shift = one 10-hour day — payroll and rent come out at the end of it.',
+    text: 'Hit the glowing Start button. One shift = one 10-hour day — payroll and rent settle at the end of it.',
+    target: 'start',
     auto: ctx => ctx.shiftRunning,
   },
   {
     title: 'Cartons are rolling',
-    text: 'The belt below the stations shows your live rate. The contract on the Orders tab pays per unit on delivery — beat its deadline or eat a reputation hit.',
+    text: 'The belt under the stations shows your live rate. Your contract on the Orders tab pays per unit on delivery — beat the deadline or take a reputation hit.',
   },
   {
-    title: 'Chase the next goal',
-    text: 'The NEXT GOAL strip up top always points at your best move, and it pays cash. Every shift you re-staff from whoever shows up. Good luck, boss.',
+    title: 'Your people decide everything',
+    text: 'Tomorrow some of this crew won’t show. You can’t force attendance — but you can pay well, lift morale, and build a deep bench. The glowing Next Goal always points at your best next move. Good luck, boss.',
+    target: 'goal',
   },
 ];
+
+// The first thing a new boss sees: the pitch, and the fork — dive in, or be
+// walked through it. Frames the game's core tension up front.
+function WelcomeModal({ onStart, onTutorial }: { onStart: () => void; onTutorial: () => void }) {
+  return (
+    <div className="overlay" style={{ zIndex: 85 }}>
+      <div className="overlay-card welcome-card">
+        <div className="eyebrow">Welcome to</div>
+        <h2 className="welcome-title">Co-Pack</h2>
+        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-200">
+          You run a contract packaging plant. Lines, automation, and capital are yours to
+          command — but the input that decides whether you ship or sink is the one you
+          control <strong className="text-white">least</strong>: your workforce.
+        </p>
+        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-300">
+          People no-show, burn out, quit, or shine. You can’t make them clock in — only
+          read them, pay them right, and keep a bench deep enough to absorb the morning
+          you’re three bodies short. Master the crew and the cartons take care of themselves.
+        </p>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={onTutorial} className="game-button game-button-primary py-3">
+            Take the tutorial
+          </button>
+          <button type="button" onClick={onStart} className="game-button game-button-muted py-3">
+            Start now
+          </button>
+        </div>
+        <p className="mt-3 text-center text-xs font-bold text-slate-500">
+          The tutorial highlights each step — about a minute.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function TutorialCard({ step, onNext, onSkip }: { step: number; onNext: () => void; onSkip: () => void }) {
   const s = TUTORIAL_STEPS[Math.min(step, TUTORIAL_STEPS.length - 1)];

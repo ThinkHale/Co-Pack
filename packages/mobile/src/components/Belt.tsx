@@ -9,8 +9,8 @@ import { colors } from '../theme';
 // the outlet chip reads out what the lane ships. (The previous belt translated
 // parcels by `100/parcels` POINTS — not track width — so they barely moved.)
 export function ConveyorBelt({
-  running, rate, height = 34, outlet,
-}: { running: boolean; rate: number; height?: number; outlet?: string }) {
+  running, rate, height = 34, outlet, zones = 3,
+}: { running: boolean; rate: number; height?: number; outlet?: string; zones?: number }) {
   const [width, setWidth] = useState(0);
   const boxCount = Math.max(3, Math.min(8, Math.round(2 + rate * 4)));
   const durationMs = Math.max(1600, 5200 - rate * 2600);
@@ -20,11 +20,11 @@ export function ConveyorBelt({
       style={[styles.track, { height }, !running && styles.trackStopped]}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
     >
-      {/* Stage-zone separators aligned with the three stations above. */}
+      {/* Stage-zone separators aligned with the stations above. */}
       <View style={styles.zones} pointerEvents="none">
-        <View style={styles.zone} />
-        <View style={styles.zone} />
-        <View style={[styles.zone, { borderRightWidth: 0 }]} />
+        {Array.from({ length: zones }).map((_, i) => (
+          <View key={i} style={[styles.zone, i === zones - 1 && { borderRightWidth: 0 }]} />
+        ))}
       </View>
 
       {width > 0 && running && Array.from({ length: boxCount }).map((_, i) => (
