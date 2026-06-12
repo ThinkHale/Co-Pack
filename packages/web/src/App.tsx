@@ -17,7 +17,7 @@ import {
   openObjectives, OBJECTIVES, Objective,
   TICKS_PER_DAY, TICKS_PER_SHIFT, shiftRemainingTicks, shiftElapsedTicks, dayOfTick, weekday,
   canRepeatStaffing, SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS, UNTRAINED_PROFICIENCY,
-  facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor,
+  facilityOverhead, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT, canHireSupervisor, AUTOMATION_UPKEEP_PER_LEVEL,
   CLIENT_TIERS, FEATURE_UNLOCKS, hasUnlock, canBuyUnlock, FeatureUnlockId,
   nightShiftActive, NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
 } from '@copack/engine';
@@ -257,11 +257,16 @@ function formatEvent(e: GameEvent): { text: string; tone: string; tag: string } 
         text: `Night shift ${p.nightShift ? 'ON — the plant runs around the clock' : 'off — back to days only'}.`,
         tone: p.nightShift ? 'event-warm' : 'event-neutral', tag: 'NIGHT',
       };
-    case 'OVERHEAD':
+    case 'OVERHEAD': {
+      const parts = ['rent'];
+      if ((p.automation as number) > 0) parts.push('automation');
+      if ((p.supervisorSalary as number) > 0) parts.push('supervisor');
+      if ((p.night as number) > 0) parts.push('nights');
       return {
-        text: `Overhead -$${(p.total as number).toFixed(0)} (rent${(p.supervisorSalary as number) > 0 ? ' + supervisor' : ''}).`,
+        text: `Overhead -$${(p.total as number).toFixed(0)} (${parts.join(' + ')}).`,
         tone: 'event-alert', tag: 'RENT',
       };
+    }
     case 'OBJECTIVE_COMPLETED':
       return { text: `Goal cleared: ${p.label} +$${(p.reward as number).toFixed(0)}`, tone: 'event-good', tag: 'GOAL' };
     case 'CASH_WARNING':
@@ -2079,6 +2084,7 @@ function FrontOfficeTab({
                 </div>
                 <div className="mt-1 text-xs font-bold text-slate-300">
                   Automation L{line.automation}/{AUTOMATION_MAX_LEVEL}
+                  {line.automation > 0 && ` · upkeep ${formatCurrency(line.automation * AUTOMATION_UPKEEP_PER_LEVEL)}/shift`}
                   {line.leadId && state.workers[line.leadId] ? ` · Lead: ${state.workers[line.leadId].name}` : ' · No lead'}
                 </div>
                 <button

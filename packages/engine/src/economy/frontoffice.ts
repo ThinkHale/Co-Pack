@@ -20,6 +20,10 @@ export function toggleOvertime(state: GameState): { state: GameState; events: Ga
 export const AUTOMATION_BONUS_PER_LEVEL = 0.18; // +18% line output per level
 export const AUTOMATION_MAX_LEVEL = 5;
 const AUTOMATION_BASE_COST = 5500;
+// Machines aren't free output forever: each level costs maintenance every
+// shift. This is what keeps "automate vs. hire" a real decision — and keeps
+// late-game margins from going vertical once a line hits L5.
+export const AUTOMATION_UPKEEP_PER_LEVEL = 75;
 
 export function automationCost(line: Line): number {
   return Math.round(AUTOMATION_BASE_COST * (line.automation + 1) * 1.4);

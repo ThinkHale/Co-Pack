@@ -90,8 +90,13 @@ export function formatEvent(e: GameEvent): EventLine {
       return { text: `Upgrade purchased: ${p.name}. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'SHOP' };
     case 'NIGHT_SHIFT_TOGGLED':
       return { text: `Night shift ${p.nightShift ? 'ON — the plant runs around the clock' : 'off — back to days only'}.`, tone: p.nightShift ? 'warm' : 'neutral', tag: 'NIGHT' };
-    case 'OVERHEAD':
-      return { text: `Overhead -$${(p.total as number).toFixed(0)} (rent${(p.supervisorSalary as number) > 0 ? ' + supervisor' : ''}).`, tone: 'alert', tag: 'RENT' };
+    case 'OVERHEAD': {
+      const parts = ['rent'];
+      if ((p.automation as number) > 0) parts.push('automation');
+      if ((p.supervisorSalary as number) > 0) parts.push('supervisor');
+      if ((p.night as number) > 0) parts.push('nights');
+      return { text: `Overhead -$${(p.total as number).toFixed(0)} (${parts.join(' + ')}).`, tone: 'alert', tag: 'RENT' };
+    }
     case 'OBJECTIVE_COMPLETED':
       return { text: `Goal cleared: ${p.label} +$${(p.reward as number).toFixed(0)}`, tone: 'good', tag: 'GOAL' };
     case 'CASH_WARNING':

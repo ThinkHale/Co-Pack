@@ -6,7 +6,7 @@ import {
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
   LEAD_COST, conversionCost,
   canHireSupervisor, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT,
-  FEATURE_UNLOCKS, canBuyUnlock, hasUnlock,
+  FEATURE_UNLOCKS, canBuyUnlock, hasUnlock, AUTOMATION_UPKEEP_PER_LEVEL,
   NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
 } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
@@ -135,6 +135,7 @@ export function OfficeScreen({ state }: { state: GameState }) {
                 </View>
                 <Text style={[shared.bodyMute, { marginTop: 3 }]}>
                   Automation L{line.automation}/{AUTOMATION_MAX_LEVEL}
+                  {line.automation > 0 ? ` · upkeep ${formatCurrency(line.automation * AUTOMATION_UPKEEP_PER_LEVEL)}/shift` : ''}
                   {line.leadId && state.workers[line.leadId] ? ` · Lead: ${state.workers[line.leadId].name}` : ' · No lead'}
                 </Text>
                 <Button

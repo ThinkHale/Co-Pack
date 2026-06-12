@@ -50,7 +50,7 @@ export function createInitialState(): GameState {
     id: 'ord1', clientId: 'c1', sku: 'SKU-001',
     units: 300, unitsCompleted: 0,
     deadline: TICKS_PER_DAY * 2, // two shifts to land the first contract
-    revenuePerUnit: 6.25,
+    revenuePerUnit: 4.10,
     qualityThreshold: 0.9,
   };
 
