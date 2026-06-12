@@ -1,8 +1,24 @@
 import { GameState, GameEvent, Worker } from '../types';
 import { seededRandom, hashString } from '../utils/random';
-import { dayAttendanceModifier } from '../events/conditions';
+import { dayAttendanceModifier, dayCondition } from '../events/conditions';
 import { payAttendanceBonus, attendanceProgramBonus } from '../economy/staffing';
 import { workerAttendanceMod } from './traits';
+
+/**
+ * Expected turnout for a future day (default: tomorrow) — the sum of each
+ * roster worker's show-up probability under that day's forecast condition,
+ * the current pay policy, and any standing programs. Powers the planning
+ * panel's "you'll probably be short" warning. Advance-ordered arrivals are
+ * guaranteed, so add state.pendingHires on top of this.
+ */
+export function expectedAttendance(state: GameState, dayOffset = 1): number {
+  const condition = dayCondition(state.day + dayOffset);
+  const base = condition.modifier + attendanceProgramBonus(state);
+  return Object.values(state.workers).reduce((sum, worker) => {
+    const mod = base + payAttendanceBonus(worker, state.payPolicy) + workerAttendanceMod(worker);
+    return sum + attendanceProbability(worker, mod);
+  }, 0);
+}
 
 export function processAttendance(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];

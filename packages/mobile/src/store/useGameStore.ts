@@ -12,6 +12,7 @@ import {
   hireSupervisor as engineHireSupervisor, setAutoShift as engineSetAutoShift,
   autoAssignCrew,
   toggleOvertime as engineToggleOvertime,
+  requestWorkers as engineRequestWorkers,
   toggleNightShift as engineToggleNightShift,
   purchaseUnlock as enginePurchaseUnlock, FeatureUnlockId,
 } from '@copack/engine';
@@ -21,7 +22,7 @@ import {
 } from '../lib/persistence';
 
 export type SpeedSetting = 1 | 4 | 16;
-export type TabKey = 'floor' | 'orders' | 'staffing' | 'office';
+export type TabKey = 'floor' | 'orders' | 'staffing' | 'office' | 'corporate';
 
 const DEFAULT_SPEED: SpeedSetting = 4;
 
@@ -51,6 +52,7 @@ interface GameStore {
   repeatStaffing: () => void;
   startShift: () => void;
   hireWorker: () => void;
+  requestWorkers: (count?: number) => void;
   buyLine: () => void;
   toggleOvertime: () => void;
   shoutout: () => void;
@@ -189,6 +191,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   hireWorker: () => set((store) => applyEngineResult(store, engineHire(store.state))),
+
+  // Agency advance order: reserved tonight, on the floor at tomorrow's standup.
+  requestWorkers: (count = 1) =>
+    set((store) => applyEngineResult(store, engineRequestWorkers(store.state, count))),
 
   buyLine: () => set((store) => applyEngineResult(store, purchaseLine(store.state))),
 

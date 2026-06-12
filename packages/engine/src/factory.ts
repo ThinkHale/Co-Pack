@@ -39,10 +39,11 @@ export function createInitialState(): GameState {
   const line1: Line = {
     id: 'line1', name: 'Line A', active: true, automation: 0,
     supportWorkerIds: [],
+    orderId: 'ord1',
     stations: [
-      { id: 's1', name: 'Induct',  throughputMultiplier: 1 },
-      { id: 's2', name: 'Pack',    throughputMultiplier: 1 },
-      { id: 's3', name: 'Stage',   throughputMultiplier: 1 },
+      { id: 's1', name: 'Induct',  role: 's1', throughputMultiplier: 1 },
+      { id: 's2', name: 'Pack',    role: 's2', throughputMultiplier: 1 },
+      { id: 's3', name: 'Stage',   role: 's3', throughputMultiplier: 1 },
     ],
   };
 
@@ -52,6 +53,7 @@ export function createInitialState(): GameState {
     deadline: TICKS_PER_DAY * 2, // two shifts to land the first contract
     revenuePerUnit: 4.10,
     qualityThreshold: 0.9,
+    skuProfileId: 'standard',
   };
 
   const client1: Client = {
@@ -73,6 +75,7 @@ export function createInitialState(): GameState {
     autoShift: false,
     unlocks: [],
     nightShift: false,
+    pendingHires: 0,
     nextWorkerId: 4, // w1..w3 already taken
     staffingHistory: [],
     completedObjectives: [],

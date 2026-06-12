@@ -100,6 +100,13 @@ import {
   NIGHT_OUTPUT_BONUS,
   NIGHT_LABOR_RATE,
   NIGHT_OVERHEAD,
+  pickSkuProfile,
+  dealOrdersToLines,
+  tomorrowPositions,
+  stationRole,
+  requestWorkers,
+  ADVANCE_HIRE_COST,
+  expectedAttendance,
   GameState,
   Worker,
   Order,
@@ -1358,5 +1365,84 @@ describe('hiring id safety (regression: no reuse after a quit)', () => {
     expect(idsBefore.has(newId)).toBe(false);
     expect(Object.keys(after.workers).length).toBe(3);
     expect(after.nextWorkerId).toBe(s.nextWorkerId + 1);
+  });
+});
+
+describe('SKU profiles: the product decides the crew', () => {
+  it('the starter client ships only standard 3-station runs', () => {
+    for (let i = 1; i <= 30; i++) {
+      expect(pickSkuProfile('c1', i).id).toBe('standard');
+    }
+  });
+
+  it('bigger clients ship heavier SKUs needing 4-5 crew', () => {
+    const sizes = new Set<number>();
+    for (let i = 1; i <= 40; i++) sizes.add(pickSkuProfile('c4', i).roles.length);
+    expect(Math.max(...sizes)).toBeGreaterThanOrEqual(5);
+  });
+
+  it('the morning deal reconfigures a line to its order layout', () => {
+    let s = createInitialState();
+    s = { ...s, activeOrders: [{ ...s.activeOrders[0], skuProfileId: 'twinpack' }] };
+    s = dealOrdersToLines(s);
+    const line = s.lines.line1;
+    expect(line.orderId).toBe('ord1');
+    expect(line.stations.length).toBe(4);
+    expect(line.stations.filter(st => stationRole(st) === 's2').length).toBe(2);
+    // Station ids stay unique so two packers can be seated independently.
+    expect(new Set(line.stations.map(st => st.id)).size).toBe(4);
+    // The staffing board now calls for 4 positions.
+    expect(requiredPositions(s)).toBe(4);
+  });
+
+  it('a heavier layout is staffable end-to-end and both pack slots count', () => {
+    let s = { ...createInitialState(), cash: 50000 };
+    s = { ...s, activeOrders: [{ ...s.activeOrders[0], skuProfileId: 'twinpack' }] };
+    s = dealOrdersToLines(s);
+    s = hireWorker(s).state; // 4th body
+    s = autoAssignCrew(s);
+    const staffed = s.lines.line1.stations.filter(st => st.assignedWorkerId).length;
+    expect(staffed).toBe(4);
+    const { state: after } = processThroughput(s);
+    expect(after.activeOrders[0].unitsCompleted).toBeGreaterThan(0);
+  });
+
+  it('tomorrowPositions forecasts the next board labor demand', () => {
+    let s = createInitialState();
+    expect(tomorrowPositions(s)).toBe(3); // one standard order
+    s = { ...s, activeOrders: [{ ...s.activeOrders[0], skuProfileId: 'kitting' }] };
+    expect(tomorrowPositions(s)).toBe(5);
+  });
+});
+
+describe('agency advance orders (plan tonight, staffed tomorrow)', () => {
+  it('charges the advance rate and delivers guaranteed-present workers at the boundary', () => {
+    const s = { ...createInitialState(), cash: 10000 };
+    const { state: requested, events } = requestWorkers(s, 2);
+    expect(requested.cash).toBe(10000 - 2 * ADVANCE_HIRE_COST);
+    expect(requested.pendingHires).toBe(2);
+    expect(events[0].type).toBe('WORKERS_REQUESTED');
+
+    // Run to the first boundary: arrivals walk in present.
+    let st = requested;
+    st = tick(st).state; // tick 0 boundary
+    expect(Object.keys(st.workers).length).toBe(5);
+    expect(st.pendingHires).toBe(0);
+    const arrivals = Object.values(st.workers).filter(w => !['w1', 'w2', 'w3'].includes(w.id));
+    expect(arrivals.every(w => w.presentThisShift)).toBe(true);
+  });
+
+  it('refuses when the player cannot afford the reservation', () => {
+    const broke = { ...createInitialState(), cash: 100 };
+    const { state: after, events } = requestWorkers(broke, 1);
+    expect(after.pendingHires).toBe(0);
+    expect(events.length).toBe(0);
+  });
+
+  it('expectedAttendance gives a usable turnout forecast', () => {
+    const s = createInitialState();
+    const expected = expectedAttendance(s, 1);
+    expect(expected).toBeGreaterThan(1.5);
+    expect(expected).toBeLessThanOrEqual(3);
   });
 });

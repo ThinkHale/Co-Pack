@@ -38,10 +38,16 @@ export type StationSkill = {
 
 // Station and Line
 export interface Station {
-  id: string;
+  id: string;             // unique slot id within the line (stable per profile)
   name: string;
+  role?: string;          // skill family (s1/s2/s3); defaults to id for legacy saves
   assignedWorkerId?: string;
   throughputMultiplier: number;
+}
+
+// The skill family a station trains/staffs against.
+export function stationRole(station: Station): string {
+  return station.role ?? station.id;
 }
 
 export interface Line {
@@ -52,6 +58,7 @@ export interface Line {
   active: boolean;
   automation: number;    // 0+ automation level; each level lifts the line's output
   leadId?: string;       // worker assigned as this line's lead
+  orderId?: string;      // the order this line is running today (set by the morning deal)
 }
 
 // Order
@@ -64,6 +71,7 @@ export interface Order {
   deadline: number;      // game tick
   revenuePerUnit: number;
   qualityThreshold: number;
+  skuProfileId?: string; // station layout this SKU demands (defaults to 'standard')
 }
 
 // Client
@@ -109,6 +117,7 @@ export type GameEventType =
   | 'CLIENT_UNLOCKED'
   | 'FEATURE_UNLOCKED'
   | 'NIGHT_SHIFT_TOGGLED'
+  | 'WORKERS_REQUESTED'
   | 'OVERHEAD'
   | 'GAME_OVER';
 
@@ -198,6 +207,7 @@ export interface GameState {
   autoShift: boolean;       // supervisor runs the morning standup; shifts roll without holding
   unlocks: string[];        // purchased feature unlocks (overtime, support, programs, night_shift)
   nightShift: boolean;      // night crew running: more output, much higher running cost
+  pendingHires: number;     // agency advance orders — workers arriving at the next standup
   nextWorkerId: number;     // monotonic id counter so hires never collide after a quit
   staffingHistory: StaffingDay[]; // per-day labor coverage vs the schedule (the board)
   completedObjectives: string[];  // ids of progression goals already cleared (rewards paid once)

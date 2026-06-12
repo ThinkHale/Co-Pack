@@ -41,7 +41,9 @@ export function formatEvent(e: GameEvent): EventLine {
     case 'WORKER_TRAINED':
       return { text: `${p.workerName} trained on ${STATION_NAMES[p.stationId as string] ?? p.stationId} → ${pct(p.proficiency as number)}`, tone: 'good', tag: 'TRAIN' };
     case 'WORKER_HIRED':
-      return { text: `${p.workerName} hired${p.referred ? ' (referral)' : ''}. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'HIRE' };
+      return p.preordered
+        ? { text: `${p.workerName} arrived from the agency (advance order).`, tone: 'good', tag: 'HIRE' }
+        : { text: `${p.workerName} hired${p.referred ? ' (referral)' : ''}. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'HIRE' };
     case 'WORKER_CONVERTED':
       return { text: `${p.workerName} converted to company employee.`, tone: 'good', tag: 'PERM' };
     case 'WORKER_TERMINATED':
@@ -88,6 +90,8 @@ export function formatEvent(e: GameEvent): EventLine {
       return { text: `Auto-shift ${p.autoShift ? 'ON — the supervisor runs the mornings' : 'off — back to manual standups'}.`, tone: 'neutral', tag: 'OPS' };
     case 'FEATURE_UNLOCKED':
       return { text: `Upgrade purchased: ${p.name}. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'SHOP' };
+    case 'WORKERS_REQUESTED':
+      return { text: `Reserved ${p.count} worker${(p.count as number) > 1 ? 's' : ''} for tomorrow. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'PLAN' };
     case 'NIGHT_SHIFT_TOGGLED':
       return { text: `Night shift ${p.nightShift ? 'ON — the plant runs around the clock' : 'off — back to days only'}.`, tone: p.nightShift ? 'warm' : 'neutral', tag: 'NIGHT' };
     case 'OVERHEAD': {

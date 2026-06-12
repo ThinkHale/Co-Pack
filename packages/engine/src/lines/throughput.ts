@@ -1,4 +1,4 @@
-import { GameState, GameEvent, Line, Order, Worker } from '../types';
+import { GameState, GameEvent, Line, Order, Worker, stationRole } from '../types';
 import { automationMultiplier, LEAD_OUTPUT_BONUS } from '../economy/frontoffice';
 import { nightShiftActive, NIGHT_OUTPUT_BONUS } from '../economy/nightshift';
 import { workerProductivityMult, lineProductivityMult } from '../workers/traits';
@@ -38,10 +38,11 @@ export function lineThroughput(state: GameState, line: Line): number {
   const crew = [...workers, ...supportWorkers];
   const avgMorale = crew.reduce((sum, w) => sum + w.morale, 0) / crew.length;
 
-  // Skill match: workers trained for their specific station produce more.
+  // Skill match: workers trained for their station's ROLE produce more (a
+  // twin-pack line's second Pack slot still wants a Pack-trained worker).
   const avgSkill = staffedStations.reduce((sum, s) => {
     const worker = state.workers[s.assignedWorkerId!];
-    const skill = worker.skills.find(sk => sk.stationId === s.id);
+    const skill = worker.skills.find(sk => sk.stationId === stationRole(s));
     return sum + (skill?.proficiency ?? UNTRAINED_PROFICIENCY);
   }, 0) / staffedStations.length;
 
@@ -78,9 +79,10 @@ export function processThroughput(state: GameState): { state: GameState; events:
   const updatedOrders = [...state.activeOrders];
   const updatedWorkers = { ...state.workers };
 
-  // Incomplete orders, most urgent (earliest deadline) first. Lines are spread
-  // across distinct orders so a second line is real parallel capacity — not just
-  // a faster way to chew the same single contract.
+  // Incomplete orders, most urgent (earliest deadline) first. Each line works
+  // the order it was dealt at the morning standup; a line whose order finished
+  // (or was never dealt one) picks up the next unclaimed open order, so spare
+  // capacity is never idle.
   const incompleteIdx = updatedOrders
     .map((o, i) => ({ o, i }))
     .filter(({ o }) => o.unitsCompleted < o.units)
@@ -89,6 +91,7 @@ export function processThroughput(state: GameState): { state: GameState; events:
 
   if (incompleteIdx.length === 0) return { state, events: [] };
 
+  const claimed = new Set<number>();
   const activeLines = Object.values(state.lines).filter(l => l.active);
   activeLines.forEach((line, li) => {
     const tp = lineThroughput(state, line);
@@ -110,9 +113,15 @@ export function processThroughput(state: GameState): { state: GameState; events:
       };
     }
 
-    // Round-robin: each line takes the next-most-urgent order, wrapping if there
-    // are more lines than open orders (then they double up on the front order).
-    const target = incompleteIdx[li % incompleteIdx.length];
+    // Prefer the dealt order; otherwise the most urgent unclaimed one; if
+    // every open order is claimed, double up on the front of the queue.
+    let target = -1;
+    if (line.orderId) {
+      const dealt = incompleteIdx.find(i => updatedOrders[i].id === line.orderId && !claimed.has(i));
+      if (dealt !== undefined) target = dealt;
+    }
+    if (target < 0) target = incompleteIdx.find(i => !claimed.has(i)) ?? incompleteIdx[li % incompleteIdx.length];
+    claimed.add(target);
     const order: Order = updatedOrders[target];
     updatedOrders[target] = {
       ...order,

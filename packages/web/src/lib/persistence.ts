@@ -105,7 +105,11 @@ export function loadGame(): LoadedSave | null {
     const lines: GameState['lines'] = Object.fromEntries(
       Object.entries(s.lines ?? {}).map(([id, line]) => [
         id,
-        { ...line, supportWorkerIds: line.supportWorkerIds ?? [] },
+        {
+          ...line,
+          supportWorkerIds: line.supportWorkerIds ?? [],
+          stations: line.stations.map(st => ({ ...st, role: st.role ?? st.id })),
+        },
       ])
     );
     // Defensive backfill for fields that may be absent in an early save.
@@ -121,6 +125,8 @@ export function loadGame(): LoadedSave | null {
       autoShift: s.autoShift ?? false,
       unlocks: s.unlocks ?? [],
       nightShift: s.nightShift ?? false,
+      pendingHires: s.pendingHires ?? 0,
+      activeOrders: s.activeOrders.map(o => ({ ...o, skuProfileId: o.skuProfileId ?? 'standard' })),
       shiftChallenge: s.shiftChallenge ?? null,
       challengeCooldownUntil: s.challengeCooldownUntil ?? 0,
       lastShiftReport: s.lastShiftReport ?? null,

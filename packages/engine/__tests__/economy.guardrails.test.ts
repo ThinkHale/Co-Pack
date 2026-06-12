@@ -60,8 +60,11 @@ describe('economy guardrails', () => {
     const results: Record<string, number> = {};
     for (const rate of [0.9, 1.0, 1.2]) {
       let s = E.setGlobalPayRate(E.createInitialState(), rate);
+      // Staff to demand: heavier SKUs need bigger crews, so a competent
+      // operator hires toward tomorrow's positions, not a fixed headcount.
       s = runDays(s, 25, st =>
-        Object.keys(st.workers).length < 4 && st.cash > E.HIRE_COST + 1500 ? E.hireWorker(st).state : st);
+        Object.keys(st.workers).length < E.tomorrowPositions(st) + 1 && st.cash > E.HIRE_COST + 1500
+          ? E.hireWorker(st).state : st);
       results[String(rate)] = s.cash;
     }
     expect(results['0.9']).toBeLessThan(results['1']);
@@ -110,8 +113,8 @@ describe('economy guardrails', () => {
       if (g.awaitingStaffing) g = playerStaff(g);
       if (g.shiftChallenge) g = E.resolveShiftChallenge(g, humanChallengeChoice(g)).state;
       const crew = Object.keys(g.workers).length;
-      if (g.cash > E.nextLineCost(g) + 4000 && g.lineCount < 3 && crew >= g.lineCount * 3 + 2) g = E.purchaseLine(g).state;
-      if (crew < g.lineCount * 3 + (g.cash > E.nextLineCost(g) ? 2 : 1) && g.cash > 4000) g = E.hireWorker(g).state;
+      if (g.cash > E.nextLineCost(g) + 4000 && g.lineCount < 3 && crew >= E.tomorrowPositions(g) + 2) g = E.purchaseLine(g).state;
+      if (crew < E.tomorrowPositions(g) + (g.cash > E.nextLineCost(g) ? 2 : 1) && g.cash > 4000) g = E.hireWorker(g).state;
       g = E.tick(g).state;
     }
     expect(g.gameOver).toBe(false);

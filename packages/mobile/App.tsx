@@ -16,6 +16,7 @@ import { FloorScreen } from './src/screens/FloorScreen';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { StaffingScreen } from './src/screens/StaffingScreen';
 import { OfficeScreen } from './src/screens/OfficeScreen';
+import { CorporateScreen } from './src/screens/CorporateScreen';
 
 const LOGO = require('./assets/brand-logo.png');
 
@@ -154,6 +155,7 @@ function Game() {
         {tab === 'orders' && <OrdersScreen state={state} />}
         {tab === 'staffing' && <StaffingScreen state={state} />}
         {tab === 'office' && <OfficeScreen state={state} />}
+        {tab === 'corporate' && <CorporateScreen state={state} />}
       </ScrollView>
 
       <TabBar

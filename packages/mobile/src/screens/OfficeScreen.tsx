@@ -2,24 +2,25 @@ import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import {
   GameState, Worker,
-  nextLineCost, canBuyLine,
-  automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL,
   LEAD_COST, conversionCost,
   canHireSupervisor, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT,
-  FEATURE_UNLOCKS, canBuyUnlock, hasUnlock, AUTOMATION_UPKEEP_PER_LEVEL,
+  hasUnlock,
   NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
+  dayCondition, tomorrowPositions, expectedAttendance, orderProfile,
+  ADVANCE_HIRE_COST, HIRE_COST,
 } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency } from '../format';
 import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
 
+// OFFICE — day-to-day operations & planning: tomorrow's forecast and the
+// agency advance order, the supervisor, and people moves. Capital purchases
+// (upgrades, lines, automation) live on Corporate.
 export function OfficeScreen({ state }: { state: GameState }) {
-  const { buyLine, upgradeAutomation, promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, buyUnlock, toggleNightShift, adsOn, adFree, toggleAdsTesting, reset } = useGameStore();
+  const { promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, toggleNightShift, requestWorkers } = useGameStore();
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter((w) => !w.permanent);
-  const lineCost = nextLineCost(state);
-  const canAfford = canBuyLine(state);
 
   const confirmTerminate = useCallback((worker: Worker) => {
     Alert.alert(`Terminate ${worker.name}?`, `Missed ${worker.missedShifts ?? 0} · sent home ${worker.sentHomeShifts ?? 0}.`, [
@@ -28,8 +29,76 @@ export function OfficeScreen({ state }: { state: GameState }) {
     ]);
   }, [terminateWorker]);
 
+  // --- Tomorrow, today: weather + SKU lineup + coverage + advance order ---
+  const tomorrow = dayCondition(state.day + 1);
+  const positions = tomorrowPositions(state);
+  const roster = Object.keys(state.workers).length;
+  const expected = expectedAttendance(state, 1);
+  const arriving = state.pendingHires;
+  const short = Math.ceil(positions - (expected + arriving));
+  const lineCount = Object.values(state.lines).filter((l) => l.active).length;
+  const lineup = [...state.activeOrders]
+    .filter((o) => o.unitsCompleted < o.units)
+    .sort((a, b) => a.deadline - b.deadline)
+    .slice(0, lineCount);
+  const toneColor = tomorrow.tone === 'bad' ? colors.red : tomorrow.tone === 'good' ? colors.green : colors.cyan;
+
   return (
     <View style={{ gap: 14 }}>
+      <Panel>
+        <View style={styles.rowBetween}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Planning · tomorrow</Eyebrow>
+            <Text style={shared.h2}>Day {state.day + 2} Forecast</Text>
+          </View>
+          <View style={[styles.forecast, { borderColor: toneColor }]}>
+            <Text style={[styles.forecastLabel, { color: toneColor }]}>{tomorrow.label}</Text>
+            <Text style={styles.forecastNote} numberOfLines={2}>
+              {tomorrow.note}{tomorrow.modifier !== 0 ? ` · att ${tomorrow.modifier > 0 ? '+' : ''}${Math.round(tomorrow.modifier * 100)}%` : ''}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>Tomorrow's SKU lineup</Text>
+        <View style={{ gap: 6, marginTop: 6 }}>
+          {lineup.map((o) => (
+            <View key={o.id} style={styles.planRow}>
+              <Text style={styles.planSku}>{o.sku}</Text>
+              <Text style={shared.bodyMute}>{orderProfile(o).name}</Text>
+              <Text style={styles.planCrew}>{orderProfile(o).roles.length} crew</Text>
+            </View>
+          ))}
+          {lineup.length < lineCount && (
+            <View style={[styles.planRow, { opacity: 0.7 }]}>
+              <Text style={styles.planSku}>New contract</Text>
+              <Text style={shared.bodyMute}>dealt in the morning</Text>
+              <Text style={styles.planCrew}>~3 crew</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          <StatCell label="Positions" value={`${positions}`} />
+          <StatCell label="Expected in" value={`~${expected.toFixed(1)}`} />
+          <StatCell label="Reserved" value={`${arriving}`} />
+        </View>
+        {short > 0 ? (
+          <Text style={styles.shortWarn}>⚠ Likely short {short} — reserve tonight or scramble tomorrow.</Text>
+        ) : (
+          <Text style={styles.coverageOk}>Coverage looks good ({roster} on roster).</Text>
+        )}
+        <Button
+          label={`Reserve a worker for tomorrow · ${formatCurrency(ADVANCE_HIRE_COST)}`}
+          tone="primary"
+          disabled={state.cash < ADVANCE_HIRE_COST}
+          onPress={() => requestWorkers(1)}
+          style={{ marginTop: 10 }}
+        />
+        <Text style={styles.advanceNote}>
+          Advance rate beats the {formatCurrency(HIRE_COST)} same-day walk-in — and arrivals never no-show day one.
+        </Text>
+      </Panel>
+
       <Panel>
         <Eyebrow>Operations</Eyebrow>
         <Text style={shared.h2}>Floor Supervisor</Text>
@@ -73,82 +142,6 @@ export function OfficeScreen({ state }: { state: GameState }) {
             )}
           </>
         )}
-      </Panel>
-
-      <Panel>
-        <Eyebrow>Upgrades</Eyebrow>
-        <Text style={shared.h2}>Capabilities</Text>
-        <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-          One-time purchases that open up new levers. Earned, not given.
-        </Text>
-        <View style={{ gap: 10, marginTop: 12 }}>
-          {FEATURE_UNLOCKS.map((u) => {
-            const owned = state.unlocks.includes(u.id);
-            return (
-              <View key={u.id} style={styles.officeLine}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.lineName}>{owned ? u.name : `🔒 ${u.name}`}</Text>
-                  {owned && <Pill color={colors.green} filled>OWNED</Pill>}
-                </View>
-                <Text style={[shared.bodyMute, { marginTop: 3 }]}>{u.blurb}</Text>
-                {!owned && (
-                  <>
-                    {u.requiresSupervisor && !state.hasSupervisor && (
-                      <Text style={{ color: colors.gold, fontSize: 10, fontWeight: '900', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                        Requires a floor supervisor
-                      </Text>
-                    )}
-                    <Button
-                      label={`Unlock · ${formatCurrency(u.cost)}`}
-                      tone="muted"
-                      disabled={!canBuyUnlock(state, u.id)}
-                      onPress={() => buyUnlock(u.id)}
-                      style={{ marginTop: 8 }}
-                    />
-                  </>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </Panel>
-
-      <Panel>
-        <Eyebrow>Capacity</Eyebrow>
-        <Text style={shared.h2}>Production Lines</Text>
-        <Button
-          label={`Open Line ${String.fromCharCode(64 + state.lineCount + 1)} · ${formatCurrency(lineCost)}`}
-          tone="primary"
-          disabled={!canAfford}
-          onPress={buyLine}
-          style={{ marginTop: 10 }}
-        />
-        <View style={{ gap: 10, marginTop: 12 }}>
-          {lines.map(([lineId, line]) => {
-            const cost = automationCost(line);
-            const upgradable = canAutomate(line) && state.cash >= cost;
-            return (
-              <View key={lineId} style={styles.officeLine}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.lineName}>{line.name}</Text>
-                  <Pill color={colors.cyan}>+{Math.round((automationMultiplier(line) - 1) * 100)}% output</Pill>
-                </View>
-                <Text style={[shared.bodyMute, { marginTop: 3 }]}>
-                  Automation L{line.automation}/{AUTOMATION_MAX_LEVEL}
-                  {line.automation > 0 ? ` · upkeep ${formatCurrency(line.automation * AUTOMATION_UPKEEP_PER_LEVEL)}/shift` : ''}
-                  {line.leadId && state.workers[line.leadId] ? ` · Lead: ${state.workers[line.leadId].name}` : ' · No lead'}
-                </Text>
-                <Button
-                  label={canAutomate(line) ? `Upgrade automation · ${formatCurrency(cost)}` : 'Fully automated'}
-                  tone="muted"
-                  disabled={!upgradable}
-                  onPress={() => upgradeAutomation(lineId)}
-                  style={{ marginTop: 8 }}
-                />
-              </View>
-            );
-          })}
-        </View>
       </Panel>
 
       <Panel>
@@ -200,44 +193,24 @@ export function OfficeScreen({ state }: { state: GameState }) {
         </View>
         <Text style={[styles.note, { marginTop: 10 }]}>{temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert</Text>
       </Panel>
-
-      <Panel>
-        <View style={styles.rowBetween}>
-          <View style={{ flex: 1 }}>
-            <Eyebrow>Settings · testing</Eyebrow>
-            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
-              Interstitial ads every 5 shifts{adFree ? ' — removed (purchase simulated) ✓' : ''}.
-            </Text>
-          </View>
-          <Button label={`Ads: ${adsOn ? 'ON' : 'OFF'}`} tone="muted" onPress={toggleAdsTesting} />
-        </View>
-        <View style={[styles.rowBetween, { marginTop: 14, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 }]}>
-          <View style={{ flex: 1 }}>
-            <Eyebrow color={colors.red}>Danger zone</Eyebrow>
-            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Wipe the save and start a fresh plant.</Text>
-          </View>
-          <Button
-            label="Reset run"
-            tone="danger"
-            onPress={() =>
-              Alert.alert('Reset the run?', 'This wipes your save and starts a fresh shift.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Reset', style: 'destructive', onPress: reset },
-              ])
-            }
-          />
-        </View>
-      </Panel>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  officeLine: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 12 },
-  lineName: { color: colors.text, fontSize: 15, fontWeight: '900' },
   officeWorker: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 12 },
   workerName: { color: colors.text, fontSize: 14, fontWeight: '900' },
   empty: { color: colors.textMute, fontSize: 13, fontWeight: '700', textAlign: 'center', paddingVertical: 14 },
   note: { color: colors.textMute, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
+  forecast: { maxWidth: 170, borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(8,13,24,0.5)' },
+  forecastLabel: { fontSize: 14, fontWeight: '900' },
+  forecastNote: { color: colors.textMute, fontSize: 10, fontWeight: '700', marginTop: 1 },
+  sectionLabel: { color: colors.textMute, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 12 },
+  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 7 },
+  planSku: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  planCrew: { color: colors.cyan, fontSize: 12, fontWeight: '900' },
+  shortWarn: { color: colors.amber, fontSize: 11, fontWeight: '900', marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
+  coverageOk: { color: colors.green, fontSize: 11, fontWeight: '900', marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
+  advanceNote: { color: colors.textFaint, fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 6 },
 });
