@@ -1369,10 +1369,17 @@ describe('hiring id safety (regression: no reuse after a quit)', () => {
 });
 
 describe('SKU profiles: the product decides the crew', () => {
-  it('the starter client ships only standard 3-station runs', () => {
+  it('the starter client rotates a 3-station product family (variety, learnable crew)', () => {
+    const ids = new Set<string>();
     for (let i = 1; i <= 30; i++) {
-      expect(pickSkuProfile('c1', i).id).toBe('standard');
+      const profile = pickSkuProfile('c1', i);
+      // Every starter SKU runs as the same learnable 3-body line — the variety
+      // is in the product, not the crew size, so the early economy is untouched.
+      expect(profile.roles.length).toBe(3);
+      ids.add(profile.id);
     }
+    // The board genuinely changes day to day — not "standard cartons every time".
+    expect(ids.size).toBeGreaterThan(1);
   });
 
   it('bigger clients ship heavier SKUs needing 4-5 crew', () => {

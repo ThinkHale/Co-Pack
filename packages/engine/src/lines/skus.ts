@@ -23,6 +23,25 @@ export const SKU_PROFILES: SkuProfile[] = [
     roles: ['s1', 's2', 's3'],
     blurb: 'The bread-and-butter three-station run.',
   },
+  // Starter-tier siblings: different products, same three-station line. The
+  // board changes day to day so "just standard cartons every time" stops being
+  // the experience, but the crew — and the early-game economics — stay a
+  // learnable 3. Heavier 4-5 body layouts are still earned up the client ladder.
+  {
+    id: 'shrinkwrap', name: 'Shrink-wrap multipack', short: 'WRAP·3',
+    roles: ['s1', 's2', 's3'],
+    blurb: 'Banded multipacks — same three stations, a shrink tunnel on the end.',
+  },
+  {
+    id: 'tray', name: 'Display tray', short: 'TRAY·3',
+    roles: ['s1', 's2', 's3'],
+    blurb: 'Shelf-ready trays — a tidy three-station run with a retail finish.',
+  },
+  {
+    id: 'clamshell', name: 'Clamshell pack', short: 'SHELL·3',
+    roles: ['s1', 's2', 's3'],
+    blurb: 'Hinged blister packs — three stations, just a different seal.',
+  },
   {
     id: 'twinpack', name: 'Twin-pack', short: 'TWIN·4',
     roles: ['s1', 's2', 's2', 's3'],
@@ -56,10 +75,11 @@ export function orderCrewSize(order: Order): number {
   return orderProfile(order).roles.length;
 }
 
-// Which profiles each client tier ships, with weights. The starter client is
-// all standard runs (the early game stays learnable); the ladder gets heavier.
+// Which profiles each client tier ships, with weights. The starter client
+// rotates through its three-station product family (the early game stays
+// learnable — always a 3-body line), while the ladder layers on heavier crews.
 const TIER_SKU_MIX: Record<string, [string, number][]> = {
-  c1: [['standard', 1]],
+  c1: [['standard', 0.4], ['shrinkwrap', 0.25], ['tray', 0.2], ['clamshell', 0.15]],
   c2: [['standard', 0.5], ['twinpack', 0.5]],
   c3: [['twinpack', 0.4], ['kitting', 0.4], ['bulk', 0.2]],
   c4: [['kitting', 0.5], ['bulk', 0.25], ['twinpack', 0.25]],
