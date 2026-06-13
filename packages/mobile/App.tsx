@@ -12,6 +12,7 @@ import { Toasts, ToastItem } from './src/components/Toasts';
 import { SplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS, WelcomeModal } from './src/components/Overlays';
 import { ConfettiBurst } from './src/components/Confetti';
 import { CrewDock } from './src/components/CrewDock';
+import { FloorPinned } from './src/components/FloorPinned';
 import { FloorScreen } from './src/screens/FloorScreen';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { StaffingScreen } from './src/screens/StaffingScreen';
@@ -145,6 +146,10 @@ function Game() {
       <View style={styles.header}>
         <Hud state={state} />
       </View>
+
+      {/* Pinned above the scroll: tutorial coaching + the compact standup bar
+          stay visible while the player scrolls down to staff a line. */}
+      {tab === 'floor' && <FloorPinned state={state} />}
 
       <ScrollView
         style={{ flex: 1 }}

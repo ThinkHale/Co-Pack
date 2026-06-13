@@ -34,7 +34,10 @@ button {
 .game-shell {
   position: relative;
   isolation: isolate;
-  overflow-x: hidden;
+  /* `clip` (not `hidden`) prevents horizontal overflow WITHOUT turning the
+     shell into a scroll container — which would force overflow-y:auto and
+     break `position: sticky` for the pinned floor header. */
+  overflow-x: clip;
 }
 
 .game-grid-bg {
@@ -179,29 +182,89 @@ button {
   box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.22);
 }
 
-/* --- Morning standup banner --- */
-.morning-banner {
+/* --- Pinned floor coaching: tutorial card + standup bar stay under the HUD
+   while the player scrolls down to staff, so instructions never vanish. --- */
+.floor-pinned {
+  position: sticky;
+  top: 0.4rem;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* --- Compact standup bar (replaces the old full-height banner) --- */
+.standup-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
   border: 2px solid rgba(124, 108, 255, 0.55);
-  border-radius: 12px;
-  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
   background:
-    linear-gradient(135deg, rgba(124, 108, 255, 0.26), rgba(53, 208, 186, 0.14)),
-    rgba(18, 24, 39, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    linear-gradient(135deg, rgba(124, 108, 255, 0.22), rgba(53, 208, 186, 0.1)),
+    rgba(13, 18, 30, 0.97);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
-.morning-banner.tone-bad { border-color: rgba(255, 122, 110, 0.55); }
-.morning-banner.tone-good { border-color: rgba(114, 239, 143, 0.5); }
-.morning-actions {
+.standup-bar.tone-bad { border-color: rgba(255, 122, 110, 0.6); }
+.standup-bar.tone-good { border-color: rgba(114, 239, 143, 0.5); }
+.standup-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  min-width: 0;
 }
-.morning-actions .game-button { min-height: 2.7rem; padding: 0 1.1rem; }
+.standup-day {
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #f8fbff;
+}
+.standup-stat {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #cbd5e1;
+}
+.standup-stat strong { color: #f8fbff; }
+.standup-stat.short strong { color: #ffb02e; }
+.standup-condition {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  background: rgba(8, 13, 24, 0.5);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #bae6fd;
+  white-space: nowrap;
+}
+.standup-condition.tone-bad { border-color: rgba(255, 122, 110, 0.55); color: #ffb3b3; }
+.standup-condition.tone-good { border-color: rgba(114, 239, 143, 0.5); color: #9af0b4; }
+.standup-warn {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.18rem 0.5rem;
+  background: rgba(255, 176, 46, 0.16);
+  color: #ffd27a;
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.standup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.standup-actions .game-button { min-height: 2.35rem; padding: 0 0.85rem; font-size: 0.78rem; }
 
 .risk-badge-absent {
   background: #ff4666;
@@ -1685,26 +1748,21 @@ button {
     flex: 0 0 auto;
     white-space: nowrap;
   }
-  .morning-banner {
-    gap: 0.65rem;
-    padding: 0.65rem 0.75rem;
+  .floor-pinned { top: 0.25rem; }
+  .standup-bar {
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
   }
-  .morning-banner h2 {
-    font-size: 1.22rem;
-    line-height: 1.05;
-  }
-  .morning-banner p {
-    margin-top: 0.25rem;
-  }
-  .morning-actions {
+  .standup-actions {
     display: grid;
     width: 100%;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.45rem;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0.4rem;
   }
-  .morning-actions .game-button {
-    min-height: 2.35rem;
-    padding: 0 0.65rem;
+  .standup-actions .game-button {
+    min-height: 2.2rem;
+    padding: 0 0.5rem;
   }
   .conditions-bar {
     gap: 0.45rem;
