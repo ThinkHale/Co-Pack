@@ -5,7 +5,7 @@ import {
   dayCondition, dayAttendanceModifier,
   mealCost, incentiveCost, mealReady, incentiveReady,
   mealCooldownRemaining, incentiveCooldownRemaining,
-  canRepeatStaffing, flightRisk, trainingCost, canTrain, effectiveWage, effectiveHourly,
+  flightRisk, trainingCost, canTrain, effectiveWage, effectiveHourly,
   lineThroughput, dayOfTick, weekday, openObjectives, hasUnlock, UNTRAINED_PROFICIENCY,
   SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
 } from '@copack/engine';
@@ -17,7 +17,7 @@ import { CharacterAvatar } from '../components/Avatar';
 import { MiniBar } from '../components/MiniBar';
 import { TraitChips } from '../components/TraitChips';
 import { ConveyorBelt } from '../components/Belt';
-import { TutorialCard, TUTORIAL_STEPS } from '../components/Overlays';
+import { TUTORIAL_STEPS } from '../components/Overlays';
 import { Spotlight } from '../components/Spotlight';
 
 type DayConditionInfo = ReturnType<typeof dayCondition>;
@@ -27,9 +27,9 @@ const TRAINABLE = ['s1', 's2', 's3'];
 export function FloorScreen({ state }: { state: GameState }) {
   const {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
-    hireWorker, train, buyMeal, runIncentive, repeatStaffing, startShift,
-    resolveChallenge, terminateWorker, soundOn, autoFillCrew, paused, setTab,
-    tutorialActive, tutorialStep, advanceTutorial, finishTutorial,
+    hireWorker, train, buyMeal, runIncentive,
+    resolveChallenge, terminateWorker, soundOn, paused, setTab,
+    tutorialActive, tutorialStep, advanceTutorial,
   } = useGameStore();
   const tutTarget = tutorialActive ? TUTORIAL_STEPS[tutorialStep]?.target : undefined;
 
@@ -86,29 +86,11 @@ export function FloorScreen({ state }: { state: GameState }) {
 
   return (
     <View style={{ gap: 14 }}>
-      {tutorialActive && (
-        <TutorialCard
-          step={tutorialStep}
-          onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
-          onSkip={finishTutorial}
-        />
-      )}
+      {/* The tutorial card + standup bar are pinned above the scroll view in
+          App.tsx (FloorPinned) so they don't scroll away while staffing. */}
       <Spotlight active={tutTarget === 'goal'} radius={radius.md}>
         <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
       </Spotlight>
-
-      {awaitingStaffing && (
-        <MorningBanner
-          state={state}
-          condition={condition}
-          canRepeat={canRepeatStaffing(state)}
-          hasSupervisor={state.hasSupervisor}
-          highlightStart={tutTarget === 'start'}
-          onAutoFill={autoFillCrew}
-          onRepeat={repeatStaffing}
-          onStart={startShift}
-        />
-      )}
 
       {state.shiftChallenge && (
         <ShiftChallengeCard challenge={state.shiftChallenge} onResolve={resolveChallenge} />
@@ -210,61 +192,6 @@ export function FloorScreen({ state }: { state: GameState }) {
         </Pressable>
       </Modal>
     </View>
-  );
-}
-
-// --- Morning standup ---------------------------------------------------------
-
-function MorningBanner({
-  state, condition, canRepeat, hasSupervisor, highlightStart, onAutoFill, onRepeat, onStart,
-}: {
-  state: GameState;
-  condition: DayConditionInfo;
-  canRepeat: boolean;
-  hasSupervisor: boolean;
-  highlightStart: boolean;
-  onAutoFill: () => void;
-  onRepeat: () => void;
-  onStart: () => void;
-}) {
-  const workers = Object.values(state.workers);
-  const present = workers.filter((w) => w.presentThisShift);
-  const absent = workers.filter((w) => !w.presentThisShift);
-  const totalStations = Object.values(state.lines).reduce((n, l) => n + l.stations.length, 0);
-  const staffed = Object.values(state.lines).reduce((n, l) => n + l.stations.filter((s) => s.assignedWorkerId).length, 0);
-  const assigned = new Set(Object.values(state.lines).flatMap((line) => [
-    ...(line.stations.map((s) => s.assignedWorkerId).filter(Boolean) as string[]),
-    ...(line.supportWorkerIds ?? []),
-  ]));
-  const unplacedPresent = present.filter((w) => !assigned.has(w.id));
-  const day = dayOfTick(state.tick);
-  const accent = TONE_COLOR[condition.tone] ?? colors.cyan;
-
-  return (
-    <Panel style={[styles.banner, { borderColor: accent }]}>
-      <Eyebrow color={accent}>Day {day + 1} · {weekday(day)} — Morning standup</Eyebrow>
-      <Text style={[shared.h2, { marginTop: 2 }]}>Who showed up today?</Text>
-      <Text style={[shared.body, { marginTop: 6 }]}>
-        <Text style={{ color: colors.green, fontWeight: '900' }}>{present.length}</Text> of {workers.length} clocked in
-        {absent.length > 0 ? `  ·  ${absent.length} no-show${absent.length > 1 ? 's' : ''}` : ''}. {condition.label}: {condition.note}.
-      </Text>
-      {absent.length > 0 && (
-        <Text style={[styles.bannerOut, { marginTop: 4 }]}>Out today: {absent.map((w) => w.name.split(' ')[0]).join(', ')}</Text>
-      )}
-      <Text style={styles.bannerStations}>{staffed}/{totalStations} stations staffed</Text>
-      {unplacedPresent.length > 0 && (
-        <Text style={styles.bannerWarn}>
-          {unplacedPresent.length} present on the bench: assign them or they go home unpaid with a morale hit.
-        </Text>
-      )}
-      <View style={styles.bannerActions}>
-        {hasSupervisor && <Button label="Auto-fill" tone="muted" onPress={onAutoFill} style={{ flex: 1 }} />}
-        <Button label="Repeat yesterday" tone="muted" disabled={!canRepeat} onPress={onRepeat} style={{ flex: 1 }} />
-        <Spotlight active={highlightStart} radius={radius.sm} style={{ flex: 1 }}>
-          <Button label="Start shift ▸" tone="primary" onPress={onStart} style={{ width: '100%' }} />
-        </Spotlight>
-      </View>
-    </Panel>
   );
 }
 

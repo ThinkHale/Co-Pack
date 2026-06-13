@@ -549,26 +549,32 @@ function Game() {
           </div>
         </header>
 
-        {tab === 'floor' && tutorialActive && (
-          <TutorialCard
-            step={tutorialStep}
-            onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
-            onSkip={finishTutorial}
-          />
+        {/* Tutorial coaching + the morning standup controls are PINNED below the
+            HUD: they stay on screen while the player scrolls down to staff the
+            line, so the instruction and the highlighted button never vanish. */}
+        {tab === 'floor' && (tutorialActive || awaitingStaffing) && (
+          <div className="floor-pinned">
+            {tutorialActive && (
+              <TutorialCard
+                step={tutorialStep}
+                onNext={() => (tutorialStep >= TUTORIAL_STEPS.length - 1 ? finishTutorial() : advanceTutorial())}
+                onSkip={finishTutorial}
+              />
+            )}
+            {awaitingStaffing && (
+              <StandupBar
+                state={state}
+                condition={condition}
+                canRepeat={canRepeatStaffing(state)}
+                hasSupervisor={state.hasSupervisor}
+                onAutoFill={autoFillCrew}
+                onRepeat={repeatStaffing}
+                onStart={() => { if (soundOn) playSound('click'); startShift(); }}
+              />
+            )}
+          </div>
         )}
         {tab === 'floor' && <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />}
-
-        {tab === 'floor' && awaitingStaffing && (
-          <MorningBanner
-            state={state}
-            condition={condition}
-            canRepeat={canRepeatStaffing(state)}
-            hasSupervisor={state.hasSupervisor}
-            onAutoFill={autoFillCrew}
-            onRepeat={repeatStaffing}
-            onStart={() => { if (soundOn) playSound('click'); startShift(); }}
-          />
-        )}
 
         {tab === 'floor' && (
           <div className="floor-grid grid gap-4 md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -2555,7 +2561,12 @@ function GameOverOverlay({ state, onRestart }: { state: GameState; onRestart: ()
 
 // The morning standup: the clock is held while the player staffs from whoever
 // showed up. This is the core sim beat — every day you re-staff the lines.
-function MorningBanner({
+// Compact standup bar — replaces the old full-height MorningBanner. One slim
+// row: the day, turnout, staffing progress, the day's condition, an at-a-glance
+// warning if present crew are still benched (they go home unpaid + sour), and
+// the Auto-fill / Repeat / Start controls. Pinned near the top so it never gets
+// between the tutorial and the lines, and disappears the moment the shift runs.
+function StandupBar({
   state, condition, canRepeat, hasSupervisor, onAutoFill, onRepeat, onStart,
 }: {
   state: GameState;
@@ -2568,7 +2579,7 @@ function MorningBanner({
 }) {
   const workers = Object.values(state.workers);
   const present = workers.filter(w => w.presentThisShift);
-  const absent = workers.filter(w => !w.presentThisShift);
+  const absent = workers.length - present.length;
   const totalStations = Object.values(state.lines).reduce((n, l) => n + l.stations.length, 0);
   const staffed = Object.values(state.lines).reduce(
     (n, l) => n + l.stations.filter(s => s.assignedWorkerId).length, 0
@@ -2577,34 +2588,31 @@ function MorningBanner({
     ...(line.stations.map(station => station.assignedWorkerId).filter(Boolean) as string[]),
     ...(line.supportWorkerIds ?? []),
   ]));
-  const unplacedPresent = present.filter(worker => !assigned.has(worker.id));
+  const unplacedPresent = present.filter(worker => !assigned.has(worker.id)).length;
   const day = dayOfTick(state.tick);
+  const fullyStaffed = staffed >= totalStations;
 
   return (
-    <section className={`morning-banner tone-${condition.tone} mb-4`}>
-      <div className="min-w-0">
-        <div className="eyebrow">Day {day + 1} · {weekday(day)} — Morning standup</div>
-        <h2 className="text-2xl font-black text-white">Who showed up today?</h2>
-        <p className="mt-1 text-sm font-semibold text-slate-200">
-          <strong className="text-emerald-300">{present.length}</strong> of {workers.length} clocked in
-          {absent.length > 0 && <> · <strong className="text-rose-300">{absent.length}</strong> no-show{absent.length > 1 ? 's' : ''}</>}.
-          {' '}{condition.label}: {condition.note}.
-        </p>
-        {absent.length > 0 && (
-          <p className="mt-1 text-xs font-bold text-rose-200/90">
-            Out today: {absent.map(w => w.name.split(' ')[0]).join(', ')}
-          </p>
-        )}
-        <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-slate-300">
-          {staffed}/{totalStations} stations staffed
-        </p>
-        {unplacedPresent.length > 0 && (
-          <p className="mt-1 text-xs font-bold text-amber-200">
-            {unplacedPresent.length} present on the bench: assign them to a station/support slot or they go home unpaid with a morale hit.
-          </p>
+    <section className={`standup-bar tone-${condition.tone}`}>
+      <div className="standup-facts">
+        <span className="standup-day">Day {day + 1} · {weekday(day)}</span>
+        <span className="standup-stat" title="Crew who clocked in today">
+          <strong className="text-emerald-300">{present.length}</strong>/{workers.length} in
+          {absent > 0 && <span className="text-rose-300"> · {absent} out</span>}
+        </span>
+        <span className={`standup-stat ${fullyStaffed ? '' : 'short'}`} title="Stations covered">
+          <strong>{staffed}/{totalStations}</strong> staffed
+        </span>
+        <span className={`standup-condition tone-${condition.tone}`} title={condition.note}>
+          {condition.label}
+        </span>
+        {unplacedPresent > 0 && (
+          <span className="standup-warn" title="Present crew left on the bench are sent home unpaid and lose morale">
+            ⚠ {unplacedPresent} idle — they go home unpaid & sour
+          </span>
         )}
       </div>
-      <div className="morning-actions">
+      <div className="standup-actions">
         {hasSupervisor && (
           <button
             type="button"
@@ -2622,7 +2630,7 @@ function MorningBanner({
           title={canRepeat ? "Re-seat everyone who's back to their old station" : 'No prior lineup to repeat yet'}
           className="game-button game-button-muted"
         >
-          Repeat yesterday
+          Repeat
         </button>
         <button type="button" data-tut="start" onClick={onStart} className="game-button game-button-primary">
           Start shift ▸
@@ -2761,8 +2769,12 @@ const TUTORIAL_STEPS: {
     text: 'The belt under the stations shows your live rate. Your contract on the Orders tab pays per unit on delivery — beat the deadline or take a reputation hit.',
   },
   {
+    title: 'The delicate cycle',
+    text: 'Here’s the catch you’ll spend the game balancing: a deep bench covers no-shows, but anyone you DON’T place is sent home unpaid and sours. Pushing output (overtime) burns morale; buying morale back (meals, raises, perks) burns cash. Run too lean and one absence stalls a line; run too fat and you bleed money and goodwill. Find the edge.',
+  },
+  {
     title: 'Your people decide everything',
-    text: 'Tomorrow some of this crew won’t show. You can’t force attendance — but you can pay well, lift morale, and build a deep bench. The glowing Next Goal always points at your best next move. Good luck, boss.',
+    text: 'You can’t force anyone to show up — only pay well, keep morale up, and staff to the day’s real demand. The glowing Next Goal always points at your best next move. Good luck, boss.',
     target: 'goal',
   },
 ];
@@ -2781,9 +2793,10 @@ function WelcomeModal({ onStart, onTutorial }: { onStart: () => void; onTutorial
           control <strong className="text-white">least</strong>: your workforce.
         </p>
         <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-300">
-          People no-show, burn out, quit, or shine. You can’t make them clock in — only
-          read them, pay them right, and keep a bench deep enough to absorb the morning
-          you’re three bodies short. Master the crew and the cartons take care of themselves.
+          People no-show, burn out, quit, or shine. A deep bench covers the bad mornings —
+          but you can’t pay people to stand around, so anyone you don’t place goes home unpaid
+          and sours. Push output and morale drops; buy morale back and cash drops. It’s a tight
+          cycle you’ll learn to ride. Master the crew and the cartons take care of themselves.
         </p>
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={onTutorial} className="game-button game-button-primary py-3">
@@ -2804,7 +2817,7 @@ function WelcomeModal({ onStart, onTutorial }: { onStart: () => void; onTutorial
 function TutorialCard({ step, onNext, onSkip }: { step: number; onNext: () => void; onSkip: () => void }) {
   const s = TUTORIAL_STEPS[Math.min(step, TUTORIAL_STEPS.length - 1)];
   return (
-    <section className="tutorial-card mb-4">
+    <section className="tutorial-card">
       <div className="min-w-0 flex-1">
         <div className="eyebrow">Tutorial · {Math.min(step + 1, TUTORIAL_STEPS.length)}/{TUTORIAL_STEPS.length}</div>
         <h2 className="text-lg font-black text-white">{s.title}</h2>

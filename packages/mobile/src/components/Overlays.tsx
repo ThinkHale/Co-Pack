@@ -144,9 +144,10 @@ export function WelcomeModal({ onStart, onTutorial }: { onStart: () => void; onT
             control <Text style={{ color: colors.text, fontWeight: '900' }}>least</Text>: your workforce.
           </Text>
           <Text style={[shared.bodyMute, { marginTop: 8, lineHeight: 18 }]}>
-            People no-show, burn out, quit, or shine. You can't make them clock in — only read
-            them, pay them right, and keep a bench deep enough to absorb the morning you're three
-            bodies short. Master the crew and the cartons take care of themselves.
+            People no-show, burn out, quit, or shine. A deep bench covers the bad mornings — but
+            you can't pay people to stand around, so anyone you don't place goes home unpaid and
+            sours. Push output and morale drops; buy morale back and cash drops. It's a tight cycle
+            you'll learn to ride. Master the crew and the cartons take care of themselves.
           </Text>
           <Button label="Take the tutorial" tone="primary" onPress={onTutorial} style={{ marginTop: 18 }} />
           <Button label="Start now" tone="muted" onPress={onStart} style={{ marginTop: 8 }} />
@@ -190,8 +191,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     text: 'The belt under the stations shows your live rate. Your contract on the Orders tab pays per unit on delivery — beat the deadline or take a reputation hit.',
   },
   {
+    title: 'The delicate cycle',
+    text: 'The catch you’ll spend the game balancing: a deep bench covers no-shows, but anyone you DON’T place is sent home unpaid and sours. Pushing output (overtime) burns morale; buying morale back (meals, raises) burns cash. Too lean and one absence stalls a line; too fat and you bleed money and goodwill. Find the edge.',
+  },
+  {
     title: 'Your people decide everything',
-    text: 'Tomorrow some of this crew won’t show. You can’t force attendance — but you can pay well, lift morale, and build a deep bench. The glowing Next Goal always points at your best next move. Good luck, boss.',
+    text: 'You can’t force anyone to show up — only pay well, keep morale up, and staff to the day’s real demand. The glowing Next Goal always points at your best next move. Good luck, boss.',
     target: 'goal',
   },
 ];
