@@ -3,7 +3,7 @@ import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-nati
 import {
   GameState,
   totalThroughput, fillRate, FILL_RATE_TARGET, totalPayroll, facilityOverhead,
-  shoutoutReady, moraleBreakdown, hasUnlock, nightShiftActive,
+  shoutoutReady, moraleBreakdown, nightShiftActive, dayCondition,
 } from '@copack/engine';
 import { colors, radius } from '../theme';
 import { formatCurrency, pct, shiftLabel, shiftClock, shiftProgress, averageMorale } from '../format';
@@ -15,7 +15,7 @@ const LOGO = require('../../assets/brand-logo.png');
 export function Hud({ state }: { state: GameState }) {
   const {
     paused, speed, soundOn,
-    setSpeed, togglePause, toggleSound, shoutout, toggleOvertime, toggleAutoShift,
+    setSpeed, togglePause, toggleSound, shoutout, toggleAutoShift,
   } = useGameStore();
   const awaitingStaffing = state.awaitingStaffing;
   const workers = Object.values(state.workers);
@@ -28,10 +28,11 @@ export function Hud({ state }: { state: GameState }) {
   const canShout = shoutoutReady(state) && !paused;
   const payroll = totalPayroll(state);
   const overhead = facilityOverhead(state);
+  const condition = dayCondition(state.day);
+  const conditionColor = condition.tone === 'bad' ? colors.red : condition.tone === 'good' ? colors.green : colors.cyan;
 
   const status = awaitingStaffing ? 'Standup' : paused ? 'Paused' : 'Live';
   const statusColor = awaitingStaffing ? colors.gold : paused ? colors.textMute : colors.green;
-  const overtimeUnlocked = hasUnlock(state, 'overtime');
 
   return (
     <View style={styles.wrap}>
@@ -43,23 +44,37 @@ export function Hud({ state }: { state: GameState }) {
             <Text style={styles.clock}>{shiftClock(state.tick)} left</Text>
           </View>
         </View>
-        <Pressable
-          onPress={togglePause}
-          style={({ pressed }) => [
-            styles.runButton,
-            { backgroundColor: paused ? colors.teal : colors.surface },
-            pressed && { opacity: 0.82 },
-          ]}
-        >
-          <Text style={[styles.runButtonText, { color: paused ? colors.bgDeep : colors.ink }]}>
-            {paused ? 'Resume' : 'Pause'}
-          </Text>
-        </Pressable>
+        <View style={styles.timeControls}>
+          <View style={styles.speedToggle}>
+            {([1, 4, 16] as SpeedSetting[]).map((s) => {
+              const active = speed === s && !paused;
+              return (
+                <Pressable key={s} onPress={() => setSpeed(s)} style={[styles.speedBtn, active && styles.speedBtnActive]}>
+                  <Text style={[styles.speedText, active && { color: colors.bgDeep }]}>{s}x</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Pressable
+            onPress={togglePause}
+            style={({ pressed }) => [
+              styles.runButton,
+              { backgroundColor: paused ? colors.teal : colors.surface },
+              pressed && { opacity: 0.82 },
+            ]}
+          >
+            <Text style={[styles.runButtonText, { color: paused ? colors.bgDeep : colors.ink }]}>
+              {paused ? 'Resume' : 'Pause'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.statusRow}>
         <StatusChip label={status} color={statusColor} strong />
         {nightShiftActive(state) && <StatusChip label="Nights" color={colors.purple} />}
+        <StatusChip label={`${condition.label}`} color={conditionColor} />
+        <StatusChip label={`${state.staffingHistory.length} days logged`} color={colors.gold} />
         <StatusChip label={`Cash ${formatCurrency(state.cash)}`} color={colors.green} />
         <StatusChip label={`Fill ${pct(fill)}`} color={fillLow ? colors.red : colors.green} />
         <StatusChip label={`${throughput.toFixed(1)}/m`} color={colors.cyan} />
@@ -75,23 +90,7 @@ export function Hud({ state }: { state: GameState }) {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.controls}>
-        <View style={styles.speedToggle}>
-          {([1, 4, 16] as SpeedSetting[]).map((s) => {
-            const active = speed === s && !paused;
-            return (
-              <Pressable key={s} onPress={() => setSpeed(s)} style={[styles.speedBtn, active && styles.speedBtnActive]}>
-                <Text style={[styles.speedText, active && { color: colors.bgDeep }]}>{s}x</Text>
-              </Pressable>
-            );
-          })}
-        </View>
         <CtrlBtn label={canShout ? 'Shout-out' : 'Cooling'} onPress={shoutout} disabled={!canShout} />
-        <CtrlBtn
-          label={state.overtime ? 'OT on' : overtimeUnlocked ? 'Overtime' : 'OT locked'}
-          onPress={toggleOvertime}
-          active={state.overtime}
-          disabled={!overtimeUnlocked}
-        />
         {state.hasSupervisor && (
           <CtrlBtn label={state.autoShift ? 'Auto on' : 'Auto'} onPress={toggleAutoShift} active={state.autoShift} />
         )}
@@ -150,9 +149,10 @@ const styles = StyleSheet.create({
   logo: { width: 34, height: 34 },
   shiftLabel: { color: colors.text, fontSize: 15, fontWeight: '900' },
   clock: { color: colors.gold, fontSize: 12, fontWeight: '900', marginTop: 1 },
+  timeControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   runButton: {
-    minWidth: 88,
-    minHeight: 42,
+    minWidth: 76,
+    minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  speedBtn: { paddingHorizontal: 8, paddingVertical: 7, borderRadius: 5 },
+  speedBtn: { paddingHorizontal: 7, paddingVertical: 7, borderRadius: 5 },
   speedBtnActive: { backgroundColor: colors.gold },
   speedText: { color: colors.textDim, fontSize: 11, fontWeight: '900' },
   ctrl: {

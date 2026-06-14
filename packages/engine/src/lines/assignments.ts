@@ -179,8 +179,19 @@ export function autoAssignCrew(state: GameState): GameState {
 // Begin the shift: release the morning hold so the clock runs again.
 export function startShift(state: GameState): { state: GameState; events: GameEvent[] } {
   if (!state.awaitingStaffing) return { state, events: [] };
+  const assignedIds = assignedWorkerIds(state);
+  const workers = { ...state.workers };
   const events: GameEvent[] = [{
     type: 'SHIFT_START', tick: state.tick, payload: { day: state.day },
   }];
-  return { state: { ...state, awaitingStaffing: false }, events };
+
+  for (const [workerId, worker] of Object.entries(workers)) {
+    if (!worker.presentThisShift || assignedIds.has(workerId)) continue;
+    workers[workerId] = {
+      ...worker,
+      presentThisShift: false,
+    };
+  }
+
+  return { state: { ...state, workers, awaitingStaffing: false }, events };
 }

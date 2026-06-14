@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Image, View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
 import {
   GameState, Line, Order, Worker, StationSkill, stationRole, orderProfile,
+  workerTraits,
   dayCondition, dayAttendanceModifier,
   mealCost, incentiveCost, mealReady, incentiveReady,
   mealCooldownRemaining, incentiveCooldownRemaining,
@@ -23,12 +24,11 @@ import { Spotlight } from '../components/Spotlight';
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 const TONE_COLOR: Record<string, string> = { good: colors.green, bad: colors.red, neutral: colors.cyan };
 const TRAINABLE = ['s1', 's2', 's3'];
-const LINE_PREVIEW = require('../../assets/floor/line-view-preview.png');
 
 export function FloorScreen({ state }: { state: GameState }) {
   const {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
-    hireWorker, train, buyMeal, runIncentive,
+    hireWorker, train,
     resolveChallenge, terminateWorker, soundOn, paused, setTab,
     tutorialActive, tutorialStep, advanceTutorial,
   } = useGameStore();
@@ -100,8 +100,10 @@ export function FloorScreen({ state }: { state: GameState }) {
       {selectedWorker && (
         <WorkerActionBar
           worker={selectedWorker}
+          state={state}
           cash={state.cash}
           payPolicy={state.payPolicy}
+          onAssign={assignWorker}
           onTrain={train}
           onTerminate={confirmTerminate}
           onCancel={() => selectWorker(null)}
@@ -128,33 +130,6 @@ export function FloorScreen({ state }: { state: GameState }) {
           onOpenPicker={(stationId, stationName, role) => setPicker({ lineId, stationId, stationName, role })}
         />
       ))}
-
-      <ConditionsBar
-        condition={condition}
-        swing={dayAttendanceModifier(state)}
-        mealActive={state.mealToday}
-        incentiveActive={state.incentiveToday}
-        mealReady={mealReady(state)}
-        incentiveReady={incentiveReady(state)}
-        mealCooldown={mealCooldownRemaining(state)}
-        incentiveCooldown={incentiveCooldownRemaining(state)}
-        mealCost={mealCost(state)}
-        incentiveCost={incentiveCost(state)}
-        cash={state.cash}
-        onMeal={buyMeal}
-        onIncentive={runIncentive}
-      />
-
-      {state.lastShiftReport && <ShiftImpactPanel report={state.lastShiftReport} />}
-
-      <CrewBench
-        benchWorkers={benchWorkers}
-        selectedWorkerId={selectedWorkerId}
-        cash={state.cash}
-        onHire={hireWorker}
-        onSelectWorker={selectWorker}
-        onTerminate={confirmTerminate}
-      />
 
       {/* Best-fit picker for the tapped station. */}
       <Modal transparent visible={picker !== null} animationType="slide" onRequestClose={() => setPicker(null)}>
@@ -346,9 +321,10 @@ function ShiftChallengeCard({
 // --- Selected-worker action bar (train / terminate) -------------------------
 
 function WorkerActionBar({
-  worker, cash, payPolicy, onTrain, onTerminate, onCancel,
+  worker, state, cash, payPolicy, onAssign, onTrain, onTerminate, onCancel,
 }: {
-  worker: Worker; cash: number; payPolicy: GameState['payPolicy'];
+  worker: Worker; state: GameState; cash: number; payPolicy: GameState['payPolicy'];
+  onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onTrain: (workerId: string, stationId: string) => void;
   onTerminate: (worker: Worker) => void;
   onCancel: () => void;
@@ -357,6 +333,22 @@ function WorkerActionBar({
   const risk = flightRisk(worker, payPolicy);
   const riskColor = risk === 'high' ? colors.red : risk === 'watch' ? colors.amber : colors.green;
   const riskCopy = risk === 'high' ? 'Flight risk — morale low' : risk === 'watch' ? 'Watch morale' : 'Settled in';
+  const traits = workerTraits(worker);
+  const openSlots = Object.entries(state.lines).flatMap(([lineId, line]) =>
+    line.stations
+      .filter((station) => !station.assignedWorkerId)
+      .map((station) => {
+        const role = stationRole(station);
+        const skill = worker.skills.find((s) => s.stationId === role);
+        return {
+          lineId,
+          stationId: station.id,
+          label: `${line.name} · ${station.name}`,
+          color: STATION_THEMES[role]?.color ?? colors.teal,
+          proficiency: skill?.proficiency ?? UNTRAINED_PROFICIENCY,
+        };
+      })
+  );
 
   return (
     <Panel style={styles.workerSheet}>
@@ -382,6 +374,24 @@ function WorkerActionBar({
         </View>
       </View>
 
+      <View style={styles.placementBlock}>
+        <Text style={styles.profileSectionTitle}>Place on position</Text>
+        <View style={styles.placementGrid}>
+          {openSlots.length === 0 ? (
+            <Text style={styles.noPlacement}>Every station is staffed. Pull someone off a station first.</Text>
+          ) : openSlots.slice(0, 6).map((slot) => (
+            <Pressable
+              key={`${slot.lineId}-${slot.stationId}`}
+              onPress={() => onAssign(worker.id, slot.lineId, slot.stationId)}
+              style={({ pressed }) => [styles.placeButton, { borderColor: slot.color }, pressed && { opacity: 0.82 }]}
+            >
+              <Text style={styles.placeLabel} numberOfLines={1}>{slot.label}</Text>
+              <Text style={styles.placeSkill}>{pct(slot.proficiency)}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
       <View style={styles.profileStats}>
         <ProfileStat label="Mood" value={worker.morale} color={colors.gold} />
         <ProfileStat label="Trust" value={worker.reliability} color={colors.teal} />
@@ -393,7 +403,11 @@ function WorkerActionBar({
       </View>
 
       <TraitChips worker={worker} style={{ marginTop: 10 }} />
-      <Text style={styles.assignHint}>Tap a station target to assign. Train here when someone needs a new role.</Text>
+      <Text style={styles.assignHint}>
+        {traits.length > 0
+          ? traits.map((trait) => `${trait.label}: ${trait.blurb}`).join(' ')
+          : `${profile.firstName} is still making a name on the floor.`}
+      </Text>
 
       <View style={styles.trainingGrid}>
         {TRAINABLE.map((sid) => {
@@ -471,7 +485,7 @@ function FloorLine({
     <Panel style={styles.lineBoard}>
       <View style={[styles.rowBetween, { marginBottom: 10 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Pill color={colors.ink} filled>{line.name}</Pill>
+          <Pill color={colors.teal} filled>{line.name}</Pill>
           {runningOrder && (
             <Pill color={colors.gold}>{runningOrder.sku} · {orderProfile(runningOrder).short}</Pill>
           )}
@@ -550,13 +564,20 @@ function FloorLine({
 function LinePreview({ running, rate }: { running: boolean; rate: number }) {
   return (
     <View style={styles.linePreview}>
-      <Image source={LINE_PREVIEW} style={styles.linePreviewImage} resizeMode="cover" />
-      <View style={styles.linePreviewOverlay}>
+      <View style={styles.linePreviewHead}>
         <View>
-          <Text style={styles.linePreviewLabel}>Linear line view</Text>
+          <Text style={styles.linePreviewLabel}>Board line</Text>
           <Text style={styles.linePreviewMeta}>{running ? 'Running' : 'Boarding'} · {rate.toFixed(1)} units/min</Text>
         </View>
         <View style={[styles.linePulse, { backgroundColor: running ? colors.green : colors.amber }]} />
+      </View>
+      <ConveyorBelt running={running} rate={rate} height={42} />
+      <View style={styles.lineStations}>
+        {(['s1', 's2', 's3'] as const).map((stationId) => (
+          <View key={stationId} style={[styles.lineStationMarker, { borderColor: STATION_THEMES[stationId].color }]}>
+            <Text style={[styles.lineStationText, { color: STATION_THEMES[stationId].color }]}>{STATION_NAMES[stationId]}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -787,6 +808,21 @@ const styles = StyleSheet.create({
   profileName: { color: colors.ink, fontSize: 20, fontWeight: '900', marginTop: 1 },
   profileMeta: { fontSize: 12, fontWeight: '800', marginTop: 3 },
   profilePills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  placementBlock: { marginTop: 12 },
+  profileSectionTitle: { color: colors.ink, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  placementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 7 },
+  placeButton: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    borderWidth: 1.4,
+    borderRadius: radius.sm,
+    backgroundColor: colors.paper,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+  },
+  placeLabel: { color: colors.ink, fontSize: 11, fontWeight: '900' },
+  placeSkill: { color: colors.inkMute, fontSize: 10, fontWeight: '800', marginTop: 2 },
+  noPlacement: { color: colors.inkMute, fontSize: 12, fontWeight: '700', paddingVertical: 4 },
   profileStats: { flexDirection: 'row', gap: 8, marginTop: 12 },
   profileStat: {
     flex: 1,
@@ -839,26 +875,28 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.inkBorder,
-    backgroundColor: colors.rail,
-    minHeight: 118,
+    backgroundColor: colors.surfaceAlt,
+    padding: 9,
+    gap: 8,
   },
-  linePreviewImage: { width: '100%', height: 126 },
-  linePreviewOverlay: {
-    position: 'absolute',
-    right: 8,
-    bottom: 8,
-    left: 8,
+  linePreviewHead: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: radius.sm,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    backgroundColor: 'rgba(9,12,14,0.72)',
   },
-  linePreviewLabel: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  linePreviewMeta: { color: colors.textMute, fontSize: 10, fontWeight: '800', marginTop: 1 },
+  linePreviewLabel: { color: colors.ink, fontSize: 12, fontWeight: '900' },
+  linePreviewMeta: { color: colors.inkMute, fontSize: 10, fontWeight: '800', marginTop: 1 },
   linePulse: { width: 10, height: 10, borderRadius: 5 },
+  lineStations: { flexDirection: 'row', gap: 7 },
+  lineStationMarker: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    backgroundColor: colors.paper,
+    paddingVertical: 5,
+  },
+  lineStationText: { fontSize: 10, fontWeight: '900' },
   stationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   station: { flex: 1, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1.5, padding: 8, gap: 6, minHeight: 132 },
   stationTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },

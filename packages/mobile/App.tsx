@@ -70,20 +70,21 @@ function Game() {
   const adVisible = useGameStore((s) => s.adVisible);
   const tutorialDone = useGameStore((s) => s.tutorialDone);
   const tutorialActive = useGameStore((s) => s.tutorialActive);
-  const { runTick, save, setTab, dismissOffline, selectWorker, reset, showAd, dismissAd, removeAds, startTutorial, finishTutorial } = useGameStore();
+  const { runTick, save, setTab, dismissOffline, selectWorker, reset, hireWorker, showAd, dismissAd, removeAds, startTutorial, finishTutorial } = useGameStore();
 
   const insets = useSafeAreaInsets();
   const gameOver = state.gameOver;
   const awaitingStaffing = state.awaitingStaffing;
+  const issueActive = !!state.shiftChallenge;
   const selectedWorker = selectedWorkerId ? state.workers[selectedWorkerId] : null;
 
   // Sim clock — holds when paused, during the morning standup, after shutdown,
   // or while an interstitial is on screen.
   useEffect(() => {
-    if (paused || gameOver || awaitingStaffing || adVisible) return;
+    if (paused || gameOver || awaitingStaffing || issueActive || adVisible) return;
     const id = setInterval(runTick, 1000 / speed);
     return () => clearInterval(id);
-  }, [runTick, paused, speed, gameOver, awaitingStaffing, adVisible]);
+  }, [runTick, paused, speed, gameOver, awaitingStaffing, issueActive, adVisible]);
 
   // Interstitial cadence: one ad every AD_INTERVAL_DAYS shifts, never during
   // the tutorial. showAd/dismissAd is the seam a real ad SDK plugs into.
@@ -138,8 +139,7 @@ function Game() {
     ])
   );
   const benchWorkers = Object.values(state.workers).filter((w) => !assignedIds.has(w.id));
-  const showDock = tab === 'floor' && !showPlacing && !gameOver
-    && benchWorkers.some((w) => w.presentThisShift);
+  const showDock = tab === 'floor' && !showPlacing && !gameOver;
 
   return (
     <View style={[styles.shell, { paddingTop: insets.top }]}>
@@ -175,7 +175,15 @@ function Game() {
         <PlacingBar worker={selectedWorker} onCancel={() => selectWorker(null)} bottomInset={insets.bottom} />
       )}
       {showDock && (
-        <CrewDock benchWorkers={benchWorkers} onSelectWorker={selectWorker} bottomInset={insets.bottom} />
+        <CrewDock
+          workers={Object.values(state.workers)}
+          benchWorkers={benchWorkers}
+          selectedWorkerId={selectedWorkerId}
+          cash={state.cash}
+          onHire={hireWorker}
+          onSelectWorker={selectWorker}
+          bottomInset={insets.bottom}
+        />
       )}
 
       <Toasts toasts={toasts} onDone={removeToast} topInset={insets.top} />

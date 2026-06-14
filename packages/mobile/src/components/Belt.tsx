@@ -94,15 +94,15 @@ const styles = StyleSheet.create({
   track: {
     width: '100%',
     borderRadius: 8,
-    backgroundColor: '#18223a',
+    backgroundColor: colors.paper,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: colors.inkBorder,
     overflow: 'hidden',
     justifyContent: 'center',
   },
   trackStopped: { opacity: 0.6 },
   zones: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row' },
-  zone: { flex: 1, borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.07)', borderStyle: 'dashed' },
+  zone: { flex: 1, borderRightWidth: 1, borderRightColor: 'rgba(23,37,42,0.14)', borderStyle: 'dashed' },
   carton: {
     position: 'absolute',
     top: '50%',
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     borderWidth: 1.5,
     borderColor: 'rgba(10,14,24,0.55)',
-    backgroundColor: '#9a6a35', // raw kraft carton off the Induct feed
+    backgroundColor: '#b98546', // raw kraft carton off the Induct feed
     overflow: 'hidden',
   },
   cartonFace: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
@@ -133,14 +133,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: 'rgba(8,13,24,0.85)',
+    backgroundColor: 'rgba(23,37,42,0.82)',
   },
   outletOn: {
     borderWidth: 1,
     borderColor: 'rgba(94,234,212,0.3)',
   },
   outletText: {
-    color: colors.textFaint,
+    color: colors.textDim,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.6,

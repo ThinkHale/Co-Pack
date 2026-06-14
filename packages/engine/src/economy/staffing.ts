@@ -55,10 +55,10 @@ export function effectiveHourly(worker: Worker, policy: PayPolicy): number {
 export function payAttendanceBonus(worker: Worker, policy: PayPolicy): number {
   const rate = workerPayRate(worker, policy);
   if (rate >= 1) return Math.min(0.07, (rate - 1) * 0.35);
-  // Below market the penalty is brutal: at the 90% floor a fifth of the crew
-  // stops showing. Tuned so the sweatshop strategy loses to market pay in
-  // simulation — saving 10% on wages cannot beat losing 20% of attendance.
-  return Math.max(-0.24, (rate - 1) * 2.2);
+  // Below market the penalty is brutal: once idle crew are dismissed at shift
+  // start, shaving pay has to bite turnout hard enough that "cheap labor"
+  // can't beat a stable market-rate floor.
+  return Math.max(-0.38, (rate - 1) * 3.4);
 }
 
 // Pay above market reduces flight risk; below market raises it (asymmetric).

@@ -6,12 +6,14 @@ import {
   openObjectives, OBJECTIVES, Objective,
   CLIENT_TIERS,
   TICKS_PER_SHIFT,
+  hasUnlock,
 } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency, pct, ticksToTimeRemaining } from '../format';
 import { formatEvent, eventToneColor } from '../events';
-import { Panel, Eyebrow, Pill, Bar } from '../components/common';
+import { Panel, Eyebrow, Pill, Bar, Button } from '../components/common';
 import type { GameEvent } from '@copack/engine';
+import { useGameStore } from '../store/useGameStore';
 
 export function OrdersScreen({ state }: { state: GameState }) {
   const sorted = [...state.activeOrders].sort((a, b) => (a.deadline - state.tick) - (b.deadline - state.tick));
@@ -28,11 +30,36 @@ export function OrdersScreen({ state }: { state: GameState }) {
       ) : (
         <Panel><Text style={styles.noOrders}>No active orders</Text></Panel>
       )}
+      <OrderControls state={state} />
       {sorted.length > 1 && <OrdersStrip orders={sorted.slice(1)} tick={state.tick} clients={state.clients} />}
       <ClientBook state={state} />
       <ObjectivesPanel state={state} />
       <EventLog events={recentEvents} />
     </View>
+  );
+}
+
+function OrderControls({ state }: { state: GameState }) {
+  const toggleOvertime = useGameStore((s) => s.toggleOvertime);
+  const overtimeUnlocked = hasUnlock(state, 'overtime');
+  return (
+    <Panel style={styles.orderControls}>
+      <View style={styles.rowBetween}>
+        <View style={{ flex: 1 }}>
+          <Eyebrow>Tempo decision</Eyebrow>
+          <Text style={styles.controlTitle}>{state.overtime ? 'Overtime is pushing output' : 'Overtime available for tight orders'}</Text>
+          <Text style={[shared.bodyMute, { marginTop: 2 }]}>
+            Faster shipping now, morale cost at shift close.
+          </Text>
+        </View>
+        <Button
+          label={state.overtime ? 'OT on' : overtimeUnlocked ? 'Run OT' : 'OT locked'}
+          tone={state.overtime ? 'accent' : 'muted'}
+          disabled={!overtimeUnlocked}
+          onPress={toggleOvertime}
+        />
+      </View>
+    </Panel>
   );
 }
 
@@ -221,6 +248,8 @@ function EventLog({ events }: { events: GameEvent[] }) {
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   noOrders: { color: colors.textMute, fontSize: 13, fontWeight: '900', textAlign: 'center', paddingVertical: 24, textTransform: 'uppercase', letterSpacing: 1 },
+  orderControls: { borderColor: colors.borderStrong },
+  controlTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 6 },
   heroSku: { color: colors.text, fontSize: 38, fontWeight: '900', flex: 1 },
   scoreRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 12 },

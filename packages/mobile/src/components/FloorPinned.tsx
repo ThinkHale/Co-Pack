@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { GameState, dayCondition, dayOfTick, weekday } from '@copack/engine';
+import { GameState, dayCondition } from '@copack/engine';
 import { colors, radius } from '../theme';
 import { useGameStore } from '../store/useGameStore';
 import { Button } from './common';
@@ -62,14 +62,13 @@ function StandupBar({
     ...(line.supportWorkerIds ?? []),
   ]));
   const unplaced = present.filter((w) => !assigned.has(w.id)).length;
-  const day = dayOfTick(state.tick);
   const accent = condition.tone === 'bad' ? colors.red : condition.tone === 'good' ? colors.green : colors.purple;
   const canRepeat = Object.entries(state.previousAssignments).some(([, id]) => state.workers[id]?.presentThisShift);
 
   return (
     <View style={[styles.bar, { borderColor: accent }]}>
       <View style={styles.facts}>
-        <Text style={styles.day}>Day {day + 1} · {weekday(day)}</Text>
+        <Text style={styles.day}>Standup</Text>
         <Text style={styles.stat}>
           <Text style={{ color: colors.green, fontWeight: '900' }}>{present.length}</Text>/{workers.length} in
           {absent > 0 ? <Text style={{ color: colors.pinkSoft }}> · {absent} out</Text> : null}
@@ -81,9 +80,7 @@ function StandupBar({
           <Text style={[styles.conditionText, { color: accent }]} numberOfLines={1}>{condition.label}</Text>
         </View>
       </View>
-      {unplaced > 0 && (
-        <Text style={styles.warn}>⚠ {unplaced} idle — sent home unpaid &amp; lose morale</Text>
-      )}
+      {unplaced > 0 && <Text style={styles.warn}>{unplaced} idle crew will be dismissed at start</Text>}
       <View style={styles.actions}>
         {state.hasSupervisor && <Button label="Auto-fill" tone="muted" small onPress={onAutoFill} style={{ flex: 1 }} />}
         <Button label="Repeat" tone="muted" small disabled={!canRepeat} onPress={onRepeat} style={{ flex: 1 }} />
@@ -101,11 +98,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: radius.md,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 7,
     backgroundColor: colors.panel,
     gap: 7,
   },
-  facts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  facts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   day: { color: colors.text, fontSize: 13, fontWeight: '900' },
   stat: { color: colors.textDim, fontSize: 12, fontWeight: '800' },
   condition: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: 'rgba(8,13,24,0.45)' },

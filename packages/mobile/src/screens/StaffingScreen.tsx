@@ -11,6 +11,8 @@ import {
   effectiveWage, SHIFT_HOURS,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
+  mealCost, incentiveCost, mealReady, incentiveReady,
+  mealCooldownRemaining, incentiveCooldownRemaining,
   hasUnlock,
 } from '@copack/engine';
 import { colors, radius, shared, STATION_NAMES } from '../theme';
@@ -19,10 +21,11 @@ import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Bar, StatCell } from '../components/common';
 
 export function StaffingScreen({ state }: { state: GameState }) {
-  const { setPayRate, toggleSkill, toggleProgram } = useGameStore();
+  const { setPayRate, toggleSkill, toggleProgram, buyMeal, runIncentive } = useGameStore();
   return (
     <View style={{ gap: 14 }}>
       <StaffingBoard state={state} />
+      <AttendanceBoostPanel state={state} onMeal={buyMeal} onIncentive={runIncentive} />
       <PayPanel state={state} onSetPayRate={setPayRate} />
       <SkillPanel state={state} onToggleSkill={toggleSkill} />
       <ProgramsPanel state={state} onToggleProgram={toggleProgram} />
@@ -56,7 +59,6 @@ function StaffingBoard({ state }: { state: GameState }) {
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
         <StatCell label="Today" value={pct(today)} />
         <StatCell label="Covered" value={`${covered}/${required}`} />
-        <StatCell label="Days logged" value={`${state.staffingHistory.length}`} />
       </View>
       {history.length > 0 && (
         <View style={styles.histRow}>
@@ -68,6 +70,65 @@ function StaffingBoard({ state }: { state: GameState }) {
         </View>
       )}
     </Panel>
+  );
+}
+
+function AttendanceBoostPanel({
+  state, onMeal, onIncentive,
+}: { state: GameState; onMeal: () => void; onIncentive: () => void }) {
+  const mCost = mealCost(state);
+  const iCost = incentiveCost(state);
+  const mReady = mealReady(state);
+  const iReady = incentiveReady(state);
+  const mealCooldown = mealCooldownRemaining(state);
+  const incentiveCooldown = incentiveCooldownRemaining(state);
+  const boostCopy = (active: boolean, ready: boolean, cooldown: number, label: string, cost: number) => {
+    if (active) return `${label} planned`;
+    if (!ready) return `${label} · ${cooldown}d`;
+    return `${label} ${formatCurrency(cost)}`;
+  };
+
+  return (
+    <Panel style={{ borderColor: colors.gold }}>
+      <Eyebrow>Next standup boosts</Eyebrow>
+      <Text style={shared.h2}>Attendance Pulls</Text>
+      <Text style={[shared.bodyMute, { marginTop: 4 }]}>
+        Use these before the next roll call to improve turnout. They cost cash now and cool down after use.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+        <ButtonLike
+          label={boostCopy(state.mealToday, mReady, mealCooldown, 'Meal', mCost)}
+          active={state.mealToday}
+          disabled={!mReady || state.cash < mCost}
+          onPress={onMeal}
+        />
+        <ButtonLike
+          label={boostCopy(state.incentiveToday, iReady, incentiveCooldown, 'Incentive', iCost)}
+          active={state.incentiveToday}
+          disabled={!iReady || state.cash < iCost}
+          onPress={onIncentive}
+        />
+      </View>
+    </Panel>
+  );
+}
+
+function ButtonLike({
+  label, active, disabled, onPress,
+}: { label: string; active: boolean; disabled: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.boost,
+        active && { backgroundColor: colors.gold, borderColor: colors.gold },
+        disabled && { opacity: 0.42 },
+        pressed && !disabled && { opacity: 0.82 },
+      ]}
+    >
+      <Text style={[styles.boostText, active && { color: colors.bgDeep }]} numberOfLines={2}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -190,6 +251,8 @@ const styles = StyleSheet.create({
   payReset: { color: colors.cyan, fontSize: 11, fontWeight: '800' },
   skill: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.03)' },
   skillName: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  boost: { flex: 1, minHeight: 46, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: colors.panelHi, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  boostText: { color: colors.text, fontSize: 12, fontWeight: '900', textAlign: 'center' },
   note: { color: colors.textMute, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
   program: { borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.03)', padding: 12 },
   programTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
