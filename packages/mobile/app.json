@@ -8,8 +8,13 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#121827",
-    "platforms": ["ios", "android"],
-    "assetBundlePatterns": ["**/*"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thinkhale.copack",
@@ -35,6 +40,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#121827",
           "imageWidth": 280
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-1996752680038963~6394884504"
         }
       ]
     ]
