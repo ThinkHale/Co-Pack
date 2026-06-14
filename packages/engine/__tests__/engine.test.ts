@@ -344,6 +344,10 @@ describe('generated workers', () => {
     const w = generateWorker('w99', 12345);
     expect(w.wage).toBeGreaterThan(0);
   });
+
+  it('stores presentation so portrait selection stays stable', () => {
+    expect(generateWorker('w99', 12345).appearance.presentation).toMatch(/^(feminine|masculine|neutral)$/);
+  });
 });
 
 describe('partial-line operation (regression: no-show no longer flat-stops a line)', () => {
@@ -906,6 +910,13 @@ describe('shift challenges', () => {
 describe('appearance', () => {
   it('senior hint forces a senior age bracket', () => {
     expect(generateAppearance(7, true).ageBracket).toBe('senior');
+  });
+
+  it('honors presentation hints for named starting workers', () => {
+    const diana = createInitialState().workers.w2.appearance;
+    expect(diana.presentation).toBe('feminine');
+    expect(diana.facialHair).toBe('none');
+    expect(generateAppearance(202, false, 'feminine').presentation).toBe('feminine');
   });
 });
 

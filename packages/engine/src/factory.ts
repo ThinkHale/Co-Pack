@@ -6,7 +6,7 @@ export function createInitialState(): GameState {
   // The starting three are hand-cast so the player meets distinct people on day one.
   const worker1: Worker = {
     id: 'w1', name: 'Marcus T.',
-    appearance: generateAppearance(101), traits: ['hard_worker', 'early_bird', 'quick_hands'],
+    appearance: generateAppearance(101, false, 'masculine'), traits: ['hard_worker', 'early_bird', 'quick_hands'],
     tenureDays: 0,
     reliability: 0.85, morale: 0.7, disposition: 0.70, wage: 255, // $25.50/hr billed
     permanent: false, isLead: false,
@@ -16,7 +16,7 @@ export function createInitialState(): GameState {
   };
   const worker2: Worker = {
     id: 'w2', name: 'Diana R.',
-    appearance: generateAppearance(202), traits: ['mentor', 'loyal', 'perfect_attendance', 'optimist'],
+    appearance: generateAppearance(202, false, 'feminine'), traits: ['mentor', 'loyal', 'perfect_attendance', 'optimist'],
     tenureDays: 45,
     reliability: 0.92, morale: 0.8, disposition: 0.82, wage: 275, // $27.50/hr billed
     permanent: false, isLead: false,
@@ -26,7 +26,7 @@ export function createInitialState(): GameState {
   };
   const worker3: Worker = {
     id: 'w3', name: 'Jerome K.',
-    appearance: generateAppearance(303), traits: ['joker', 'sickness_prone', 'easygoing'],
+    appearance: generateAppearance(303, false, 'masculine'), traits: ['joker', 'sickness_prone', 'easygoing'],
     tenureDays: 12,
     reliability: 0.75, morale: 0.6, disposition: 0.55, wage: 245, // $24.50/hr billed
     permanent: false, isLead: false,

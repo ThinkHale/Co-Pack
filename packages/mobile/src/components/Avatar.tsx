@@ -1,5 +1,5 @@
-import React from 'react';
-import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { Worker } from '@copack/engine';
 import { profileForWorker } from '../format';
 import { colors } from '../theme';
@@ -14,6 +14,10 @@ const PORTRAITS: ImageSourcePropType[] = [
   require('../../assets/workers/worker-portrait-05.png'),
   require('../../assets/workers/worker-portrait-06.png'),
 ];
+const FEMININE_FIRST_NAMES = new Set([
+  'Diana', 'Maria', 'Keisha', 'Tamika', 'Priya', 'Sandra', 'Tasha', 'Yolanda',
+  'Renee', 'Nina', 'Dawn', 'Bianca', 'Lakeisha', 'Mei', 'Fatima', 'Rosa', 'Ingrid',
+]);
 
 // The engine owns appearance tokens. Mobile maps those stable tokens to a small
 // generated portrait pack, then uses the worker's uniform accent as the frame.
@@ -21,6 +25,7 @@ export function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?
   const p = profileForWorker(worker);
   const d = SIZES[size];
   const portrait = PORTRAITS[portraitIndex(worker)];
+  const [imageFailed, setImageFailed] = useState(false);
 
   return (
     <View
@@ -35,16 +40,29 @@ export function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?
         },
       ]}
     >
-      <Image source={portrait} style={[styles.image, { borderRadius: d * 0.22 }]} resizeMode="cover" />
+      {imageFailed ? (
+        <View style={[styles.fallback, { borderRadius: d * 0.22 }]}>
+          <Text style={[styles.initials, { fontSize: Math.max(10, d * 0.34) }]}>{p.firstName.slice(0, 1)}</Text>
+        </View>
+      ) : (
+        <Image
+          source={portrait}
+          style={[styles.image, { borderRadius: d * 0.22 }]}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+        />
+      )}
     </View>
   );
 }
 
 function portraitIndex(worker: Worker): number {
   const appearance = worker.appearance;
+  const presentation = appearance.presentation ?? inferPresentation(worker);
   const key = [
     worker.id,
     worker.name,
+    presentation,
     appearance.skinTone,
     appearance.hairColor,
     appearance.hairStyle,
@@ -58,19 +76,19 @@ function portraitIndex(worker: Worker): number {
     hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
 
-  if (appearance.ageBracket === 'senior') {
-    return 2;
-  }
-  if (appearance.hairStyle === 'cap') {
-    return 5;
-  }
-  if (appearance.facialHair === 'beard' || appearance.facialHair === 'mustache') {
-    return 4;
-  }
-  if (appearance.hairStyle === 'bun' || appearance.hairStyle === 'long') {
-    return 3;
-  }
-  return hash % PORTRAITS.length;
+  const base = hash % PORTRAITS.length;
+  if (presentation === 'feminine') return [1, 3][hash % 2];
+  if (presentation === 'neutral') return [0, 1, 3, 5][hash % 4];
+  if (appearance.ageBracket === 'senior') return [2, 5, 1][hash % 3];
+  if (appearance.hairStyle === 'cap') return [5, 0, 2][hash % 3];
+  if (appearance.hairStyle === 'bun' || appearance.hairStyle === 'long') return [3, 1, 5][hash % 3];
+  if (appearance.facialHair !== 'none') return [4, base, 0, 2, 5][hash % 5];
+  return base;
+}
+
+function inferPresentation(worker: Worker): Worker['appearance']['presentation'] {
+  const first = worker.name.split(' ')[0];
+  return FEMININE_FIRST_NAMES.has(first) ? 'feminine' : 'masculine';
 }
 
 export function WorkerPortraitStrip({ worker }: { worker: Worker }) {
@@ -105,6 +123,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   image: { width: '100%', height: '100%' },
+  fallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.panelSoft,
+  },
+  initials: { color: colors.ink, fontWeight: '900' },
   strip: { flexDirection: 'row', gap: 4 },
   swatch: {
     width: 12,

@@ -10,6 +10,7 @@ import { colors, radius, shared } from '../theme';
 import { formatCurrency } from '../format';
 import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
+import { CharacterAvatar } from '../components/Avatar';
 
 // OFFICE — day-to-day operations & planning: tomorrow's forecast and the
 // agency advance order, the supervisor, and people moves. Capital purchases
@@ -159,10 +160,16 @@ export function OfficeScreen({ state }: { state: GameState }) {
             return (
               <View key={worker.id} style={styles.officeWorker}>
                 <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                    <Text style={styles.workerName} numberOfLines={1}>{worker.name}</Text>
-                    {worker.isLead && <Pill color={colors.gold}>LEAD</Pill>}
-                    {worker.permanent && <Pill color={colors.purple}>CO</Pill>}
+                  <View style={styles.workerIdentity}>
+                    <CharacterAvatar worker={worker} size="sm" />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.workerName} numberOfLines={1}>{worker.name}</Text>
+                        {worker.isLead && <Pill color={colors.gold}>LEAD</Pill>}
+                        {worker.permanent && <Pill color={colors.purple}>CO</Pill>}
+                      </View>
+                      <Text style={shared.bodyMute} numberOfLines={1}>{worker.presentThisShift ? 'Available today' : 'Out today'}</Text>
+                    </View>
                   </View>
                   <Text style={shared.bodyMute}>D{worker.tenureDays}</Text>
                 </View>
@@ -206,6 +213,7 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   settingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 12 },
   officeWorker: { backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
+  workerIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
   workerName: { color: colors.text, fontSize: 14, fontWeight: '900' },
   empty: { color: colors.textMute, fontSize: 13, fontWeight: '700', textAlign: 'center', paddingVertical: 14 },
   note: { color: colors.textMute, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },

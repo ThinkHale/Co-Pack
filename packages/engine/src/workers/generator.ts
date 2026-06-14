@@ -11,6 +11,10 @@ const FIRST_NAMES = [
   'Sergei', 'Mei', 'Diego', 'Fatima', 'Wyatt', 'Rosa', 'Kwame', 'Ingrid',
 ];
 const LAST_INITIALS = ['A', 'B', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'V', 'W'];
+const FEMININE_FIRST_NAMES = new Set([
+  'Maria', 'Keisha', 'Tamika', 'Priya', 'Sandra', 'Tasha', 'Yolanda', 'Renee',
+  'Nina', 'Dawn', 'Bianca', 'Lakeisha', 'Mei', 'Fatima', 'Rosa', 'Ingrid',
+]);
 
 // Station IDs for the 3-station line
 const STATION_IDS = ['s1', 's2', 's3'];
@@ -31,6 +35,7 @@ export function generateWorker(id: string, seed: number, skillRequest: string[] 
   const first = FIRST_NAMES[Math.floor(rng(0) * FIRST_NAMES.length)];
   const lastInit = LAST_INITIALS[Math.floor(rng(10) * LAST_INITIALS.length)];
   const name = `${first} ${lastInit}.`;
+  const presentation = FEMININE_FIRST_NAMES.has(first) ? 'feminine' : 'masculine';
 
   const traits = pickTraits(seed, 3 + Math.floor(rng(11) * 3)); // 3–5 traits
   const hasSenior = traits.includes('senior_citizen');
@@ -66,7 +71,7 @@ export function generateWorker(id: string, seed: number, skillRequest: string[] 
   return {
     id,
     name,
-    appearance: generateAppearance(seed, hasSenior),
+    appearance: generateAppearance(seed, hasSenior, presentation),
     traits,
     tenureDays: 0,
     reliability,

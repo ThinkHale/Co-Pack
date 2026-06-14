@@ -14,6 +14,7 @@ export interface Appearance {
   build: 'slim' | 'average' | 'broad';
   accent: string;       // uniform accent color
   ageBracket: 'young' | 'adult' | 'senior';
+  presentation: 'feminine' | 'masculine' | 'neutral';
 }
 
 const SKIN_TONES = ['#f3c9a0', '#e0a878', '#c8895f', '#a96f4f', '#8f5f45', '#6f4733', '#5a3826'];
@@ -24,7 +25,7 @@ const BUILDS: Appearance['build'][] = ['slim', 'average', 'average', 'broad'];
 
 // `seniorHint` biases toward grey hair and a senior age bracket (e.g. for the
 // Seasoned Veteran trait), so a worker's look matches who they are.
-export function generateAppearance(seed: number, seniorHint = false): Appearance {
+export function generateAppearance(seed: number, seniorHint = false, presentationHint?: Appearance['presentation']): Appearance {
   const r = (o: number) => seededRandom(seed * 7331 + o * 104729 + 13);
 
   const ageRoll = r(7);
@@ -36,19 +37,34 @@ export function generateAppearance(seed: number, seniorHint = false): Appearance
   const hairColor = senior && r(8) < 0.7
     ? HAIR_COLORS[5 + Math.floor(r(9) * 2)]            // greys for seniors
     : HAIR_COLORS[Math.floor(r(1) * (HAIR_COLORS.length - 2))];
+  const presentationRoll = r(10);
+  const presentation = presentationHint ?? (
+    presentationRoll < 0.48 ? 'feminine' : presentationRoll > 0.9 ? 'neutral' : 'masculine'
+  );
 
   return {
     skinTone: SKIN_TONES[Math.floor(r(0) * SKIN_TONES.length)],
     hairColor,
-    hairStyle: HAIR_STYLES[Math.floor(r(2) * HAIR_STYLES.length)],
-    facialHair: pickFacialHair(r(3)),
+    hairStyle: pickHairStyle(r(2), presentation),
+    facialHair: pickFacialHair(r(3), presentation),
     build: BUILDS[Math.floor(r(4) * BUILDS.length)],
     accent: ACCENTS[Math.floor(r(5) * ACCENTS.length)],
     ageBracket,
+    presentation,
   };
 }
 
-function pickFacialHair(roll: number): Appearance['facialHair'] {
+function pickHairStyle(roll: number, presentation: Appearance['presentation']): Appearance['hairStyle'] {
+  if (presentation === 'feminine') {
+    const feminineStyles: Appearance['hairStyle'][] = ['curly', 'long', 'bun', 'short', 'cap'];
+    return feminineStyles[Math.floor(roll * feminineStyles.length)];
+  }
+  return HAIR_STYLES[Math.floor(roll * HAIR_STYLES.length)];
+}
+
+function pickFacialHair(roll: number, presentation: Appearance['presentation']): Appearance['facialHair'] {
+  if (presentation === 'feminine') return 'none';
+  if (presentation === 'neutral' && roll < 0.78) return 'none';
   if (roll < 0.55) return 'none';
   if (roll < 0.72) return 'stubble';
   if (roll < 0.86) return 'mustache';

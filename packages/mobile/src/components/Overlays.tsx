@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, Modal, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Image, ImageBackground, StyleSheet, Modal, Pressable } from 'react-native';
 import { GameState, OBJECTIVES, Worker, TICKS_PER_SHIFT } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency, formatAwayTime, profileForWorker } from '../format';
@@ -10,15 +10,14 @@ import type { OfflineSummary } from '../lib/persistence';
 const SPLASH = require('../../assets/brand-splash.png');
 
 export function SplashScreen({ onStart }: { onStart: () => void }) {
-  const { height } = useWindowDimensions();
-  const artHeight = Math.min(320, Math.max(220, height * 0.44));
-
   return (
-    <View style={styles.splash}>
-      <Image source={SPLASH} style={[styles.splashImg, { height: artHeight }]} resizeMode="contain" />
-      <Text style={styles.splashTag}>Idle contract packaging simulation</Text>
-      <Button label="Start Shift" tone="primary" onPress={onStart} style={{ paddingHorizontal: 44, paddingVertical: 14, marginTop: 24 }} />
-    </View>
+    <ImageBackground source={SPLASH} style={styles.splash} resizeMode="cover">
+      <View style={styles.splashShade} />
+      <View style={styles.splashActions}>
+        <Text style={styles.splashTag}>Idle contract packaging simulation</Text>
+        <Button label="Start Shift" tone="primary" onPress={onStart} style={styles.splashButton} />
+      </View>
+    </ImageBackground>
   );
 }
 
@@ -237,9 +236,11 @@ export function PlacingBar({ worker, onCancel, bottomInset }: { worker: Worker; 
 }
 
 const styles = StyleSheet.create({
-  splash: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  splashImg: { width: '88%', height: 320 },
-  splashTag: { color: colors.textMute, fontSize: 12, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', marginTop: 16, textAlign: 'center' },
+  splash: { flex: 1, backgroundColor: colors.bg, justifyContent: 'flex-end' },
+  splashShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(16,43,58,0.16)' },
+  splashActions: { paddingHorizontal: 28, paddingBottom: 54, alignItems: 'center', gap: 16 },
+  splashTag: { color: colors.surface, fontSize: 12, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center', textShadowColor: 'rgba(16,43,58,0.55)', textShadowRadius: 8 },
+  splashButton: { minWidth: 210, paddingHorizontal: 44, paddingVertical: 14 },
   overlay: { flex: 1, backgroundColor: 'rgba(16,43,58,0.46)', alignItems: 'center', justifyContent: 'center', padding: 22 },
   card: { width: '100%', maxWidth: 420, backgroundColor: colors.panel, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderStrong, padding: 22 },
   sumGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },

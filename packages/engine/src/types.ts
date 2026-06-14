@@ -29,6 +29,7 @@ export interface WorkerAppearance {
   build: 'slim' | 'average' | 'broad';
   accent: string;
   ageBracket: 'young' | 'adult' | 'senior';
+  presentation: 'feminine' | 'masculine' | 'neutral';
 }
 
 export type StationSkill = {
