@@ -1,20 +1,25 @@
 import React from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import {
   GameState,
   nextLineCost, canBuyLine,
   automationCost, canAutomate, automationMultiplier, AUTOMATION_MAX_LEVEL, AUTOMATION_UPKEEP_PER_LEVEL,
-  FEATURE_UNLOCKS, canBuyUnlock,
+  FEATURE_UNLOCKS, canBuyUnlock, hasUnlock,
+  canHireSupervisor, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT,
+  NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
 } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency } from '../format';
 import { useGameStore } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button } from '../components/common';
 
-// CORPORATE — capital decisions: capability unlocks, lines & automation,
-// and the app settings/danger zone. Day-to-day operations live on Office.
+// UPGRADES — capital decisions: capability unlocks, lines & automation.
+// Day-to-day operations live on Office; app controls live in Settings there.
 export function CorporateScreen({ state }: { state: GameState }) {
-  const { buyLine, upgradeAutomation, buyUnlock, adsOn, adFree, toggleAdsTesting, reset } = useGameStore();
+  const {
+    buyLine, upgradeAutomation, buyUnlock, hireSupervisor,
+    toggleAutoShift, toggleNightShift,
+  } = useGameStore();
   const lines = Object.entries(state.lines);
   const lineCost = nextLineCost(state);
   const canAfford = canBuyLine(state);
@@ -28,6 +33,31 @@ export function CorporateScreen({ state }: { state: GameState }) {
           One-time purchases that open up new levers. Earned, not given.
         </Text>
         <View style={{ gap: 10, marginTop: 12 }}>
+          <View style={styles.officeLine}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.lineName}>{state.hasSupervisor ? 'Floor Supervisor' : '🔒 Floor Supervisor'}</Text>
+              {state.hasSupervisor && <Pill color={colors.green} filled>OWNED</Pill>}
+            </View>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
+              Runs missed standups and unlocks second shift licensing. Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
+            </Text>
+            {!state.hasSupervisor ? (
+              <Button
+                label={`Hire supervisor · ${formatCurrency(SUPERVISOR_COST)}`}
+                tone="muted"
+                disabled={!canHireSupervisor(state)}
+                onPress={hireSupervisor}
+                style={{ marginTop: 8 }}
+              />
+            ) : (
+              <Button
+                label={state.autoShift ? 'Auto-shift ON' : 'Auto-shift off'}
+                tone={state.autoShift ? 'primary' : 'muted'}
+                onPress={toggleAutoShift}
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </View>
           {FEATURE_UNLOCKS.map((u) => {
             const owned = state.unlocks.includes(u.id);
             return (
@@ -50,6 +80,16 @@ export function CorporateScreen({ state }: { state: GameState }) {
                       style={{ marginTop: 8 }}
                     />
                   </>
+                )}
+                {owned && u.id === 'night_shift' && hasUnlock(state, 'night_shift') && (
+                  <Button
+                    label={state.nightShift
+                      ? `Night shift ON · +${Math.round(NIGHT_OUTPUT_BONUS * 100)}% output`
+                      : `Night shift off · +${Math.round(NIGHT_OUTPUT_BONUS * 100)}% output, +${Math.round(NIGHT_LABOR_RATE * 100)}% payroll + ${formatCurrency(NIGHT_OVERHEAD)}/shift`}
+                    tone={state.nightShift ? 'accent' : 'muted'}
+                    onPress={toggleNightShift}
+                    style={{ marginTop: 8 }}
+                  />
                 )}
               </View>
             );
@@ -95,40 +135,13 @@ export function CorporateScreen({ state }: { state: GameState }) {
         </View>
       </Panel>
 
-      <Panel>
-        <View style={styles.rowBetween}>
-          <View style={{ flex: 1 }}>
-            <Eyebrow>Settings · testing</Eyebrow>
-            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
-              Interstitial ads every 5 shifts{adFree ? ' — removed (purchase simulated) ✓' : ''}.
-            </Text>
-          </View>
-          <Button label={`Ads: ${adsOn ? 'ON' : 'OFF'}`} tone="muted" onPress={toggleAdsTesting} />
-        </View>
-        <View style={[styles.rowBetween, { marginTop: 14, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 }]}>
-          <View style={{ flex: 1 }}>
-            <Eyebrow color={colors.red}>Danger zone</Eyebrow>
-            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Wipe the save and start a fresh plant.</Text>
-          </View>
-          <Button
-            label="Reset run"
-            tone="danger"
-            onPress={() =>
-              Alert.alert('Reset the run?', 'This wipes your save and starts a fresh shift.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Reset', style: 'destructive', onPress: reset },
-              ])
-            }
-          />
-        </View>
-      </Panel>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  officeLine: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 12 },
+  officeLine: { backgroundColor: 'rgba(248,245,223,0.08)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
   lineName: { color: colors.text, fontSize: 15, fontWeight: '900' },
   requires: { color: colors.gold, fontSize: 10, fontWeight: '900', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 },
 });

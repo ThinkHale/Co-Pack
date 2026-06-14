@@ -1,7 +1,7 @@
 import { GameState, GameEvent, Order, Client } from '../types';
 import { seededRandom } from '../utils/random';
 import { TICKS_PER_DAY } from '../time';
-import { ClientTier, CLIENT_TIERS, unlockedTiers, processClientUnlocks } from './roster';
+import { ClientTier, CLIENT_TIERS, unlockedTiers } from './roster';
 import { pickSkuProfile } from '../lines/skus';
 
 // Reputation pays. A trusted shop earns full price; a struggling one gets squeezed.
@@ -21,12 +21,6 @@ export const LATE_SALVAGE_RATE = 0.5;
 
 export function processOrders(state: GameState): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
-
-  // Sign any client tier the site has just qualified for, so new contracts can
-  // come from them on this very pass.
-  const ru = processClientUnlocks(state);
-  state = ru.state;
-  events.push(...ru.events);
 
   const completedIds: string[] = [];
   const missedIds: string[] = [];

@@ -11,6 +11,7 @@ export const colors = {
   panel: '#203940',
   panelAlt: '#29484f',
   panelHi: '#365a61',
+  panelSoft: '#eef3df',
   steel: '#55717a',
   rail: '#385b63',
   border: 'rgba(244,241,234,0.12)',
@@ -59,11 +60,16 @@ export const radius = { sm: 6, md: 9, lg: 12, xl: 18, pill: 999 } as const;
 // Shared building blocks reused across screens.
 export const shared = StyleSheet.create({
   panel: {
-    backgroundColor: colors.panel,
+    backgroundColor: colors.panelAlt,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     padding: 12,
+    shadowColor: colors.bgDeep,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 2,
   },
   eyebrow: {
     color: colors.gold,

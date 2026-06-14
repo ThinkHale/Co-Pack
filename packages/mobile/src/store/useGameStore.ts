@@ -11,8 +11,10 @@ import {
   resolveShiftChallenge as engineResolveChallenge,
   hireSupervisor as engineHireSupervisor, setAutoShift as engineSetAutoShift,
   autoAssignCrew,
+  pushLineHarder as enginePushLineHarder,
   toggleOvertime as engineToggleOvertime,
   requestWorkers as engineRequestWorkers,
+  signClient as engineSignClient,
   toggleNightShift as engineToggleNightShift,
   purchaseUnlock as enginePurchaseUnlock, FeatureUnlockId,
 } from '@copack/engine';
@@ -71,7 +73,9 @@ interface GameStore {
   toggleAutoShift: () => void;
   autoFillCrew: () => void;
   buyUnlock: (id: FeatureUnlockId) => void;
+  signClient: (tierId: string) => void;
   toggleNightShift: () => void;
+  pushLineHarder: (lineId: string) => void;
   // Ads (interstitial cadence; SDK-ready seam) + first-play tutorial
   adsOn: boolean;
   adFree: boolean;
@@ -241,7 +245,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   buyUnlock: (id) => set((store) => applyEngineResult(store, enginePurchaseUnlock(store.state, id))),
 
+  signClient: (tierId) => set((store) => applyEngineResult(store, engineSignClient(store.state, tierId))),
+
   toggleNightShift: () => set((store) => applyEngineResult(store, engineToggleNightShift(store.state))),
+
+  pushLineHarder: (lineId) => set((store) => applyEngineResult(store, enginePushLineHarder(store.state, lineId))),
 
   // Marking lastAdDay at show-time keeps the trigger from re-firing while up.
   showAd: () => set((store) => ({ adVisible: true, lastAdDay: store.state.day })),

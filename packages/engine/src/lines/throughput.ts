@@ -1,5 +1,5 @@
 import { GameState, GameEvent, Line, Order, Worker, stationRole } from '../types';
-import { automationMultiplier, LEAD_OUTPUT_BONUS } from '../economy/frontoffice';
+import { automationMultiplier, LEAD_OUTPUT_BONUS, PUSH_HARDER_OUTPUT_BONUS } from '../economy/frontoffice';
 import { nightShiftActive, NIGHT_OUTPUT_BONUS } from '../economy/nightshift';
 import { workerProductivityMult, lineProductivityMult } from '../workers/traits';
 import { assignedWorkerIdsForLine, MAX_SUPPORT_WORKERS_PER_LINE } from './assignments';
@@ -53,6 +53,9 @@ export function lineThroughput(state: GameState, line: Line): number {
     && assignedWorkerIdsForLine(line).includes(line.leadId)
     && state.workers[line.leadId!]?.presentThisShift;
   const leadMultiplier = leadPresent ? 1 + LEAD_OUTPUT_BONUS : 1;
+  const pushHarderMultiplier = leadPresent && (line.pushHarderUntil ?? 0) > state.tick
+    ? 1 + PUSH_HARDER_OUTPUT_BONUS
+    : 1;
   const supportMultiplier = 1 + Math.min(supportWorkers.length, MAX_SUPPORT_WORKERS_PER_LINE) * SUPPORT_OUTPUT_BONUS;
 
   // Trait effects: each present worker's own productivity (hard worker, slacker,
@@ -67,7 +70,7 @@ export function lineThroughput(state: GameState, line: Line): number {
 
   return BASE_UNITS_PER_TICK * (0.75 + avgMorale * 0.5) * skillMultiplier
     * overtimeMultiplier * staffingRatio * leadMultiplier * automationMultiplier(line)
-    * supportMultiplier * avgTraitMult * traitLineMult * challengeMult * nightMultiplier;
+    * pushHarderMultiplier * supportMultiplier * avgTraitMult * traitLineMult * challengeMult * nightMultiplier;
 }
 
 // Total units/tick across every active line — the HUD's headline output number.

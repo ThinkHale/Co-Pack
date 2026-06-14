@@ -2,10 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import {
   GameState, Worker,
-  LEAD_COST, conversionCost,
-  canHireSupervisor, SUPERVISOR_COST, SUPERVISOR_SALARY_PER_SHIFT,
-  hasUnlock,
-  NIGHT_OUTPUT_BONUS, NIGHT_LABOR_RATE, NIGHT_OVERHEAD,
+  LEAD_COST, conversionCost, CONVERSION_MIN_SHIFTS_WORKED,
   dayCondition, tomorrowPositions, expectedAttendance, orderProfile,
   ADVANCE_HIRE_COST, HIRE_COST,
 } from '@copack/engine';
@@ -18,7 +15,10 @@ import { Panel, Eyebrow, Pill, Button, StatCell } from '../components/common';
 // agency advance order, the supervisor, and people moves. Capital purchases
 // (upgrades, lines, automation) live on Corporate.
 export function OfficeScreen({ state }: { state: GameState }) {
-  const { promoteLead, convertWorker, terminateWorker, hireSupervisor, toggleAutoShift, toggleNightShift, requestWorkers } = useGameStore();
+  const {
+    promoteLead, convertWorker, terminateWorker, requestWorkers,
+    soundOn, toggleSound, adsOn, adFree, toggleAdsTesting, reset,
+  } = useGameStore();
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter((w) => !w.permanent);
 
@@ -35,6 +35,8 @@ export function OfficeScreen({ state }: { state: GameState }) {
   const roster = Object.keys(state.workers).length;
   const expected = expectedAttendance(state, 1);
   const arriving = state.pendingHires;
+  const expectedLow = Math.max(0, Math.floor(expected - 1));
+  const expectedHigh = Math.min(roster + arriving, Math.ceil(expected + 1));
   const short = Math.ceil(positions - (expected + arriving));
   const lineCount = Object.values(state.lines).filter((l) => l.active).length;
   const lineup = [...state.activeOrders]
@@ -79,7 +81,7 @@ export function OfficeScreen({ state }: { state: GameState }) {
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
           <StatCell label="Positions" value={`${positions}`} />
-          <StatCell label="Expected in" value={`~${expected.toFixed(1)}`} />
+          <StatCell label="Likely in" value={`${expectedLow}-${expectedHigh}`} />
           <StatCell label="Reserved" value={`${arriving}`} />
         </View>
         {short > 0 ? (
@@ -100,48 +102,45 @@ export function OfficeScreen({ state }: { state: GameState }) {
       </Panel>
 
       <Panel>
-        <Eyebrow>Operations</Eyebrow>
-        <Text style={shared.h2}>Floor Supervisor</Text>
-        {!state.hasSupervisor ? (
-          <>
-            <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-              Hire a supervisor and the plant keeps earning while you're away — they run every
-              standup you miss. While you're playing, the floor stays yours unless you flip
-              Auto-shift on. Salary {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift.
+        <View style={styles.rowBetween}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Settings</Eyebrow>
+            <Text style={shared.h2}>Controls</Text>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Sound, test toggles, and save controls.</Text>
+          </View>
+          <Button
+            label={soundOn ? 'Sound ON' : 'Sound muted'}
+            tone={soundOn ? 'primary' : 'muted'}
+            small
+            onPress={toggleSound}
+          />
+        </View>
+        <View style={[styles.settingsRow, { marginTop: 12 }]}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Testing</Eyebrow>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
+              Interstitial ads every 5 shifts{adFree ? ' — removed (purchase simulated)' : ''}.
             </Text>
-            <Button
-              label={`Hire supervisor · ${formatCurrency(SUPERVISOR_COST)}`}
-              tone="primary"
-              disabled={!canHireSupervisor(state)}
-              onPress={hireSupervisor}
-              style={{ marginTop: 10 }}
-            />
-          </>
-        ) : (
-          <>
-            <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-              Away time is always covered. Auto-shift is for watching hands-free — and a
-              hands-on morning still squeezes out more: the supervisor never hires, trains, or
-              staffs support slots. {formatCurrency(SUPERVISOR_SALARY_PER_SHIFT)}/shift either way.
-            </Text>
-            <Button
-              label={state.autoShift ? 'Auto-shift ON — supervisor runs the floor' : 'Auto-shift off — you run the mornings'}
-              tone={state.autoShift ? 'primary' : 'muted'}
-              onPress={toggleAutoShift}
-              style={{ marginTop: 10 }}
-            />
-            {hasUnlock(state, 'night_shift') && (
-              <Button
-                label={state.nightShift
-                  ? `🌙 Night shift ON · +${Math.round(NIGHT_OUTPUT_BONUS * 100)}% output, +${Math.round(NIGHT_LABOR_RATE * 100)}% payroll`
-                  : `Night shift off · +${Math.round(NIGHT_OUTPUT_BONUS * 100)}% output for +${Math.round(NIGHT_LABOR_RATE * 100)}% payroll + ${formatCurrency(NIGHT_OVERHEAD)}/shift`}
-                tone={state.nightShift ? 'accent' : 'muted'}
-                onPress={toggleNightShift}
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </>
-        )}
+          </View>
+          <Button label={`Ads: ${adsOn ? 'ON' : 'OFF'}`} tone="muted" small onPress={toggleAdsTesting} />
+        </View>
+        <View style={styles.settingsRow}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow color={colors.red}>Danger zone</Eyebrow>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Wipe the save and start a fresh plant.</Text>
+          </View>
+          <Button
+            label="Reset run"
+            tone="danger"
+            small
+            onPress={() =>
+              Alert.alert('Reset the run?', 'This wipes your save and starts a fresh shift.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Reset', style: 'destructive', onPress: reset },
+              ])
+            }
+          />
+        </View>
       </Panel>
 
       <Panel>
@@ -180,9 +179,13 @@ export function OfficeScreen({ state }: { state: GameState }) {
                     onPress={() => assignedLine && promoteLead(worker.id, assignedLine[0])}
                   />
                   <Button
-                    label={worker.permanent ? 'Company' : `Convert · ${formatCurrency(convertCost)}`}
+                    label={worker.permanent
+                      ? 'Company'
+                      : (worker.shiftsWorked ?? 0) < CONVERSION_MIN_SHIFTS_WORKED
+                        ? `${CONVERSION_MIN_SHIFTS_WORKED - (worker.shiftsWorked ?? 0)} shifts to convert`
+                        : `Convert · ${formatCurrency(convertCost)}`}
                     tone="muted" small
-                    disabled={worker.permanent || state.cash < convertCost}
+                    disabled={worker.permanent || (worker.shiftsWorked ?? 0) < CONVERSION_MIN_SHIFTS_WORKED || state.cash < convertCost}
                     onPress={() => convertWorker(worker.id)}
                   />
                   <Button label="Term" tone="danger" small onPress={() => confirmTerminate(worker)} />
@@ -191,7 +194,9 @@ export function OfficeScreen({ state }: { state: GameState }) {
             );
           })}
         </View>
-        <Text style={[styles.note, { marginTop: 10 }]}>{temps.length} temp{temps.length === 1 ? '' : 's'} eligible to convert</Text>
+        <Text style={[styles.note, { marginTop: 10 }]}>
+          {temps.filter((w) => (w.shiftsWorked ?? 0) >= CONVERSION_MIN_SHIFTS_WORKED).length} temp{temps.length === 1 ? '' : 's'} eligible to convert
+        </Text>
       </Panel>
     </View>
   );
@@ -199,15 +204,16 @@ export function OfficeScreen({ state }: { state: GameState }) {
 
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  officeWorker: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 12 },
+  settingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 12 },
+  officeWorker: { backgroundColor: 'rgba(248,245,223,0.08)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
   workerName: { color: colors.text, fontSize: 14, fontWeight: '900' },
   empty: { color: colors.textMute, fontSize: 13, fontWeight: '700', textAlign: 'center', paddingVertical: 14 },
   note: { color: colors.textMute, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
-  forecast: { maxWidth: 170, borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(8,13,24,0.5)' },
+  forecast: { maxWidth: 170, borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(15,27,32,0.48)' },
   forecastLabel: { fontSize: 14, fontWeight: '900' },
   forecastNote: { color: colors.textMute, fontSize: 10, fontWeight: '700', marginTop: 1 },
   sectionLabel: { color: colors.textMute, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 12 },
-  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 7 },
+  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, backgroundColor: 'rgba(248,245,223,0.08)', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 10, paddingVertical: 7 },
   planSku: { color: colors.text, fontSize: 12, fontWeight: '900' },
   planCrew: { color: colors.cyan, fontSize: 12, fontWeight: '900' },
   shortWarn: { color: colors.amber, fontSize: 11, fontWeight: '900', marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 },

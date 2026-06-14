@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import {
-  GameState,
-  totalThroughput, fillRate, FILL_RATE_TARGET, totalPayroll, facilityOverhead,
-  shoutoutReady, moraleBreakdown, nightShiftActive, dayCondition,
+  GameState, totalThroughput, totalPayroll, facilityOverhead,
+  nightShiftActive, dayCondition,
 } from '@copack/engine';
 import { colors, radius } from '../theme';
 import { formatCurrency, pct, shiftLabel, shiftClock, shiftProgress, averageMorale } from '../format';
@@ -14,25 +13,25 @@ const LOGO = require('../../assets/brand-logo.png');
 
 export function Hud({ state }: { state: GameState }) {
   const {
-    paused, speed, soundOn,
-    setSpeed, togglePause, toggleSound, shoutout, toggleAutoShift,
+    paused, speed,
+    setSpeed, togglePause,
   } = useGameStore();
   const awaitingStaffing = state.awaitingStaffing;
   const workers = Object.values(state.workers);
   const throughput = totalThroughput(state);
-  const fill = fillRate(state);
-  const fillLow = fill < FILL_RATE_TARGET;
-  const breakdown = moraleBreakdown(state.workers);
-  const staffed = Object.values(state.lines).reduce((s, l) => s + l.stations.filter((st) => st.assignedWorkerId).length, 0);
-  const total = Object.values(state.lines).reduce((s, l) => s + l.stations.length, 0);
-  const canShout = shoutoutReady(state) && !paused;
   const payroll = totalPayroll(state);
   const overhead = facilityOverhead(state);
   const condition = dayCondition(state.day);
   const conditionColor = condition.tone === 'bad' ? colors.red : condition.tone === 'good' ? colors.green : colors.cyan;
 
-  const status = awaitingStaffing ? 'Standup' : paused ? 'Paused' : 'Live';
-  const statusColor = awaitingStaffing ? colors.gold : paused ? colors.textMute : colors.green;
+  const progress = shiftProgress(state.tick);
+  const phase = awaitingStaffing
+    ? 'Pre-Shift'
+    : progress >= 0.995 || state.gameOver
+      ? 'Shift Complete'
+      : nightShiftActive(state) ? '2nd Shift' : '1st Shift';
+  const phaseColor = awaitingStaffing ? colors.gold : state.gameOver ? colors.textMute : colors.green;
+  const statusLabel = `${phase} · ${condition.label} · ${state.staffingHistory.length}d`;
 
   return (
     <View style={styles.wrap}>
@@ -71,63 +70,29 @@ export function Hud({ state }: { state: GameState }) {
       </View>
 
       <View style={styles.statusRow}>
-        <StatusChip label={status} color={statusColor} strong />
-        {nightShiftActive(state) && <StatusChip label="Nights" color={colors.purple} />}
-        <StatusChip label={`${condition.label}`} color={conditionColor} />
-        <StatusChip label={`${state.staffingHistory.length} days logged`} color={colors.gold} />
+        <StatusChip label={statusLabel} color={phaseColor} strong grow />
         <StatusChip label={`Cash ${formatCurrency(state.cash)}`} color={colors.green} />
-        <StatusChip label={`Fill ${pct(fill)}`} color={fillLow ? colors.red : colors.green} />
-        <StatusChip label={`${throughput.toFixed(1)}/m`} color={colors.cyan} />
+        <StatusChip label={`${throughput.toFixed(1)}/m`} color={conditionColor || colors.cyan} />
       </View>
 
       <View style={styles.progressBlock}>
-        <Bar value={shiftProgress(state.tick)} color={colors.teal} height={5} track="rgba(244,241,234,0.12)" />
+        <Bar value={progress} color={colors.teal} height={5} track="rgba(244,241,234,0.12)" />
         <View style={styles.metricRow}>
-          <Text style={styles.metric}>Crew {staffed}/{total}</Text>
-          <Text style={styles.metric}>Morale {pct(averageMorale(workers))} · {breakdown.thriving} up / {breakdown.struggling} down</Text>
+          <Text style={styles.metric}>Morale {pct(averageMorale(workers))}</Text>
           <Text style={styles.metric}>Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)}</Text>
         </View>
       </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.controls}>
-        <CtrlBtn label={canShout ? 'Shout-out' : 'Cooling'} onPress={shoutout} disabled={!canShout} />
-        {state.hasSupervisor && (
-          <CtrlBtn label={state.autoShift ? 'Auto on' : 'Auto'} onPress={toggleAutoShift} active={state.autoShift} />
-        )}
-        <CtrlBtn label={soundOn ? 'Sound' : 'Muted'} onPress={toggleSound} />
-      </ScrollView>
     </View>
   );
 }
 
-function StatusChip({ label, color, strong }: { label: string; color: string; strong?: boolean }) {
+function StatusChip({ label, color, strong, grow }: { label: string; color: string; strong?: boolean; grow?: boolean }) {
   return (
-    <View style={[styles.statusChip, strong && { backgroundColor: color, borderColor: color }]}>
+    <View style={[styles.statusChip, grow && { flex: 1 }, strong && { backgroundColor: color, borderColor: color }]}>
       <Text style={[styles.statusChipText, { color: strong ? colors.bgDeep : color }]} numberOfLines={1}>
         {label}
       </Text>
     </View>
-  );
-}
-
-function CtrlBtn({
-  label, onPress, active, disabled,
-}: { label: string; onPress: () => void; active?: boolean; disabled?: boolean }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.ctrl,
-        active && styles.ctrlActive,
-        disabled && { opacity: 0.38 },
-        pressed && !disabled && { opacity: 0.8 },
-      ]}
-    >
-      <Text style={[styles.ctrlText, active && { color: colors.bgDeep }]} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -137,42 +102,41 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    padding: 12,
+    padding: 9,
     shadowColor: colors.bgDeep,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.22,
     shadowRadius: 18,
     elevation: 5,
   },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1 },
-  logo: { width: 34, height: 34 },
-  shiftLabel: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  clock: { color: colors.gold, fontSize: 12, fontWeight: '900', marginTop: 1 },
-  timeControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 },
+  logo: { width: 28, height: 28 },
+  shiftLabel: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  clock: { color: colors.gold, fontSize: 11, fontWeight: '900', marginTop: 0 },
+  timeControls: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   runButton: {
-    minWidth: 76,
-    minHeight: 38,
+    minWidth: 58,
+    minHeight: 30,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
   },
-  runButtonText: { fontSize: 14, fontWeight: '900' },
-  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  runButtonText: { fontSize: 12, fontWeight: '900' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
   statusChip: {
     borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
     backgroundColor: 'rgba(244,241,234,0.05)',
   },
-  statusChipText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.25 },
-  progressBlock: { marginTop: 10, gap: 7 },
-  metricRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusChipText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.2 },
+  progressBlock: { marginTop: 8, gap: 6 },
+  metricRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   metric: { color: colors.textMute, fontSize: 10, fontWeight: '800' },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingRight: 4 },
   speedToggle: {
     flexDirection: 'row',
     backgroundColor: colors.bgDeep,
@@ -181,19 +145,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  speedBtn: { paddingHorizontal: 7, paddingVertical: 7, borderRadius: 5 },
+  speedBtn: { paddingHorizontal: 6, paddingVertical: 5, borderRadius: 5 },
   speedBtnActive: { backgroundColor: colors.gold },
-  speedText: { color: colors.textDim, fontSize: 11, fontWeight: '900' },
-  ctrl: {
-    minHeight: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.panelHi,
-    paddingHorizontal: 10,
-  },
-  ctrlActive: { backgroundColor: colors.amber, borderColor: colors.amber },
-  ctrlText: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  speedText: { color: colors.textDim, fontSize: 10, fontWeight: '900' },
 });

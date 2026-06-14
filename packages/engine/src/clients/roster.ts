@@ -15,6 +15,7 @@ export interface ClientTier {
   blurb: string;
   unlockAtCompleted: number;   // lifetime completed orders required
   minLines: number;            // active production lines required
+  signingCost: number;         // one-time cost to add the client to the contract book
   startingReputation: number;
   revenueBase: number;         // $/unit floor for this client's orders
   revenueSpread: number;       // random spread above the floor
@@ -33,7 +34,7 @@ export const CLIENT_TIERS: ClientTier[] = [
   {
     id: 'c1', name: 'Cresco Distribution',
     blurb: 'The local distributor who gave you your first shot.',
-    unlockAtCompleted: 0, minLines: 1, startingReputation: 0.8,
+    unlockAtCompleted: 0, minLines: 1, signingCost: 0, startingReputation: 0.8,
     revenueBase: 3.60, revenueSpread: 1.00,
     unitsBase: 260, unitsPerLevel: 18, unitsSpread: 50,
     deadlineShifts: 2,
@@ -41,7 +42,7 @@ export const CLIENT_TIERS: ClientTier[] = [
   {
     id: 'c2', name: 'Atlas Beverage Co.',
     blurb: 'Regional drinks brand. Bigger runs, better rates.',
-    unlockAtCompleted: 6, minLines: 1, startingReputation: 0.75,
+    unlockAtCompleted: 6, minLines: 1, signingCost: 1200, startingReputation: 0.75,
     revenueBase: 5.80, revenueSpread: 1.60,
     unitsBase: 420, unitsPerLevel: 22, unitsSpread: 80,
     deadlineShifts: 2,
@@ -49,7 +50,7 @@ export const CLIENT_TIERS: ClientTier[] = [
   {
     id: 'c3', name: 'Halcyon Home Goods',
     blurb: 'National retail kitting. Expects a multi-line shop.',
-    unlockAtCompleted: 14, minLines: 2, startingReputation: 0.75,
+    unlockAtCompleted: 14, minLines: 2, signingCost: 8500, startingReputation: 0.75,
     revenueBase: 8.80, revenueSpread: 1.60,
     unitsBase: 700, unitsPerLevel: 26, unitsSpread: 120,
     deadlineShifts: 3,
@@ -57,7 +58,7 @@ export const CLIENT_TIERS: ClientTier[] = [
   {
     id: 'c4', name: 'Northwind Pharma',
     blurb: 'The contract everyone wants. Premium pay, zero slack.',
-    unlockAtCompleted: 30, minLines: 3, startingReputation: 0.7,
+    unlockAtCompleted: 30, minLines: 3, signingCost: 18000, startingReputation: 0.7,
     revenueBase: 12.00, revenueSpread: 2.00,
     unitsBase: 1050, unitsPerLevel: 30, unitsSpread: 160,
     deadlineShifts: 3,
@@ -91,31 +92,37 @@ export function nextLockedTier(state: GameState): ClientTier | undefined {
   return CLIENT_TIERS.find(t => !state.clients[t.id]);
 }
 
-/**
- * Sign any newly-qualified client: add them to the book and announce it. Run
- * every order pass so a tier earned mid-shift lands while it still feels earned.
- */
-export function processClientUnlocks(state: GameState): { state: GameState; events: GameEvent[] } {
-  const events: GameEvent[] = [];
-  let clients = state.clients;
+export function canSignClient(state: GameState, tierId: string): boolean {
+  const tier = clientTier(tierId);
+  if (!tier || state.clients[tier.id] || !tierUnlocked(state, tier)) return false;
+  return state.cash >= tier.signingCost;
+}
 
-  for (const tier of CLIENT_TIERS) {
-    if (clients[tier.id] || !tierUnlocked(state, tier)) continue;
-    const client: Client = {
-      id: tier.id, name: tier.name,
-      reputation: tier.startingReputation, orders: [],
-    };
-    clients = { ...clients, [tier.id]: client };
-    events.push({
+export function signClient(state: GameState, tierId: string): { state: GameState; events: GameEvent[] } {
+  const tier = clientTier(tierId);
+  if (!tier || !canSignClient(state, tierId)) return { state, events: [] };
+  const client: Client = {
+    id: tier.id, name: tier.name,
+    reputation: tier.startingReputation, orders: [],
+  };
+  return {
+    state: {
+      ...state,
+      cash: state.cash - tier.signingCost,
+      clients: { ...state.clients, [tier.id]: client },
+    },
+    events: [{
       type: 'CLIENT_UNLOCKED', tick: state.tick,
       payload: {
         clientId: tier.id, clientName: tier.name,
         revenueBase: tier.revenueBase, revenueTop: tier.revenueBase + tier.revenueSpread,
-        blurb: tier.blurb,
+        blurb: tier.blurb, cost: tier.signingCost,
       },
-    });
-  }
+    }],
+  };
+}
 
-  if (events.length === 0) return { state, events };
-  return { state: { ...state, clients }, events };
+// Compatibility export for older callers: client signing is now player-owned.
+export function processClientUnlocks(state: GameState): { state: GameState; events: GameEvent[] } {
+  return { state, events: [] };
 }

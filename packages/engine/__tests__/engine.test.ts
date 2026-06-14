@@ -44,6 +44,8 @@ import {
   automationMultiplier,
   automationCost,
   promoteLead,
+  pushLineHarder,
+  PUSH_HARDER_OUTPUT_BONUS,
   convertToPermanent,
   TRAITS,
   workerProductivityMult,
@@ -88,7 +90,8 @@ import {
   CLIENT_TIERS,
   clientTier,
   unlockedTiers,
-  processClientUnlocks,
+  canSignClient,
+  signClient,
   nextLockedTier,
   FEATURE_UNLOCKS,
   featureUnlock,
@@ -736,14 +739,23 @@ describe('leads & temp→company conversion', () => {
 
   it('converts a temp into a steadier, higher-paid company employee', () => {
     const state = { ...createInitialState(), cash: 5000 };
-    const before = state.workers.w3;
-    const { state: after, events } = convertToPermanent(state, 'w3');
+    const worker = { ...state.workers.w3, shiftsWorked: 5 };
+    const eligible = { ...state, workers: { ...state.workers, w3: worker } };
+    const before = eligible.workers.w3;
+    const { state: after, events } = convertToPermanent(eligible, 'w3');
     const w = after.workers.w3;
     expect(w.permanent).toBe(true);
     expect(w.wage).toBeGreaterThan(before.wage);
     expect(w.reliability).toBeGreaterThan(before.reliability);
-    expect(after.cash).toBeLessThan(state.cash);
+    expect(after.cash).toBeLessThan(eligible.cash);
     expect(events[0].type).toBe('WORKER_CONVERTED');
+  });
+
+  it('blocks company conversion until a temp has worked 5 shifts', () => {
+    const state = { ...createInitialState(), cash: 5000 };
+    const { state: after, events } = convertToPermanent(state, 'w3');
+    expect(after.workers.w3.permanent).toBe(false);
+    expect(events.length).toBe(0);
   });
 
   it('a present lead lifts their line throughput', () => {
@@ -752,6 +764,21 @@ describe('leads & temp→company conversion', () => {
     const plain = processThroughput(base).state.activeOrders[0].unitsCompleted;
     const boosted = processThroughput(led).state.activeOrders[0].unitsCompleted;
     expect(boosted).toBeGreaterThan(plain);
+  });
+
+  it('lets an assigned lead push a line harder briefly, then cooldown gates it', () => {
+    const base = { ...staffLineA(createInitialState()), cash: 5000 };
+    const led = promoteLead(base, 'w1', 'line1').state;
+    const normal = lineThroughput(led, led.lines.line1);
+
+    const { state: pushed, events } = pushLineHarder(led, 'line1');
+    expect(events[0].type).toBe('LINE_PUSHED');
+    expect(lineThroughput(pushed, pushed.lines.line1))
+      .toBeCloseTo(normal * (1 + PUSH_HARDER_OUTPUT_BONUS), 6);
+
+    expect(pushLineHarder(pushed, 'line1').events.length).toBe(0);
+    const cooledDown = { ...pushed, tick: pushed.lines.line1.pushHarderCooldownUntil ?? pushed.tick };
+    expect(pushLineHarder(cooledDown, 'line1').events[0].type).toBe('LINE_PUSHED');
   });
 });
 
@@ -1233,13 +1260,14 @@ describe('client ladder (growth incentive)', () => {
     expect(nextLockedTier(s)?.id).toBe('c2');
   });
 
-  it('signs a new client when the track record qualifies', () => {
-    const s = { ...createInitialState(), completedOrders: 6 };
-    const { state: after, events } = processClientUnlocks(s);
+  it('lets the player purchase a new client when the track record qualifies', () => {
+    const s = { ...createInitialState(), completedOrders: 6, cash: 10000 };
+    expect(canSignClient(s, 'c2')).toBe(true);
+    const { state: after, events } = signClient(s, 'c2');
     expect(after.clients.c2).toBeDefined();
+    expect(after.cash).toBe(s.cash - clientTier('c2')!.signingCost);
     expect(events.some(e => e.type === 'CLIENT_UNLOCKED')).toBe(true);
-    // Signing is once — a second pass is silent.
-    expect(processClientUnlocks(after).events.length).toBe(0);
+    expect(signClient(after, 'c2').events.length).toBe(0);
   });
 
   it('gates the bigger tiers on capacity, not just track record', () => {
@@ -1250,11 +1278,18 @@ describe('client ladder (growth incentive)', () => {
     expect(ids).not.toContain('c4'); // needs 3 lines
   });
 
-  it('routes new orders to the best unlocked client without open work', () => {
-    let s = { ...createInitialState(), completedOrders: 6, activeOrders: [] as Order[] };
+  it('routes new orders to the best signed client without open work', () => {
+    let s = { ...createInitialState(), completedOrders: 6, cash: 10000, activeOrders: [] as Order[] };
+    s = signClient(s, 'c2').state;
     const { state: after } = processOrders(s);
     expect(after.activeOrders.length).toBe(1);
     expect(after.activeOrders[0].clientId).toBe('c2'); // Atlas outranks Cresco
+  });
+
+  it('does not route orders to qualified clients before purchase', () => {
+    const s = { ...createInitialState(), completedOrders: 6, activeOrders: [] as Order[] };
+    const { state: after } = processOrders(s);
+    expect(after.activeOrders[0].clientId).toBe('c1');
   });
 
   it('higher tiers pay more per unit and ship bigger orders', () => {

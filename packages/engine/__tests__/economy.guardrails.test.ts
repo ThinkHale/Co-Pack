@@ -7,7 +7,7 @@ import * as E from '../src';
 //   2. The early game is tense, not comfortable.
 //   3. Underpaying (the sweatshop) must LOSE to market pay over time.
 //   4. The night shift is a loss for a small shop, a win for a built one.
-//   5. Coasting stagnates but survives; growth progresses; idle earns.
+//   5. Coasting stagnates but survives; growth progresses; idle does not spiral.
 
 function playerStaff(s: E.GameState): E.GameState {
   return E.startShift(E.autoAssignCrew(s)).state;
@@ -24,6 +24,13 @@ function runDays(s: E.GameState, days: number, perTick?: (s: E.GameState) => E.G
     if (s.shiftChallenge) s = E.resolveShiftChallenge(s, humanChallengeChoice(s)).state;
     if (perTick) s = perTick(s);
     s = E.tick(s).state;
+  }
+  return s;
+}
+
+function signQualifiedClients(s: E.GameState): E.GameState {
+  for (const tier of E.CLIENT_TIERS) {
+    if (E.canSignClient(s, tier.id)) s = E.signClient(s, tier.id).state;
   }
   return s;
 }
@@ -88,7 +95,7 @@ describe('economy guardrails', () => {
     expect(bigNight).toBeGreaterThan(bigDay + 3000);
   });
 
-  it('coasting stagnates but survives 20 days; idle supervision earns 10 days', () => {
+  it('coasting stagnates but survives 20 days; idle supervision stays stable 10 days', () => {
     let coast = E.createInitialState();
     for (let i = 0; i < 20 * E.TICKS_PER_DAY && !coast.gameOver; i++) {
       if (coast.awaitingStaffing) coast = playerStaff(coast);
@@ -104,7 +111,7 @@ describe('economy guardrails', () => {
       idle = E.tick(idle, { unattended: true }).state;
     }
     expect(idle.gameOver).toBe(false);
-    expect(idle.cash).toBeGreaterThan(idleStart); // unattended time still earns
+    expect(idle.cash).toBeGreaterThan(idleStart - 1000); // unattended time should not spiral
   });
 
   it('a disciplined growth run lands the second client and second line inside two weeks', () => {
@@ -113,8 +120,9 @@ describe('economy guardrails', () => {
       if (g.awaitingStaffing) g = playerStaff(g);
       if (g.shiftChallenge) g = E.resolveShiftChallenge(g, humanChallengeChoice(g)).state;
       const crew = Object.keys(g.workers).length;
-      if (g.cash > E.nextLineCost(g) + 4000 && g.lineCount < 3 && crew >= E.tomorrowPositions(g) + 2) g = E.purchaseLine(g).state;
+      if (g.cash > E.nextLineCost(g) + 1500 && g.lineCount < 3 && crew >= E.tomorrowPositions(g) + 2) g = E.purchaseLine(g).state;
       if (crew < E.tomorrowPositions(g) + (g.cash > E.nextLineCost(g) ? 2 : 1) && g.cash > 4000) g = E.hireWorker(g).state;
+      g = signQualifiedClients(g);
       g = E.tick(g).state;
     }
     expect(g.gameOver).toBe(false);

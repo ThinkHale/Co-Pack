@@ -62,6 +62,9 @@ export function upgradeAutomation(state: GameState, lineId: string): { state: Ga
 export const LEAD_COST = 3000;
 export const LEAD_OUTPUT_BONUS = 0.12; // +12% line output when a lead is on it
 export const LEAD_MORALE_BONUS = 0.06; // lead lifts crew morale each shift
+export const PUSH_HARDER_OUTPUT_BONUS = 0.25;
+export const PUSH_HARDER_DURATION_TICKS = 30;
+export const PUSH_HARDER_COOLDOWN_TICKS = 150;
 
 export function promoteLead(state: GameState, workerId: string, lineId: string): { state: GameState; events: GameEvent[] } {
   const worker = state.workers[workerId];
@@ -87,12 +90,51 @@ export function promoteLead(state: GameState, workerId: string, lineId: string):
   return { state: { ...state, cash: state.cash - LEAD_COST, workers, lines }, events };
 }
 
+export function pushLineHarder(state: GameState, lineId: string): { state: GameState; events: GameEvent[] } {
+  if (state.awaitingStaffing || state.gameOver) return { state, events: [] };
+  const line = state.lines[lineId];
+  if (!line?.leadId) return { state, events: [] };
+  if ((line.pushHarderUntil ?? 0) > state.tick || (line.pushHarderCooldownUntil ?? 0) > state.tick) {
+    return { state, events: [] };
+  }
+
+  const lead = state.workers[line.leadId];
+  const assignedIds = [
+    ...line.stations.map(station => station.assignedWorkerId).filter((id): id is string => !!id),
+    ...(line.supportWorkerIds ?? []),
+  ];
+  if (!lead?.presentThisShift || !assignedIds.includes(line.leadId)) return { state, events: [] };
+
+  const pushed: Line = {
+    ...line,
+    pushHarderUntil: state.tick + PUSH_HARDER_DURATION_TICKS,
+    pushHarderCooldownUntil: state.tick + PUSH_HARDER_COOLDOWN_TICKS,
+  };
+  return {
+    state: { ...state, lines: { ...state.lines, [lineId]: pushed } },
+    events: [{
+      type: 'LINE_PUSHED',
+      tick: state.tick,
+      payload: {
+        lineId,
+        lineName: line.name,
+        workerId: lead.id,
+        workerName: lead.name,
+        duration: PUSH_HARDER_DURATION_TICKS,
+        cooldown: PUSH_HARDER_COOLDOWN_TICKS,
+        bonus: PUSH_HARDER_OUTPUT_BONUS,
+      },
+    }],
+  };
+}
+
 // --- Temp → company conversion ---
 // Converting a temp to a company employee is a big up-front cost and a permanent
 // wage bump, but they become markedly steadier: higher reliability, a higher
 // morale set-point, and a morale bump from the vote of confidence.
 
 export const CONVERT_COST = 4500;
+export const CONVERSION_MIN_SHIFTS_WORKED = 5;
 const CONVERT_WAGE_MULTIPLIER = 1.35;
 
 export function conversionCost(_worker: Worker): number {
@@ -102,6 +144,7 @@ export function conversionCost(_worker: Worker): number {
 export function convertToPermanent(state: GameState, workerId: string): { state: GameState; events: GameEvent[] } {
   const worker = state.workers[workerId];
   if (!worker || worker.permanent) return { state, events: [] };
+  if ((worker.shiftsWorked ?? 0) < CONVERSION_MIN_SHIFTS_WORKED) return { state, events: [] };
   if (state.cash < CONVERT_COST) return { state, events: [] };
 
   const upgraded: Worker = {

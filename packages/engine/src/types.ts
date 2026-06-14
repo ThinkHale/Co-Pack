@@ -58,6 +58,8 @@ export interface Line {
   active: boolean;
   automation: number;    // 0+ automation level; each level lifts the line's output
   leadId?: string;       // worker assigned as this line's lead
+  pushHarderUntil?: number;          // tick until lead pressure bonus is active
+  pushHarderCooldownUntil?: number;  // tick before the lead can push again
   orderId?: string;      // the order this line is running today (set by the morning deal)
 }
 
@@ -93,6 +95,7 @@ export type GameEventType =
   | 'PAYROLL'
   | 'LINE_PURCHASED'
   | 'OVERTIME_TOGGLED'
+  | 'LINE_PUSHED'
   | 'WORKER_TRAINED'
   | 'WORKER_HIRED'
   | 'WORKER_CONVERTED'

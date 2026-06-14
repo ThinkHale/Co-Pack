@@ -60,6 +60,8 @@ export function formatEvent(e: GameEvent): EventLine {
       return { text: `${p.lineName} opened. -$${(p.cost as number).toFixed(0)}`, tone: 'good', tag: 'BUILD' };
     case 'OVERTIME_TOGGLED':
       return { text: `Overtime ${p.overtime ? 'ON — pushing output' : 'off'}.`, tone: p.overtime ? 'warm' : 'neutral', tag: 'OT' };
+    case 'LINE_PUSHED':
+      return { text: `${p.workerName} pushed ${p.lineName} harder for ${p.duration}m.`, tone: 'warm', tag: 'LEAD' };
     case 'DAY_CONDITION': {
       const mod = p.modifier as number;
       const modNote = mod !== 0 ? ` (attendance ${mod > 0 ? '+' : ''}${Math.round(mod * 100)}%)` : '';

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView, Animated, Easing } from 'react-native';
 import {
   GameState, Line, Order, Worker, StationSkill, stationRole, orderProfile,
   workerTraits,
@@ -28,8 +28,8 @@ const TRAINABLE = ['s1', 's2', 's3'];
 export function FloorScreen({ state }: { state: GameState }) {
   const {
     selectedWorkerId, selectWorker, assignWorker, unassignStation,
-    hireWorker, train,
-    resolveChallenge, terminateWorker, soundOn, paused, setTab,
+    train,
+    resolveChallenge, terminateWorker, paused, setTab, pushLineHarder,
     tutorialActive, tutorialStep, advanceTutorial,
   } = useGameStore();
   const tutTarget = tutorialActive ? TUTORIAL_STEPS[tutorialStep]?.target : undefined;
@@ -119,6 +119,7 @@ export function FloorScreen({ state }: { state: GameState }) {
           workers={state.workers}
           lineRate={lineThroughput(state, line)}
           runningOrder={state.activeOrders.find((o) => o.id === line.orderId)}
+          tick={state.tick}
           shiftActive={shiftActive}
           paused={paused}
           supportLocked={!hasUnlock(state, 'support')}
@@ -128,6 +129,7 @@ export function FloorScreen({ state }: { state: GameState }) {
           onAssign={assignWorker}
           onUnassign={unassignStation}
           onOpenPicker={(stationId, stationName, role) => setPicker({ lineId, stationId, stationName, role })}
+          onPushHarder={pushLineHarder}
         />
       ))}
 
@@ -453,15 +455,17 @@ function ProfileStat({ label, value, color }: { label: string; value: number; co
 // --- A production line with its stations -------------------------------------
 
 function FloorLine({
-  lineId, line, workers, lineRate, runningOrder, shiftActive, paused, supportLocked, highlightEmpty, selectedWorker, onSelectWorker, onAssign, onUnassign, onOpenPicker,
+  lineId, line, workers, lineRate, runningOrder, tick, shiftActive, paused, supportLocked, highlightEmpty, selectedWorker, onSelectWorker, onAssign, onUnassign, onOpenPicker, onPushHarder,
 }: {
-  lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number; runningOrder?: Order;
+  lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number; runningOrder?: Order; tick: number;
   shiftActive: boolean; paused: boolean; supportLocked: boolean; highlightEmpty: boolean; selectedWorker: Worker | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
   onOpenPicker: (stationId: string, stationName: string, role: string) => void;
+  onPushHarder: (lineId: string) => void;
 }) {
+  const [viewMode, setViewMode] = useState<'board' | 'line'>('board');
   const presentCount = line.stations.filter((s) => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift).length;
   const isStopped = presentCount === 0;
   const isShort = presentCount > 0 && presentCount < line.stations.length;
@@ -470,6 +474,18 @@ function FloorLine({
   const running = shiftActive && !isStopped && !paused;
   const supportWorkerId = line.supportWorkerIds?.[0];
   const supportWorker = supportWorkerId ? workers[supportWorkerId] : null;
+  const leadWorker = line.leadId ? workers[line.leadId] : null;
+  const leadAssigned = !!line.leadId && [
+    ...line.stations.map((station) => station.assignedWorkerId).filter(Boolean),
+    ...(line.supportWorkerIds ?? []),
+  ].includes(line.leadId);
+  const leadReady = !!leadWorker?.presentThisShift && leadAssigned;
+  const pushActive = Math.max(0, (line.pushHarderUntil ?? 0) - tick);
+  const pushCooldown = Math.max(0, (line.pushHarderCooldownUntil ?? 0) - tick);
+  const canPush = shiftActive && !paused && leadReady && pushActive === 0 && pushCooldown === 0;
+  const pushLabel = pushActive > 0
+    ? `Pushing ${pushActive}m`
+    : pushCooldown > 0 ? `Cool ${pushCooldown}m` : 'Push Harder';
 
   const statusText = !shiftActive && presentCount > 0
     ? `Ready ${presentCount}/${line.stations.length}`
@@ -483,7 +499,7 @@ function FloorLine({
 
   return (
     <Panel style={styles.lineBoard}>
-      <View style={[styles.rowBetween, { marginBottom: 10 }]}>
+      <View style={[styles.rowBetween, { marginBottom: 10, alignItems: 'flex-start' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Pill color={colors.teal} filled>{line.name}</Pill>
           {runningOrder && (
@@ -492,57 +508,72 @@ function FloorLine({
           {line.automation > 0 && <Pill color={colors.cyan}>Auto L{line.automation}</Pill>}
           {line.leadId && workers[line.leadId] && <Pill color={colors.gold}>LEAD</Pill>}
         </View>
-        <Text style={{ color: statusColor, fontSize: 11, fontWeight: '900' }}>{statusText}</Text>
+        <View style={styles.lineStatusStack}>
+          <Text style={{ color: statusColor, fontSize: 11, fontWeight: '900' }}>{statusText}</Text>
+          {line.leadId && (
+            <Pressable
+              onPress={() => onPushHarder(lineId)}
+              disabled={!canPush}
+              style={({ pressed }) => [
+                styles.pushButton,
+                pushActive > 0 && styles.pushButtonActive,
+                !canPush && pushActive === 0 && styles.pushButtonDisabled,
+                pressed && canPush && { opacity: 0.82 },
+              ]}
+            >
+              <Text style={[styles.pushText, pushActive > 0 && styles.pushTextActive]} numberOfLines={1}>
+                {pushLabel}
+              </Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <View style={styles.segmented}>
-        <View style={styles.segmentActive}><Text style={styles.segmentActiveText}>Board</Text></View>
-        <View style={styles.segmentIdle}><Text style={styles.segmentIdleText}>Line View</Text></View>
+        <Pressable onPress={() => setViewMode('board')} style={viewMode === 'board' ? styles.segmentActive : styles.segmentIdle}>
+          <Text style={viewMode === 'board' ? styles.segmentActiveText : styles.segmentIdleText}>Board</Text>
+        </Pressable>
+        <Pressable onPress={() => setViewMode('line')} style={viewMode === 'line' ? styles.segmentActive : styles.segmentIdle}>
+          <Text style={viewMode === 'line' ? styles.segmentActiveText : styles.segmentIdleText}>Line View</Text>
+        </Pressable>
       </View>
 
-      <LinePreview running={running} rate={lineRate} />
-
-      <View style={styles.stationGrid}>
-        {line.stations.map((station) => {
-          const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
-          const present = worker?.presentThisShift ?? false;
-          const role = stationRole(station);
-          const isMatch = selectedWorker?.skills.some((sk) => sk.stationId === role) ?? false;
-          return (
-            <StationTile
-              key={station.id}
-              stationName={station.name}
-              stationId={station.id}
-              role={role}
-              worker={worker}
-              present={present}
-              working={present && running}
-              hasTarget={selectedWorker !== null}
-              isMatch={isMatch}
-              highlight={highlightEmpty && !worker}
-              selectedFirstName={selectedWorker ? profileForWorker(selectedWorker).firstName : null}
-              onPress={() => {
-                if (selectedWorker) onAssign(selectedWorker.id, lineId, station.id);
-                else if (worker) onSelectWorker(worker.id);
-                // Empty station, nothing picked up: staff from right here.
-                else onOpenPicker(station.id, station.name, role);
-              }}
-              onClear={() => onUnassign(lineId, station.id)}
-            />
-          );
-        })}
-      </View>
-
-      {/* Takeaway belt below the stations — cartons get packed and taped as
-          they pass each zone, mirroring the web floor. */}
-      <View style={{ marginTop: 10 }}>
-        <ConveyorBelt
-          running={running}
-          rate={lineRate}
-          zones={line.stations.length}
-          outlet={running ? undefined : isStopped && shiftActive ? 'STALLED' : '—'}
-        />
-      </View>
+      {viewMode === 'board' ? (
+        <>
+          <LinePreview running={running} rate={lineRate} />
+          <View style={styles.stationGrid}>
+            {line.stations.map((station) => {
+              const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
+              const present = worker?.presentThisShift ?? false;
+              const role = stationRole(station);
+              const isMatch = selectedWorker?.skills.some((sk) => sk.stationId === role) ?? false;
+              return (
+                <StationTile
+                  key={station.id}
+                  stationName={station.name}
+                  stationId={station.id}
+                  role={role}
+                  worker={worker}
+                  present={present}
+                  working={present && running}
+                  hasTarget={selectedWorker !== null}
+                  isMatch={isMatch}
+                  highlight={highlightEmpty && !worker}
+                  selectedFirstName={selectedWorker ? profileForWorker(selectedWorker).firstName : null}
+                  onPress={() => {
+                    if (selectedWorker) onAssign(selectedWorker.id, lineId, station.id);
+                    else if (worker) onSelectWorker(worker.id);
+                    else onOpenPicker(station.id, station.name, role);
+                  }}
+                  onClear={() => onUnassign(lineId, station.id)}
+                />
+              );
+            })}
+          </View>
+        </>
+      ) : (
+        <Line3DView line={line} workers={workers} running={running} rate={lineRate} />
+      )}
 
       <SupportSlot
         locked={supportLocked}
@@ -580,6 +611,105 @@ function LinePreview({ running, rate }: { running: boolean; rate: number }) {
         ))}
       </View>
     </View>
+  );
+}
+
+function Line3DView({
+  line, workers, running, rate,
+}: { line: Line; workers: Record<string, Worker>; running: boolean; rate: number }) {
+  const [width, setWidth] = useState(0);
+  const cartonCount = Math.max(3, Math.min(6, Math.round(2 + rate * 3)));
+  const durationMs = Math.max(1900, 5600 - rate * 2300);
+
+  return (
+    <View style={styles.line3dWrap}>
+      <View style={styles.line3dHeader}>
+        <View>
+          <Text style={styles.linePreviewLabel}>Line View</Text>
+          <Text style={styles.linePreviewMeta}>{running ? 'Animated floor view' : 'Ready view'} · {rate.toFixed(1)} units/min</Text>
+        </View>
+        <View style={[styles.linePulse, { backgroundColor: running ? colors.green : colors.amber }]} />
+      </View>
+      <View style={styles.line3dScene} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        <View style={styles.line3dBackRail} />
+        <View style={styles.line3dBeltShadow} />
+        <View style={styles.line3dBelt}>
+          <View style={styles.line3dBeltEdge} />
+        </View>
+        {width > 0 && running && Array.from({ length: cartonCount }).map((_, i) => (
+          <IsoCarton
+            key={`${cartonCount}-${durationMs}-${i}`}
+            width={width}
+            durationMs={durationMs}
+            offsetMs={(durationMs / cartonCount) * i}
+          />
+        ))}
+        {line.stations.map((station, index) => {
+          const role = stationRole(station);
+          const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
+          const present = worker?.presentThisShift ?? false;
+          const stationGap = width > 0 ? (width - 104) / Math.max(1, line.stations.length - 1) : 86;
+          const left = Math.max(8, Math.min(Math.max(8, width - 90), 10 + index * stationGap));
+          const top = 28 + (index % 2) * 14;
+          return (
+            <View key={station.id} style={[styles.line3dStation, { left, top, borderColor: STATION_THEMES[role]?.color ?? colors.teal }]}>
+              <View style={[styles.line3dStationCap, { backgroundColor: STATION_THEMES[role]?.color ?? colors.teal }]}>
+                <Text style={styles.line3dStationCode}>{STATION_THEMES[role]?.icon ?? role}</Text>
+              </View>
+              {worker ? <CharacterAvatar worker={worker} size="xs" /> : <View style={styles.line3dEmptyAvatar} />}
+              <Text style={styles.line3dStationName} numberOfLines={1}>{station.name}</Text>
+              <Text style={[styles.line3dWorker, { color: worker ? present ? colors.green : colors.red : colors.inkMute }]} numberOfLines={1}>
+                {worker ? profileForWorker(worker).firstName : 'Open'}
+              </Text>
+            </View>
+          );
+        })}
+        <View style={styles.line3dOutfeed}>
+          <Text style={styles.line3dOutfeedText}>{running ? 'OUT' : 'HOLD'}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function IsoCarton({ width, durationMs, offsetMs }: { width: number; durationMs: number; offsetMs: number }) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    const frac = (offsetMs % durationMs) / durationMs;
+    progress.setValue(frac);
+    const first = Animated.timing(progress, {
+      toValue: 1,
+      duration: durationMs * (1 - frac),
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    first.start(({ finished }) => {
+      if (!finished) return;
+      progress.setValue(0);
+      loop = Animated.loop(
+        Animated.timing(progress, { toValue: 1, duration: durationMs, easing: Easing.linear, useNativeDriver: true })
+      );
+      loop.start();
+    });
+    return () => {
+      first.stop();
+      loop?.stop();
+    };
+  }, [durationMs, offsetMs, progress]);
+
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [14, Math.max(72, width - 54)] });
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [30, -12] });
+  const opacity = progress.interpolate({ inputRange: [0, 0.06, 0.92, 1], outputRange: [0, 1, 1, 0] });
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.86, 1.04] });
+
+  return (
+    <Animated.View style={[styles.isoCarton, { opacity, transform: [{ translateX }, { translateY }, { scale }] }]}>
+      <View style={styles.isoCartonTop} />
+      <View style={styles.isoCartonFace} />
+      <View style={styles.isoTape} />
+    </Animated.View>
   );
 }
 
@@ -642,7 +772,7 @@ function SupportSlot({
           <Text style={styles.supportLabel}>Support 🔒</Text>
           <Text style={styles.supportTitle} numberOfLines={1}>Floater program locked</Text>
           <Text style={shared.bodyMute} numberOfLines={1}>
-            Unlock in Office → Upgrades · +{Math.round(SUPPORT_OUTPUT_BONUS * 100)}% lift
+            Unlock in Upgrades · +{Math.round(SUPPORT_OUTPUT_BONUS * 100)}% lift
           </Text>
         </View>
       </View>
@@ -855,10 +985,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderColor: colors.inkBorder,
     borderWidth: 1,
+    padding: 10,
   },
+  lineStatusStack: { alignItems: 'flex-end', gap: 5, maxWidth: 120 },
+  pushButton: {
+    minHeight: 28,
+    justifyContent: 'center',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.inkBorder,
+    backgroundColor: colors.gold,
+    paddingHorizontal: 9,
+  },
+  pushButtonActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  pushButtonDisabled: { backgroundColor: colors.paper, opacity: 0.55 },
+  pushText: { color: colors.ink, fontSize: 10, fontWeight: '900' },
+  pushTextActive: { color: colors.bgDeep },
   segmented: {
     flexDirection: 'row',
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.sm,
     borderWidth: 1,
@@ -866,8 +1011,8 @@ const styles = StyleSheet.create({
     padding: 2,
     marginBottom: 10,
   },
-  segmentActive: { backgroundColor: colors.ink, borderRadius: 5, paddingHorizontal: 12, paddingVertical: 6 },
-  segmentIdle: { paddingHorizontal: 12, paddingVertical: 6 },
+  segmentActive: { flex: 1, alignItems: 'center', backgroundColor: colors.ink, borderRadius: 5, paddingHorizontal: 12, paddingVertical: 7 },
+  segmentIdle: { flex: 1, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7 },
   segmentActiveText: { color: colors.surface, fontSize: 11, fontWeight: '900' },
   segmentIdleText: { color: colors.inkMute, fontSize: 11, fontWeight: '900' },
   linePreview: {
@@ -897,8 +1042,169 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   lineStationText: { fontSize: 10, fontWeight: '900' },
+  line3dWrap: {
+    overflow: 'hidden',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.inkBorder,
+    backgroundColor: colors.surfaceAlt,
+  },
+  line3dHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+  },
+  line3dScene: {
+    height: 198,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  line3dBackRail: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    top: 98,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: 'rgba(23,37,42,0.18)',
+    transform: [{ rotateZ: '-8deg' }],
+  },
+  line3dBeltShadow: {
+    position: 'absolute',
+    left: '7%',
+    right: '7%',
+    bottom: 48,
+    height: 58,
+    borderRadius: 10,
+    backgroundColor: 'rgba(16,20,23,0.18)',
+    transform: [{ perspective: 500 }, { rotateX: '58deg' }, { rotateZ: '-8deg' }],
+  },
+  line3dBelt: {
+    position: 'absolute',
+    left: '6%',
+    right: '6%',
+    bottom: 54,
+    height: 64,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.inkBorder,
+    backgroundColor: colors.paper,
+    overflow: 'hidden',
+    transform: [{ perspective: 500 }, { rotateX: '58deg' }, { rotateZ: '-8deg' }],
+  },
+  line3dBeltEdge: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 14,
+    backgroundColor: 'rgba(51,164,143,0.22)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(23,37,42,0.12)',
+  },
+  line3dStation: {
+    position: 'absolute',
+    width: 82,
+    minHeight: 86,
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    backgroundColor: colors.paper,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    shadowColor: colors.bgDeep,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 3,
+  },
+  line3dStationCap: {
+    position: 'absolute',
+    top: -8,
+    minWidth: 28,
+    height: 17,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(16,20,23,0.18)',
+  },
+  line3dStationCode: { color: colors.bgDeep, fontSize: 9, fontWeight: '900' },
+  line3dEmptyAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.inkBorder,
+    backgroundColor: 'rgba(23,37,42,0.08)',
+    marginTop: 8,
+  },
+  line3dStationName: { color: colors.inkDim, fontSize: 9, fontWeight: '900', marginTop: 3 },
+  line3dWorker: { fontSize: 10, fontWeight: '900', marginTop: 1, maxWidth: 66 },
+  line3dOutfeed: {
+    position: 'absolute',
+    right: 12,
+    bottom: 48,
+    borderRadius: radius.sm,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  line3dOutfeedText: { color: colors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  isoCarton: {
+    position: 'absolute',
+    left: 0,
+    bottom: 74,
+    width: 26,
+    height: 22,
+  },
+  isoCartonTop: {
+    position: 'absolute',
+    left: 2,
+    top: 0,
+    width: 22,
+    height: 9,
+    backgroundColor: '#e4a44d',
+    borderWidth: 1,
+    borderColor: 'rgba(23,37,42,0.38)',
+    transform: [{ skewX: '-24deg' }],
+  },
+  isoCartonFace: {
+    position: 'absolute',
+    left: 1,
+    top: 8,
+    width: 24,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: '#b98546',
+    borderWidth: 1,
+    borderColor: 'rgba(23,37,42,0.42)',
+  },
+  isoTape: {
+    position: 'absolute',
+    left: 11,
+    top: 8,
+    width: 4,
+    height: 14,
+    backgroundColor: colors.teal,
+  },
   stationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  station: { flex: 1, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1.5, padding: 8, gap: 6, minHeight: 132 },
+  station: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    padding: 8,
+    gap: 6,
+    minHeight: 124,
+    shadowColor: colors.bgDeep,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 1,
+  },
   stationTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stationCode: { width: 22, height: 18, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   stationCodeText: { color: colors.bgDeep, fontSize: 9, fontWeight: '900' },
@@ -907,7 +1213,7 @@ const styles = StyleSheet.create({
   stationBody: { alignItems: 'center', gap: 3, flex: 1, justifyContent: 'center' },
   stationName: { color: colors.ink, fontSize: 13, fontWeight: '900' },
   emptyIcon: { color: colors.inkMute, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  support: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.inkBorder, padding: 10 },
+  support: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.inkBorder, padding: 10 },
   supportLabel: { color: colors.teal, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   supportTitle: { color: colors.ink, fontSize: 14, fontWeight: '900', marginTop: 1 },
   supportMeta: { color: colors.inkMute, fontSize: 12, fontWeight: '700', marginTop: 1 },

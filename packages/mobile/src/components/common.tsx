@@ -77,7 +77,7 @@ const BTN_TONES: Record<ButtonTone, { container: ViewStyle; text: string }> = {
   primary: { container: { backgroundColor: colors.teal, borderColor: colors.teal }, text: colors.bgDeep },
   accent: { container: { backgroundColor: colors.gold, borderColor: colors.gold }, text: colors.bgDeep },
   danger: { container: { backgroundColor: 'rgba(255,70,102,0.16)', borderColor: colors.red }, text: colors.red },
-  muted: { container: { backgroundColor: colors.panelHi, borderColor: colors.borderStrong }, text: colors.text },
+  muted: { container: { backgroundColor: 'rgba(248,245,223,0.08)', borderColor: colors.borderStrong }, text: colors.text },
   ghost: { container: { backgroundColor: 'transparent', borderColor: colors.border }, text: colors.textDim },
 };
 
@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 38,
   },
   btnSmall: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.sm },
   btnDisabled: { opacity: 0.4 },
@@ -116,10 +117,10 @@ const styles = StyleSheet.create({
   btnLabelSmall: { fontSize: 12 },
   statCell: {
     flex: 1,
-    backgroundColor: 'rgba(244,241,234,0.055)',
+    backgroundColor: 'rgba(248,245,223,0.08)',
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },

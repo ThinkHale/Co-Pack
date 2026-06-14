@@ -36,8 +36,6 @@ export function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?
       ]}
     >
       <Image source={portrait} style={[styles.image, { borderRadius: d * 0.22 }]} resizeMode="cover" />
-      <View style={[styles.uniformTag, { backgroundColor: p.uniform }]} />
-      <View style={[styles.skinTag, { backgroundColor: p.skin }]} />
     </View>
   );
 }
@@ -107,26 +105,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   image: { width: '100%', height: '100%' },
-  uniformTag: {
-    position: 'absolute',
-    right: 4,
-    bottom: 4,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  skinTag: {
-    position: 'absolute',
-    left: 4,
-    bottom: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(16,20,23,0.22)',
-  },
   strip: { flexDirection: 'row', gap: 4 },
   swatch: {
     width: 12,

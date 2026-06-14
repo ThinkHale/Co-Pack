@@ -8,7 +8,7 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'orders', label: 'Orders', icon: '◫' },
   { key: 'staffing', label: 'Staffing', icon: '☰' },
   { key: 'office', label: 'Office', icon: '▦' },
-  { key: 'corporate', label: 'Corp', icon: '★' },
+  { key: 'corporate', label: 'Upgrades', icon: '★' },
 ];
 
 export function TabBar({

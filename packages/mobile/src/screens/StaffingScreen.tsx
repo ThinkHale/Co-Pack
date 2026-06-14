@@ -7,7 +7,7 @@ import RawSlider from '@react-native-community/slider';
 const Slider = RawSlider as unknown as React.ComponentType<any>;
 import {
   GameState,
-  requiredPositions, coveredPositions, staffingFill, rollingStaffingFill, STAFFING_TARGET,
+  requiredPositions, coveredPositions, STAFFING_TARGET,
   effectiveWage, SHIFT_HOURS,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
@@ -25,10 +25,9 @@ export function StaffingScreen({ state }: { state: GameState }) {
   return (
     <View style={{ gap: 14 }}>
       <StaffingBoard state={state} />
-      <AttendanceBoostPanel state={state} onMeal={buyMeal} onIncentive={runIncentive} />
       <PayPanel state={state} onSetPayRate={setPayRate} />
       <SkillPanel state={state} onToggleSkill={toggleSkill} />
-      <ProgramsPanel state={state} onToggleProgram={toggleProgram} />
+      <ProgramsPanel state={state} onMeal={buyMeal} onIncentive={runIncentive} onToggleProgram={toggleProgram} />
     </View>
   );
 }
@@ -36,10 +35,9 @@ export function StaffingScreen({ state }: { state: GameState }) {
 function StaffingBoard({ state }: { state: GameState }) {
   const required = requiredPositions(state);
   const covered = coveredPositions(state);
-  const today = staffingFill(state);
-  const rolling = rollingStaffingFill(state);
+  const openRoles = Math.max(0, required - covered);
   const history = state.staffingHistory.slice(-14);
-  const belowTarget = rolling < STAFFING_TARGET;
+  const coveredAll = openRoles === 0;
 
   return (
     <Panel>
@@ -48,17 +46,20 @@ function StaffingBoard({ state }: { state: GameState }) {
           <Eyebrow>Staffing board</Eyebrow>
           <Text style={shared.h2}>Labor Coverage</Text>
           <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-            Schedule calls for {required} position{required === 1 ? '' : 's'} today; covering {covered}. Keep rolling fill ≥ {pct(STAFFING_TARGET)}.
+            Today needs {required} floor position{required === 1 ? '' : 's'}. Seat the crew that showed up, then start the shift.
           </Text>
         </View>
-        <View style={[styles.boardScore, { borderColor: belowTarget ? colors.red : colors.green }]}>
-          <Text style={[styles.boardScoreVal, { color: belowTarget ? colors.red : colors.green }]}>{pct(rolling)}</Text>
-          <Text style={styles.boardScoreLbl}>Rolling</Text>
+        <View style={[styles.boardScore, { borderColor: coveredAll ? colors.green : colors.amber }]}>
+          <Text style={[styles.boardScoreVal, { color: coveredAll ? colors.green : colors.amber }]}>
+            {coveredAll ? 'Ready' : `${openRoles} open`}
+          </Text>
+          <Text style={styles.boardScoreLbl}>Today</Text>
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-        <StatCell label="Today" value={pct(today)} />
-        <StatCell label="Covered" value={`${covered}/${required}`} />
+        <StatCell label="Positions" value={`${required}`} />
+        <StatCell label="Seated" value={`${covered}`} />
+        <StatCell label="Open roles" value={`${openRoles}`} tone={coveredAll ? colors.green : colors.amber} />
       </View>
       {history.length > 0 && (
         <View style={styles.histRow}>
@@ -69,46 +70,6 @@ function StaffingBoard({ state }: { state: GameState }) {
           ))}
         </View>
       )}
-    </Panel>
-  );
-}
-
-function AttendanceBoostPanel({
-  state, onMeal, onIncentive,
-}: { state: GameState; onMeal: () => void; onIncentive: () => void }) {
-  const mCost = mealCost(state);
-  const iCost = incentiveCost(state);
-  const mReady = mealReady(state);
-  const iReady = incentiveReady(state);
-  const mealCooldown = mealCooldownRemaining(state);
-  const incentiveCooldown = incentiveCooldownRemaining(state);
-  const boostCopy = (active: boolean, ready: boolean, cooldown: number, label: string, cost: number) => {
-    if (active) return `${label} planned`;
-    if (!ready) return `${label} · ${cooldown}d`;
-    return `${label} ${formatCurrency(cost)}`;
-  };
-
-  return (
-    <Panel style={{ borderColor: colors.gold }}>
-      <Eyebrow>Next standup boosts</Eyebrow>
-      <Text style={shared.h2}>Attendance Pulls</Text>
-      <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-        Use these before the next roll call to improve turnout. They cost cash now and cool down after use.
-      </Text>
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-        <ButtonLike
-          label={boostCopy(state.mealToday, mReady, mealCooldown, 'Meal', mCost)}
-          active={state.mealToday}
-          disabled={!mReady || state.cash < mCost}
-          onPress={onMeal}
-        />
-        <ButtonLike
-          label={boostCopy(state.incentiveToday, iReady, incentiveCooldown, 'Incentive', iCost)}
-          active={state.incentiveToday}
-          disabled={!iReady || state.cash < iCost}
-          onPress={onIncentive}
-        />
-      </View>
     </Panel>
   );
 }
@@ -202,20 +163,57 @@ function SkillPanel({ state, onToggleSkill }: { state: GameState; onToggleSkill:
   );
 }
 
-function ProgramsPanel({ state, onToggleProgram }: { state: GameState; onToggleProgram: (program: 'attendance' | 'referral') => void }) {
+function ProgramsPanel({
+  state, onMeal, onIncentive, onToggleProgram,
+}: {
+  state: GameState;
+  onMeal: () => void;
+  onIncentive: () => void;
+  onToggleProgram: (program: 'attendance' | 'referral') => void;
+}) {
   const headcount = Object.keys(state.workers).length;
   const locked = !hasUnlock(state, 'programs');
+  const mCost = mealCost(state);
+  const iCost = incentiveCost(state);
+  const mReady = mealReady(state);
+  const iReady = incentiveReady(state);
+  const mealCooldown = mealCooldownRemaining(state);
+  const incentiveCooldown = incentiveCooldownRemaining(state);
+  const boostCopy = (active: boolean, ready: boolean, cooldown: number, label: string, cost: number) => {
+    if (active) return `${label} planned`;
+    if (!ready) return `${label} · ${cooldown}d`;
+    return `${label} ${formatCurrency(cost)}`;
+  };
+
   return (
-    <Panel>
-      <Eyebrow>Standing programs</Eyebrow>
-      <Text style={shared.h2}>Ongoing Incentives</Text>
-      <Text style={[shared.bodyMute, { marginTop: 4 }]}>Always-on programs billed per head every shift, running in the background.</Text>
+    <Panel style={{ borderColor: colors.gold }}>
+      <Eyebrow>Incentives</Eyebrow>
+      <Text style={shared.h2}>Incentive Programs</Text>
+      <Text style={[shared.bodyMute, { marginTop: 4 }]}>Plan next-standup boosts or turn on always-running crew programs.</Text>
+
+      <Text style={[styles.note, { marginTop: 12 }]}>Next standup</Text>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+        <ButtonLike
+          label={boostCopy(state.mealToday, mReady, mealCooldown, 'Meal', mCost)}
+          active={state.mealToday}
+          disabled={!mReady || state.cash < mCost}
+          onPress={onMeal}
+        />
+        <ButtonLike
+          label={boostCopy(state.incentiveToday, iReady, incentiveCooldown, 'Incentive', iCost)}
+          active={state.incentiveToday}
+          disabled={!iReady || state.cash < iCost}
+          onPress={onIncentive}
+        />
+      </View>
+
+      <Text style={[styles.note, { marginTop: 14 }]}>Ongoing</Text>
       {locked && (
         <Text style={{ color: colors.gold, fontSize: 11, fontWeight: '900', marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-          🔒 Requires the HR partner retainer — Office → Upgrades
+          🔒 Requires the HR partner retainer — Upgrades
         </Text>
       )}
-      <View style={{ gap: 10, marginTop: 12, opacity: locked ? 0.5 : 1 }} pointerEvents={locked ? 'none' : 'auto'}>
+      <View style={{ gap: 10, marginTop: 8, opacity: locked ? 0.5 : 1 }} pointerEvents={locked ? 'none' : 'auto'}>
         <ProgramToggle title="Attendance program" note={`Crew-wide turnout boost · ${formatCurrency(ATTENDANCE_PROGRAM_PER_HEAD)}/head/shift`} cost={ATTENDANCE_PROGRAM_PER_HEAD * headcount} active={state.programs.attendance} onToggle={() => onToggleProgram('attendance')} />
         <ProgramToggle title="Referral program" note={`New hires arrive referred · ${formatCurrency(REFERRAL_PROGRAM_PER_HEAD)}/head/shift`} cost={REFERRAL_PROGRAM_PER_HEAD * headcount} active={state.programs.referral} onToggle={() => onToggleProgram('referral')} />
       </View>
@@ -249,12 +247,12 @@ const styles = StyleSheet.create({
   rateLabel: { color: colors.textDim, fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   payEnd: { color: colors.textMute, fontSize: 11, fontWeight: '800' },
   payReset: { color: colors.cyan, fontSize: 11, fontWeight: '800' },
-  skill: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.03)' },
+  skill: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(248,245,223,0.08)' },
   skillName: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  boost: { flex: 1, minHeight: 46, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: colors.panelHi, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  boost: { flex: 1, minHeight: 46, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(248,245,223,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   boostText: { color: colors.text, fontSize: 12, fontWeight: '900', textAlign: 'center' },
   note: { color: colors.textMute, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
-  program: { borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.03)', padding: 12 },
+  program: { borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(248,245,223,0.08)', padding: 12 },
   programTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   programCost: { color: colors.gold, fontSize: 11, fontWeight: '900', marginTop: 4 },
 });

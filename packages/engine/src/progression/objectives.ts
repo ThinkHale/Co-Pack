@@ -42,7 +42,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'first_unlock', label: 'Buy your first upgrade', reward: 1500,
-    hint: 'Front Office → Upgrades. Overtime, floaters, and HR programs are earned, not given.',
+    hint: 'Open Upgrades. Overtime, floaters, and HR programs are earned, not given.',
     isComplete: s => s.unlocks.length >= 1,
   },
   {
@@ -62,7 +62,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'second_line', label: 'Open a second line', reward: 4000,
-    hint: 'Front Office → Production Lines. More lines, more parallel orders.',
+    hint: 'Open Upgrades → Production Lines. More lines, more parallel orders.',
     isComplete: s => s.lineCount >= 2,
   },
   {
@@ -72,7 +72,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'hire_supervisor', label: 'Hire a floor supervisor', reward: 4000,
-    hint: 'Front Office → Operations. The plant keeps earning while you\'re away.',
+    hint: 'Open Upgrades. The plant keeps earning while you\'re away.',
     isComplete: s => s.hasSupervisor,
   },
   {
@@ -114,7 +114,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     id: 'night_shift', label: 'Open the night shift', reward: 8000,
-    hint: 'Front Office → Upgrades. Around-the-clock output — for a price.',
+    hint: 'Open Upgrades. Around-the-clock output — for a price.',
     isComplete: s => s.unlocks.includes('night_shift'),
   },
   {
