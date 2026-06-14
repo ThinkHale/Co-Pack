@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
 import {
   GameState,
   totalThroughput, fillRate, FILL_RATE_TARGET, totalPayroll, facilityOverhead,
   shoutoutReady, moraleBreakdown, hasUnlock, nightShiftActive,
 } from '@copack/engine';
-import { colors, radius, hudTone } from '../theme';
+import { colors, radius } from '../theme';
 import { formatCurrency, pct, shiftLabel, shiftClock, shiftProgress, averageMorale } from '../format';
 import { useGameStore, SpeedSetting } from '../store/useGameStore';
 import { Bar } from './common';
@@ -13,7 +13,10 @@ import { Bar } from './common';
 const LOGO = require('../../assets/brand-logo.png');
 
 export function Hud({ state }: { state: GameState }) {
-  const { paused, speed, soundOn, setSpeed, togglePause, toggleSound, shoutout, toggleOvertime, toggleAutoShift } = useGameStore();
+  const {
+    paused, speed, soundOn,
+    setSpeed, togglePause, toggleSound, shoutout, toggleOvertime, toggleAutoShift,
+  } = useGameStore();
   const awaitingStaffing = state.awaitingStaffing;
   const workers = Object.values(state.workers);
   const throughput = totalThroughput(state);
@@ -26,31 +29,49 @@ export function Hud({ state }: { state: GameState }) {
   const payroll = totalPayroll(state);
   const overhead = facilityOverhead(state);
 
-  const status = awaitingStaffing ? 'Morning standup' : paused ? 'Paused' : 'Live run';
+  const status = awaitingStaffing ? 'Standup' : paused ? 'Paused' : 'Live';
   const statusColor = awaitingStaffing ? colors.gold : paused ? colors.textMute : colors.green;
+  const overtimeUnlocked = hasUnlock(state, 'overtime');
 
   return (
     <View style={styles.wrap}>
       <View style={styles.topRow}>
-        <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-        <View style={styles.statusPills}>
-          <StatusPill text={shiftLabel(state.tick)} color={colors.cyan} />
-          <StatusPill text={`⏱ ${shiftClock(state.tick)}`} color={colors.sky} />
-          <StatusPill text={status} color={statusColor} />
-          {nightShiftActive(state) && <StatusPill text="🌙 Nights" color={colors.purple} />}
+        <View style={styles.brandBlock}>
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+          <View>
+            <Text style={styles.shiftLabel}>{shiftLabel(state.tick)}</Text>
+            <Text style={styles.clock}>{shiftClock(state.tick)} left</Text>
+          </View>
         </View>
+        <Pressable
+          onPress={togglePause}
+          style={({ pressed }) => [
+            styles.runButton,
+            { backgroundColor: paused ? colors.teal : colors.surface },
+            pressed && { opacity: 0.82 },
+          ]}
+        >
+          <Text style={[styles.runButtonText, { color: paused ? colors.bgDeep : colors.ink }]}>
+            {paused ? 'Resume' : 'Pause'}
+          </Text>
+        </Pressable>
       </View>
 
-      <View style={{ marginTop: 8 }}>
-        <Bar value={shiftProgress(state.tick)} color={colors.teal} height={5} />
+      <View style={styles.statusRow}>
+        <StatusChip label={status} color={statusColor} strong />
+        {nightShiftActive(state) && <StatusChip label="Nights" color={colors.purple} />}
+        <StatusChip label={`Cash ${formatCurrency(state.cash)}`} color={colors.green} />
+        <StatusChip label={`Fill ${pct(fill)}`} color={fillLow ? colors.red : colors.green} />
+        <StatusChip label={`${throughput.toFixed(1)}/m`} color={colors.cyan} />
       </View>
 
-      <View style={styles.statsGrid}>
-        <CashStat value={formatCurrency(state.cash)} raw={Math.round(state.cash)} />
-        <HudStat label={`Fill · ${pct(FILL_RATE_TARGET)}`} value={pct(fill)} tone={fillLow ? 'red' : 'green'} />
-        <HudStat label="Output" value={`${throughput.toFixed(2)}/m`} tone="cyan" />
-        <HudStat label="Crew" value={`${staffed}/${total}`} tone="pink" />
-        <HudStat label={`Morale ${breakdown.thriving}↑${breakdown.struggling}↓`} value={pct(averageMorale(workers))} tone="gold" />
+      <View style={styles.progressBlock}>
+        <Bar value={shiftProgress(state.tick)} color={colors.teal} height={5} track="rgba(244,241,234,0.12)" />
+        <View style={styles.metricRow}>
+          <Text style={styles.metric}>Crew {staffed}/{total}</Text>
+          <Text style={styles.metric}>Morale {pct(averageMorale(workers))} · {breakdown.thriving} up / {breakdown.struggling} down</Text>
+          <Text style={styles.metric}>Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)}</Text>
+        </View>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.controls}>
@@ -64,119 +85,115 @@ export function Hud({ state }: { state: GameState }) {
             );
           })}
         </View>
-        <CtrlBtn label={paused ? 'Resume' : 'Pause'} onPress={togglePause} primary />
         <CtrlBtn label={canShout ? 'Shout-out' : 'Cooling'} onPress={shoutout} disabled={!canShout} />
         <CtrlBtn
-          label={state.overtime ? 'OT ON' : hasUnlock(state, 'overtime') ? 'Overtime' : 'OT 🔒'}
+          label={state.overtime ? 'OT on' : overtimeUnlocked ? 'Overtime' : 'OT locked'}
           onPress={toggleOvertime}
           active={state.overtime}
-          disabled={!hasUnlock(state, 'overtime')}
+          disabled={!overtimeUnlocked}
         />
         {state.hasSupervisor && (
-          <CtrlBtn label={state.autoShift ? 'Auto ON' : 'Auto'} onPress={toggleAutoShift} active={state.autoShift} />
+          <CtrlBtn label={state.autoShift ? 'Auto on' : 'Auto'} onPress={toggleAutoShift} active={state.autoShift} />
         )}
-        <CtrlBtn label={soundOn ? '♪' : '✕'} onPress={toggleSound} />
+        <CtrlBtn label={soundOn ? 'Sound' : 'Muted'} onPress={toggleSound} />
       </ScrollView>
-
-      <Text style={styles.payroll}>Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)} /shift</Text>
     </View>
   );
 }
 
-function StatusPill({ text, color }: { text: string; color: string }) {
+function StatusChip({ label, color, strong }: { label: string; color: string; strong?: boolean }) {
   return (
-    <View style={[styles.statusPill, { borderColor: color }]}>
-      <Text style={[styles.statusPillText, { color }]} numberOfLines={1}>{text}</Text>
+    <View style={[styles.statusChip, strong && { backgroundColor: color, borderColor: color }]}>
+      <Text style={[styles.statusChipText, { color: strong ? colors.bgDeep : color }]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
 
-// Dark glass tile with a per-stat accent — the number carries the color, the
-// chrome stays quiet. Ported from the web HUD restyle.
-// The cash tile pulses when money moves — the heartbeat stat.
-function CashStat({ value, raw }: { value: string; raw: number }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const prev = useRef(raw);
-  useEffect(() => {
-    if (raw === prev.current) return;
-    prev.current = raw;
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 1.14, duration: 140, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
-    ]).start();
-  }, [raw, scale]);
-  const color = hudTone.green;
-  return (
-    <View style={[styles.hudStat, { borderColor: `${color}4D` }]}>
-      <Text style={styles.hudStatLabel} numberOfLines={1}>Cash</Text>
-      <Animated.Text
-        style={[styles.hudStatValue, { color, transform: [{ scale }] }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {value}
-      </Animated.Text>
-      <View style={[styles.hudStatAccent, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-function HudStat({ label, value, tone }: { label: string; value: string; tone: keyof typeof hudTone }) {
-  const color = hudTone[tone];
-  return (
-    <View style={[styles.hudStat, { borderColor: `${color}4D` }]}>
-      <Text style={styles.hudStatLabel} numberOfLines={1}>{label}</Text>
-      <Text style={[styles.hudStatValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      <View style={[styles.hudStatAccent, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-function CtrlBtn({ label, onPress, primary, active, disabled }: { label: string; onPress: () => void; primary?: boolean; active?: boolean; disabled?: boolean }) {
+function CtrlBtn({
+  label, onPress, active, disabled,
+}: { label: string; onPress: () => void; active?: boolean; disabled?: boolean }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.ctrl,
-        primary && { backgroundColor: colors.teal, borderColor: colors.teal },
-        active && { backgroundColor: colors.amber, borderColor: colors.amber },
-        disabled && { opacity: 0.4 },
+        active && styles.ctrlActive,
+        disabled && { opacity: 0.38 },
         pressed && !disabled && { opacity: 0.8 },
       ]}
     >
-      <Text style={[styles.ctrlText, (primary || active) && { color: colors.bgDeep }]}>{label}</Text>
+      <Text style={[styles.ctrlText, active && { color: colors.bgDeep }]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { backgroundColor: colors.panel, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: 12 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  logo: { width: 44, height: 44 },
-  statusPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flex: 1, justifyContent: 'flex-end' },
-  statusPill: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: 'rgba(255,255,255,0.04)' },
-  statusPillText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
-  statsGrid: { flexDirection: 'row', gap: 6, marginTop: 10 },
-  hudStat: {
-    flex: 1,
+  wrap: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: 12,
+    shadowColor: colors.bgDeep,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1 },
+  logo: { width: 34, height: 34 },
+  shiftLabel: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  clock: { color: colors.gold, fontSize: 12, fontWeight: '900', marginTop: 1 },
+  runButton: {
+    minWidth: 88,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.sm,
+    paddingHorizontal: 14,
+  },
+  runButtonText: { fontSize: 14, fontWeight: '900' },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  statusChip: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.pill,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(244,241,234,0.05)',
+  },
+  statusChipText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.25 },
+  progressBlock: { marginTop: 10, gap: 7 },
+  metricRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  metric: { color: colors.textMute, fontSize: 10, fontWeight: '800' },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingRight: 4 },
+  speedToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.bgDeep,
+    borderRadius: radius.sm,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  speedBtn: { paddingHorizontal: 8, paddingVertical: 7, borderRadius: 5 },
+  speedBtnActive: { backgroundColor: colors.gold },
+  speedText: { color: colors.textDim, fontSize: 11, fontWeight: '900' },
+  ctrl: {
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 7,
-    paddingBottom: 9,
-    backgroundColor: 'rgba(10,15,27,0.72)',
-    overflow: 'hidden',
+    borderColor: colors.border,
+    backgroundColor: colors.panelHi,
+    paddingHorizontal: 10,
   },
-  hudStatLabel: { color: '#8fa3bd', fontSize: 8, fontWeight: '900', letterSpacing: 0.3, textTransform: 'uppercase' },
-  hudStatValue: { fontSize: 15, fontWeight: '900', marginTop: 2, fontVariant: ['tabular-nums'] },
-  hudStatAccent: { position: 'absolute', left: 0, right: '14%', bottom: 0, height: 2.5, opacity: 0.85 },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingRight: 4 },
-  speedToggle: { flexDirection: 'row', backgroundColor: colors.bgDeep, borderRadius: radius.sm, padding: 2, borderWidth: 1, borderColor: colors.border },
-  speedBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  speedBtnActive: { backgroundColor: colors.cyan },
-  speedText: { color: colors.textDim, fontSize: 12, fontWeight: '900' },
-  ctrl: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.panelHi },
-  ctrlText: { color: colors.text, fontSize: 12, fontWeight: '800' },
-  payroll: { color: colors.textDim, fontSize: 10, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', marginTop: 10, textAlign: 'right' },
+  ctrlActive: { backgroundColor: colors.amber, borderColor: colors.amber },
+  ctrlText: { color: colors.text, fontSize: 11, fontWeight: '900' },
 });

@@ -153,7 +153,7 @@ function Game() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scroll, { paddingBottom: showPlacing || showDock ? 150 : 24 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: showPlacing || showDock ? 150 : 28 }]}
         showsVerticalScrollIndicator={false}
       >
         {tab === 'floor' && <FloorScreen state={state} />}

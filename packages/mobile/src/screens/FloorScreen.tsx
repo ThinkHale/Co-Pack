@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
+import { Image, View, Text, Pressable, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
 import {
   GameState, Line, Order, Worker, StationSkill, stationRole, orderProfile,
   dayCondition, dayAttendanceModifier,
@@ -13,7 +13,7 @@ import { colors, radius, shared, STATION_NAMES, STATION_THEMES } from '../theme'
 import { formatCurrency, pct, profileForWorker } from '../format';
 import { useGameStore, HIRE_COST } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell, Bar } from '../components/common';
-import { CharacterAvatar } from '../components/Avatar';
+import { CharacterAvatar, WorkerPortraitStrip, appearanceSummary } from '../components/Avatar';
 import { MiniBar } from '../components/MiniBar';
 import { TraitChips } from '../components/TraitChips';
 import { ConveyorBelt } from '../components/Belt';
@@ -23,6 +23,7 @@ import { Spotlight } from '../components/Spotlight';
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 const TONE_COLOR: Record<string, string> = { good: colors.green, bad: colors.red, neutral: colors.cyan };
 const TRAINABLE = ['s1', 's2', 's3'];
+const LINE_PREVIEW = require('../../assets/floor/line-view-preview.png');
 
 export function FloorScreen({ state }: { state: GameState }) {
   const {
@@ -358,26 +359,43 @@ function WorkerActionBar({
   const riskCopy = risk === 'high' ? 'Flight risk — morale low' : risk === 'watch' ? 'Watch morale' : 'Settled in';
 
   return (
-    <Panel style={{ borderColor: colors.gold }}>
-      <View style={styles.rowBetween}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-          <CharacterAvatar worker={worker} size="sm" />
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.workerName} numberOfLines={1}>{profile.firstName} · {worker.name}</Text>
-              {worker.isLead && <Pill color={colors.gold}>LEAD</Pill>}
-              {worker.permanent && <Pill color={colors.purple}>CO</Pill>}
+    <Panel style={styles.workerSheet}>
+      <View style={styles.sheetHandle} />
+      <View style={styles.profileTop}>
+        <CharacterAvatar worker={worker} size="lg" />
+        <View style={{ flex: 1 }}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1 }}>
+              <Eyebrow color={colors.inkMute}>Selected worker</Eyebrow>
+              <Text style={styles.profileName} numberOfLines={1}>{worker.name}</Text>
             </View>
-            <Text style={{ color: riskColor, fontSize: 11, fontWeight: '700', marginTop: 2 }}>
-              {riskCopy} · ${effectiveHourly(worker, payPolicy).toFixed(2)}/hr ({formatCurrency(effectiveWage(worker, payPolicy))}/shift)
-            </Text>
+            <Button label="Close" tone="ghost" small onPress={onCancel} />
+          </View>
+          <Text style={[styles.profileMeta, { color: riskColor }]}>
+            {riskCopy} · ${effectiveHourly(worker, payPolicy).toFixed(2)}/hr ({formatCurrency(effectiveWage(worker, payPolicy))}/shift)
+          </Text>
+          <View style={styles.profilePills}>
+            <Pill color={colors.teal}>D{worker.tenureDays}</Pill>
+            {worker.isLead && <Pill color={colors.gold}>Lead</Pill>}
+            {worker.permanent && <Pill color={colors.purple}>Company</Pill>}
           </View>
         </View>
-        <Button label="Cancel" tone="ghost" small onPress={onCancel} />
       </View>
+
+      <View style={styles.profileStats}>
+        <ProfileStat label="Mood" value={worker.morale} color={colors.gold} />
+        <ProfileStat label="Trust" value={worker.reliability} color={colors.teal} />
+      </View>
+
+      <View style={styles.appearanceRow}>
+        <WorkerPortraitStrip worker={worker} />
+        <Text style={styles.appearanceText} numberOfLines={1}>{appearanceSummary(worker)}</Text>
+      </View>
+
       <TraitChips worker={worker} style={{ marginTop: 10 }} />
-      <Text style={[styles.leverLabel, { marginTop: 10 }]}>Tap a station to assign · or train below</Text>
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+      <Text style={styles.assignHint}>Tap a station target to assign. Train here when someone needs a new role.</Text>
+
+      <View style={styles.trainingGrid}>
         {TRAINABLE.map((sid) => {
           const skill = worker.skills.find((s) => s.stationId === sid);
           const cost = trainingCost(worker, sid);
@@ -389,17 +407,32 @@ function WorkerActionBar({
               onPress={() => onTrain(worker.id, sid)}
               style={({ pressed }) => [styles.trainBtn, !trainable && { opacity: 0.4 }, pressed && trainable && { opacity: 0.8 }]}
             >
-              <Text style={styles.trainStation}>{STATION_NAMES[sid]}</Text>
-              <Text style={styles.trainProf}>{skill ? pct(skill.proficiency) : 'new'}</Text>
-              <Text style={styles.trainCost}>{formatCurrency(cost)}</Text>
+              <View style={styles.rowBetween}>
+                <Text style={styles.trainStation}>{STATION_NAMES[sid]}</Text>
+                <Text style={styles.trainCost}>{formatCurrency(cost)}</Text>
+              </View>
+              <Bar value={skill?.proficiency ?? 0.08} color={STATION_THEMES[sid]?.color ?? colors.teal} height={5} track="rgba(16,20,23,0.08)" />
+              <Text style={styles.trainProf}>{skill ? pct(skill.proficiency) : 'New skill'}</Text>
             </Pressable>
           );
         })}
       </View>
-      <View style={{ marginTop: 10 }}>
+      <View style={{ marginTop: 12, alignSelf: 'flex-start' }}>
         <Button label="Terminate" tone="danger" small onPress={() => onTerminate(worker)} />
       </View>
     </Panel>
+  );
+}
+
+function ProfileStat({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <View style={styles.profileStat}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.profileStatLabel}>{label}</Text>
+        <Text style={styles.profileStatValue}>{pct(value)}</Text>
+      </View>
+      <Bar value={value} color={color} height={6} track="rgba(16,20,23,0.1)" />
+    </View>
   );
 }
 
@@ -435,18 +468,25 @@ function FloorLine({
     : isStopped ? colors.red : isShort ? colors.amber : colors.green;
 
   return (
-    <Panel>
+    <Panel style={styles.lineBoard}>
       <View style={[styles.rowBetween, { marginBottom: 10 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Pill color={colors.sky} filled>{line.name}</Pill>
+          <Pill color={colors.ink} filled>{line.name}</Pill>
           {runningOrder && (
             <Pill color={colors.gold}>{runningOrder.sku} · {orderProfile(runningOrder).short}</Pill>
           )}
-          {line.automation > 0 && <Pill color={colors.cyan}>⚙ L{line.automation}</Pill>}
+          {line.automation > 0 && <Pill color={colors.cyan}>Auto L{line.automation}</Pill>}
           {line.leadId && workers[line.leadId] && <Pill color={colors.gold}>LEAD</Pill>}
         </View>
         <Text style={{ color: statusColor, fontSize: 11, fontWeight: '900' }}>{statusText}</Text>
       </View>
+
+      <View style={styles.segmented}>
+        <View style={styles.segmentActive}><Text style={styles.segmentActiveText}>Board</Text></View>
+        <View style={styles.segmentIdle}><Text style={styles.segmentIdleText}>Line View</Text></View>
+      </View>
+
+      <LinePreview running={running} rate={lineRate} />
 
       <View style={styles.stationGrid}>
         {line.stations.map((station) => {
@@ -507,6 +547,21 @@ function FloorLine({
   );
 }
 
+function LinePreview({ running, rate }: { running: boolean; rate: number }) {
+  return (
+    <View style={styles.linePreview}>
+      <Image source={LINE_PREVIEW} style={styles.linePreviewImage} resizeMode="cover" />
+      <View style={styles.linePreviewOverlay}>
+        <View>
+          <Text style={styles.linePreviewLabel}>Linear line view</Text>
+          <Text style={styles.linePreviewMeta}>{running ? 'Running' : 'Boarding'} · {rate.toFixed(1)} units/min</Text>
+        </View>
+        <View style={[styles.linePulse, { backgroundColor: running ? colors.green : colors.amber }]} />
+      </View>
+    </View>
+  );
+}
+
 function StationTile({
   stationName, stationId, role, worker, present, working, hasTarget, isMatch, highlight, selectedFirstName, onPress, onClear,
 }: {
@@ -540,7 +595,7 @@ function StationTile({
         ) : (
           <>
             <Text style={styles.emptyIcon}>{theme.note}</Text>
-            <Text style={{ color: isMatch ? colors.green : hasTarget ? colors.cyan : colors.textMute, fontSize: 11, fontWeight: '800', textAlign: 'center' }}>
+            <Text style={{ color: isMatch ? colors.green : hasTarget ? colors.teal : colors.inkMute, fontSize: 11, fontWeight: '800', textAlign: 'center' }}>
               {hasTarget ? (isMatch ? `${selectedFirstName ?? 'Crew'} fits` : `Place ${selectedFirstName ?? 'crew'}`) : 'Tap to staff'}
             </Text>
           </>
@@ -580,7 +635,7 @@ function SupportSlot({
         <Text style={styles.supportTitle} numberOfLines={1}>
           {worker && profile ? `${profile.firstName} helping` : hasTarget ? `Add ${selectedFirstName ?? 'helper'}` : 'Overstaff line'}
         </Text>
-        <Text style={shared.bodyMute} numberOfLines={1}>
+        <Text style={styles.supportMeta} numberOfLines={1}>
           {worker ? `${present ? 'Paid helper' : 'No-show'} · +${Math.round(SUPPORT_OUTPUT_BONUS * 100)}% lift` : 'Paid helper slot'}
         </Text>
       </View>
@@ -710,24 +765,114 @@ const styles = StyleSheet.create({
   choice: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
   choiceLabel: { color: colors.text, fontSize: 14, fontWeight: '900' },
   choiceNote: { color: colors.textMute, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  workerName: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  trainBtn: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingVertical: 8, gap: 2 },
-  trainStation: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  trainProf: { color: colors.cyan, fontSize: 11, fontWeight: '800' },
-  trainCost: { color: colors.gold, fontSize: 11, fontWeight: '800' },
+  workerSheet: {
+    backgroundColor: colors.surface,
+    borderColor: colors.gold,
+    borderWidth: 1.5,
+    shadowColor: colors.bgDeep,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: 'rgba(16,20,23,0.18)',
+    marginBottom: 12,
+  },
+  profileTop: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  profileName: { color: colors.ink, fontSize: 20, fontWeight: '900', marginTop: 1 },
+  profileMeta: { fontSize: 12, fontWeight: '800', marginTop: 3 },
+  profilePills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  profileStats: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  profileStat: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.inkBorder,
+    padding: 9,
+    gap: 6,
+  },
+  profileStatLabel: { color: colors.inkMute, fontSize: 10, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
+  profileStatValue: { color: colors.ink, fontSize: 12, fontWeight: '900' },
+  appearanceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  appearanceText: { color: colors.inkDim, fontSize: 11, fontWeight: '800', flex: 1, textTransform: 'capitalize' },
+  assignHint: { color: colors.inkDim, fontSize: 12, fontWeight: '700', lineHeight: 16, marginTop: 10 },
+  trainingGrid: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  trainBtn: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.inkBorder,
+    padding: 8,
+    gap: 6,
+  },
+  trainStation: { color: colors.ink, fontSize: 12, fontWeight: '900' },
+  trainProf: { color: colors.inkMute, fontSize: 10, fontWeight: '800' },
+  trainCost: { color: colors.inkDim, fontSize: 10, fontWeight: '900' },
+  lineBoard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.inkBorder,
+    borderWidth: 1,
+  },
+  segmented: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.inkBorder,
+    padding: 2,
+    marginBottom: 10,
+  },
+  segmentActive: { backgroundColor: colors.ink, borderRadius: 5, paddingHorizontal: 12, paddingVertical: 6 },
+  segmentIdle: { paddingHorizontal: 12, paddingVertical: 6 },
+  segmentActiveText: { color: colors.surface, fontSize: 11, fontWeight: '900' },
+  segmentIdleText: { color: colors.inkMute, fontSize: 11, fontWeight: '900' },
+  linePreview: {
+    overflow: 'hidden',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.inkBorder,
+    backgroundColor: colors.rail,
+    minHeight: 118,
+  },
+  linePreviewImage: { width: '100%', height: 126 },
+  linePreviewOverlay: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    borderRadius: radius.sm,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(9,12,14,0.72)',
+  },
+  linePreviewLabel: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  linePreviewMeta: { color: colors.textMute, fontSize: 10, fontWeight: '800', marginTop: 1 },
+  linePulse: { width: 10, height: 10, borderRadius: 5 },
   stationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  station: { flex: 1, backgroundColor: 'rgba(8,13,24,0.5)', borderRadius: radius.md, borderWidth: 1.5, padding: 8, gap: 6, minHeight: 132 },
+  station: { flex: 1, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1.5, padding: 8, gap: 6, minHeight: 132 },
   stationTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stationCode: { width: 22, height: 18, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   stationCodeText: { color: colors.bgDeep, fontSize: 9, fontWeight: '900' },
-  stationNameTag: { color: colors.textDim, fontSize: 10, fontWeight: '800', flex: 1 },
-  stationClear: { color: colors.textMute, fontSize: 13, fontWeight: '900', paddingHorizontal: 2 },
+  stationNameTag: { color: colors.inkDim, fontSize: 10, fontWeight: '900', flex: 1 },
+  stationClear: { color: colors.inkMute, fontSize: 13, fontWeight: '900', paddingHorizontal: 2 },
   stationBody: { alignItems: 'center', gap: 3, flex: 1, justifyContent: 'center' },
-  stationName: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  emptyIcon: { color: colors.textMute, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  support: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: 'rgba(53,208,186,0.06)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 10 },
+  stationName: { color: colors.ink, fontSize: 13, fontWeight: '900' },
+  emptyIcon: { color: colors.inkMute, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  support: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.inkBorder, padding: 10 },
   supportLabel: { color: colors.teal, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
-  supportTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 1 },
+  supportTitle: { color: colors.ink, fontSize: 14, fontWeight: '900', marginTop: 1 },
+  supportMeta: { color: colors.inkMute, fontSize: 12, fontWeight: '700', marginTop: 1 },
   emptyBench: { color: colors.textMute, fontSize: 13, fontWeight: '700', textAlign: 'center', paddingVertical: 18 },
   pickerScrim: { flex: 1, backgroundColor: 'rgba(7,19,27,0.7)', justifyContent: 'flex-end' },
   pickerSheet: { backgroundColor: colors.panel, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, borderWidth: 1, borderColor: colors.borderStrong, padding: 16, paddingBottom: 28 },

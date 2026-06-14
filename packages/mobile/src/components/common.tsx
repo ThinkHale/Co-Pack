@@ -19,7 +19,7 @@ export function Pill({
         styles.pill,
         filled
           ? { backgroundColor: color }
-          : { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: color, borderWidth: 1 },
+          : { backgroundColor: 'rgba(244,241,234,0.06)', borderColor: color, borderWidth: 1 },
         style,
       ]}
     >
@@ -30,7 +30,7 @@ export function Pill({
 
 // A horizontal progress rail (mini stat / order / objective bars).
 export function Bar({
-  value, color = colors.teal, height = 8, track = 'rgba(255,255,255,0.08)',
+  value, color = colors.teal, height = 8, track = 'rgba(244,241,234,0.08)',
 }: { value: number; color?: string; height?: number; track?: string }) {
   const w = Math.max(2, Math.min(100, value * 100));
   return (
@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
   barTrack: { width: '100%', overflow: 'hidden' },
   btn: {
     paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: radius.md,
+    paddingVertical: 10,
+    borderRadius: radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -112,12 +112,12 @@ const styles = StyleSheet.create({
   btnSmall: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.sm },
   btnDisabled: { opacity: 0.4 },
   btnPressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
-  btnLabel: { fontSize: 13, fontWeight: '800' },
+  btnLabel: { fontSize: 13, fontWeight: '900' },
   btnLabelSmall: { fontSize: 12 },
   statCell: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: radius.md,
+    backgroundColor: 'rgba(244,241,234,0.055)',
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 10,
