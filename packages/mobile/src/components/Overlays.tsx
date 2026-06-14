@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, Modal, Pressable, useWindowDimensions } from 'react-native';
 import { GameState, OBJECTIVES, Worker, TICKS_PER_SHIFT } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
 import { formatCurrency, formatAwayTime, profileForWorker } from '../format';
@@ -10,9 +10,12 @@ import type { OfflineSummary } from '../lib/persistence';
 const SPLASH = require('../../assets/brand-splash.png');
 
 export function SplashScreen({ onStart }: { onStart: () => void }) {
+  const { height } = useWindowDimensions();
+  const artHeight = Math.min(320, Math.max(220, height * 0.44));
+
   return (
     <View style={styles.splash}>
-      <Image source={SPLASH} style={styles.splashImg} resizeMode="contain" />
+      <Image source={SPLASH} style={[styles.splashImg, { height: artHeight }]} resizeMode="contain" />
       <Text style={styles.splashTag}>Idle contract packaging simulation</Text>
       <Button label="Start Shift" tone="primary" onPress={onStart} style={{ paddingHorizontal: 44, paddingVertical: 14, marginTop: 24 }} />
     </View>

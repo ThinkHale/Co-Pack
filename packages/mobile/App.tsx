@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, StatusBar, AppState, StyleSheet, Image, Text } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as NativeSplashScreen from 'expo-splash-screen';
 import { GameEvent, fillRate, FILL_RATE_TARGET } from '@copack/engine';
 import { colors } from './src/theme';
 import { useGameStore } from './src/store/useGameStore';
@@ -9,7 +10,7 @@ import { toastForEvent } from './src/events';
 import { Hud } from './src/components/Hud';
 import { TabBar } from './src/components/TabBar';
 import { Toasts, ToastItem } from './src/components/Toasts';
-import { SplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS, WelcomeModal } from './src/components/Overlays';
+import { SplashScreen as AppSplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS, WelcomeModal } from './src/components/Overlays';
 import { ConfettiBurst } from './src/components/Confetti';
 import { CrewDock } from './src/components/CrewDock';
 import { FloorPinned } from './src/components/FloorPinned';
@@ -39,6 +40,9 @@ function Boot() {
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => { void hydrate(); }, [hydrate]);
+  useEffect(() => {
+    if (hydrated) void NativeSplashScreen.hideAsync();
+  }, [hydrated]);
   useEffect(() => { if (hydrated && bootedFromSave) setSplashDone(true); }, [hydrated, bootedFromSave]);
 
   if (!hydrated) {
@@ -50,7 +54,7 @@ function Boot() {
     );
   }
   if (!splashDone) {
-    return <SplashScreen onStart={() => { unlockAudio(); setSplashDone(true); }} />;
+    return <AppSplashScreen onStart={() => { unlockAudio(); setSplashDone(true); }} />;
   }
   return <Game />;
 }
