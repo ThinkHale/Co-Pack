@@ -61,7 +61,7 @@ function StaffingBoard({ state }: { state: GameState }) {
         <StatCell label="Seated" value={`${covered}`} />
         <StatCell label="Open roles" value={`${openRoles}`} tone={coveredAll ? colors.green : colors.amber} />
       </View>
-      {history.length > 0 && (
+      {history.length > 1 && (
         <View style={styles.histRow}>
           {history.map((d) => (
             <View key={d.day} style={styles.histCol}>
@@ -240,19 +240,19 @@ const styles = StyleSheet.create({
   boardScore: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' },
   boardScoreVal: { fontSize: 22, fontWeight: '900' },
   boardScoreLbl: { color: colors.textMute, fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
-  histRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 60, marginTop: 14 },
-  histCol: { flex: 1, height: '100%', justifyContent: 'flex-end' },
+  histRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 5, height: 60, marginTop: 14 },
+  histCol: { width: 14, height: '100%', justifyContent: 'flex-end', borderRadius: 7, backgroundColor: colors.panelHi, overflow: 'hidden' },
   histBar: { width: '100%', borderRadius: 3, minHeight: 4 },
   payReadout: { fontSize: 34, fontWeight: '900' },
   rateLabel: { color: colors.textDim, fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   payEnd: { color: colors.textMute, fontSize: 11, fontWeight: '800' },
   payReset: { color: colors.cyan, fontSize: 11, fontWeight: '800' },
-  skill: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(248,245,223,0.08)' },
+  skill: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(34,84,99,0.07)' },
   skillName: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  boost: { flex: 1, minHeight: 46, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(248,245,223,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  boost: { flex: 1, minHeight: 46, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(34,84,99,0.07)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   boostText: { color: colors.text, fontSize: 12, fontWeight: '900', textAlign: 'center' },
   note: { color: colors.textMute, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
-  program: { borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(248,245,223,0.08)', padding: 12 },
+  program: { borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: 'rgba(34,84,99,0.07)', padding: 12 },
   programTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   programCost: { color: colors.gold, fontSize: 11, fontWeight: '900', marginTop: 4 },
 });

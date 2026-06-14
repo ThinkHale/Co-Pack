@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   facts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   day: { color: colors.text, fontSize: 13, fontWeight: '900' },
   stat: { color: colors.textDim, fontSize: 12, fontWeight: '800' },
-  condition: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: 'rgba(8,13,24,0.45)' },
+  condition: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: colors.panelSoft },
   conditionText: { fontSize: 10, fontWeight: '900', maxWidth: 120 },
   warn: { color: colors.amber, fontSize: 11, fontWeight: '900' },
   actions: { flexDirection: 'row', gap: 6 },

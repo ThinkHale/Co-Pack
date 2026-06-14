@@ -76,7 +76,7 @@ export function Hud({ state }: { state: GameState }) {
       </View>
 
       <View style={styles.progressBlock}>
-        <Bar value={progress} color={colors.teal} height={5} track="rgba(244,241,234,0.12)" />
+        <Bar value={progress} color={colors.teal} height={5} track="rgba(34,84,99,0.16)" />
         <View style={styles.metricRow}>
           <Text style={styles.metric}>Morale {pct(averageMorale(workers))}</Text>
           <Text style={styles.metric}>Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)}</Text>
@@ -104,10 +104,10 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     padding: 9,
     shadowColor: colors.bgDeep,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 3,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 },
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: 7,
     paddingVertical: 4,
-    backgroundColor: 'rgba(244,241,234,0.05)',
+    backgroundColor: colors.panelSoft,
   },
   statusChipText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.2 },
   progressBlock: { marginTop: 8, gap: 6 },
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   metric: { color: colors.textMute, fontSize: 10, fontWeight: '800' },
   speedToggle: {
     flexDirection: 'row',
-    backgroundColor: colors.bgDeep,
+    backgroundColor: colors.panelHi,
     borderRadius: radius.sm,
     padding: 2,
     borderWidth: 1,

@@ -141,7 +141,7 @@ export function CorporateScreen({ state }: { state: GameState }) {
 
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  officeLine: { backgroundColor: 'rgba(248,245,223,0.08)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
+  officeLine: { backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
   lineName: { color: colors.text, fontSize: 15, fontWeight: '900' },
   requires: { color: colors.gold, fontSize: 10, fontWeight: '900', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 },
 });

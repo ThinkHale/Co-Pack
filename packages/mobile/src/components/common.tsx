@@ -19,7 +19,7 @@ export function Pill({
         styles.pill,
         filled
           ? { backgroundColor: color }
-          : { backgroundColor: 'rgba(244,241,234,0.06)', borderColor: color, borderWidth: 1 },
+          : { backgroundColor: 'rgba(34,84,99,0.07)', borderColor: color, borderWidth: 1 },
         style,
       ]}
     >
@@ -30,7 +30,7 @@ export function Pill({
 
 // A horizontal progress rail (mini stat / order / objective bars).
 export function Bar({
-  value, color = colors.teal, height = 8, track = 'rgba(244,241,234,0.08)',
+  value, color = colors.teal, height = 8, track = 'rgba(34,84,99,0.10)',
 }: { value: number; color?: string; height?: number; track?: string }) {
   const w = Math.max(2, Math.min(100, value * 100));
   return (
@@ -76,8 +76,8 @@ export function Button({
 const BTN_TONES: Record<ButtonTone, { container: ViewStyle; text: string }> = {
   primary: { container: { backgroundColor: colors.teal, borderColor: colors.teal }, text: colors.bgDeep },
   accent: { container: { backgroundColor: colors.gold, borderColor: colors.gold }, text: colors.bgDeep },
-  danger: { container: { backgroundColor: 'rgba(255,70,102,0.16)', borderColor: colors.red }, text: colors.red },
-  muted: { container: { backgroundColor: 'rgba(248,245,223,0.08)', borderColor: colors.borderStrong }, text: colors.text },
+  danger: { container: { backgroundColor: 'rgba(212,84,79,0.12)', borderColor: colors.red }, text: colors.red },
+  muted: { container: { backgroundColor: colors.panelSoft, borderColor: colors.borderStrong }, text: colors.text },
   ghost: { container: { backgroundColor: 'transparent', borderColor: colors.border }, text: colors.textDim },
 };
 
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   btnLabelSmall: { fontSize: 12 },
   statCell: {
     flex: 1,
-    backgroundColor: 'rgba(248,245,223,0.08)',
+    backgroundColor: 'rgba(255,250,240,0.72)',
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.borderStrong,

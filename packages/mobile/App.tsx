@@ -25,7 +25,7 @@ const LOGO = require('./assets/brand-logo.png');
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
       <Boot />
     </SafeAreaProvider>
   );
