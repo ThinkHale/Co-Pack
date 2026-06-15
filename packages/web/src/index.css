@@ -92,6 +92,78 @@ button {
   text-transform: uppercase;
 }
 
+/* --- Section definition -----------------------------------------------------
+   Each panel reads as a distinct, labeled section: a colored accent rail down
+   its left edge, a matching glowing marker on its eyebrow label, and a deeper
+   drop shadow so cards lift cleanly off the grid background. The accent color
+   is set per-section with the accent-* utilities below, so neighboring sections
+   on the same tab are easy to tell apart at a glance. -------------------------*/
+.game-panel { --panel-accent: #68d8ff; }
+
+.accent-cyan   { --panel-accent: #68d8ff; }
+.accent-amber  { --panel-accent: #ffc24d; }
+.accent-violet { --panel-accent: #a99bff; }
+.accent-green  { --panel-accent: #72ef8f; }
+.accent-rose   { --panel-accent: #ff8aa6; }
+
+.game-panel {
+  box-shadow:
+    inset 4px 0 0 var(--panel-accent),
+    0 24px 60px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* The eyebrow becomes the section's color-coded tag: tinted to the panel accent
+   with a small glowing marker, so the eye lands on each section header first. */
+.game-panel .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: var(--panel-accent);
+}
+.game-panel .eyebrow::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+  background: var(--panel-accent);
+  box-shadow: 0 0 8px var(--panel-accent);
+}
+
+/* A hairline divider under the section header, tinted toward the accent, that
+   visibly cuts the title block off from the body of the panel. */
+.panel-divider {
+  height: 1px;
+  margin: 0.7rem 0 0.85rem;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--panel-accent) 55%, transparent),
+    rgba(255, 255, 255, 0.04) 60%,
+    transparent
+  );
+}
+
+/* Inset sub-block: groups related controls inside a single panel so a panel
+   with several distinct areas (e.g. forecast + coverage) reads as separate
+   cards rather than one undivided wall. */
+.panel-section {
+  border-radius: 9px;
+  padding: 0.8rem 0.85rem;
+  background: rgba(255, 255, 255, 0.038);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.panel-section + .panel-section { margin-top: 0.75rem; }
+.panel-section-label {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: #94a3b8;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .status-pill,
 .deadline-chip,
 .line-status {
