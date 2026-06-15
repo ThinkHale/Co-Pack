@@ -620,6 +620,8 @@ function Line3DView({
   const [width, setWidth] = useState(0);
   const cartonCount = Math.max(3, Math.min(6, Math.round(2 + rate * 3)));
   const durationMs = Math.max(1900, 5600 - rate * 2300);
+  const supportWorkerId = line.supportWorkerIds?.[0];
+  const supportWorker = supportWorkerId ? workers[supportWorkerId] : null;
 
   return (
     <View style={styles.line3dWrap}>
@@ -628,14 +630,20 @@ function Line3DView({
           <Text style={styles.linePreviewLabel}>Line View</Text>
           <Text style={styles.linePreviewMeta}>{running ? 'Animated floor view' : 'Ready view'} · {rate.toFixed(1)} units/min</Text>
         </View>
-        <View style={[styles.linePulse, { backgroundColor: running ? colors.green : colors.amber }]} />
+        <View style={styles.line3dHud}>
+          {line.automation > 0 && <Text style={styles.line3dHudText}>AUTO L{line.automation}</Text>}
+          <View style={[styles.linePulse, { backgroundColor: running ? colors.green : colors.amber }]} />
+        </View>
       </View>
       <View style={styles.line3dScene} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        <View style={styles.line3dFloorGrid} />
         <View style={styles.line3dBackRail} />
         <View style={styles.line3dBeltShadow} />
         <View style={styles.line3dBelt}>
           <View style={styles.line3dBeltEdge} />
+          <View style={styles.line3dCenterLine} />
         </View>
+        {width > 0 && running && <BeltScanner width={width} durationMs={Math.max(1600, durationMs * 0.72)} />}
         {width > 0 && running && Array.from({ length: cartonCount }).map((_, i) => (
           <IsoCarton
             key={`${cartonCount}-${durationMs}-${i}`}
@@ -643,6 +651,13 @@ function Line3DView({
             durationMs={durationMs}
             offsetMs={(durationMs / cartonCount) * i}
           />
+        ))}
+        {width > 0 && !running && [0.28, 0.66].map((pos) => (
+          <View key={pos} style={[styles.isoCartonParked, { left: Math.max(22, width * pos), bottom: pos > 0.5 ? 76 : 58 }]}>
+            <View style={styles.isoCartonTop} />
+            <View style={styles.isoCartonFace} />
+            <View style={styles.isoTape} />
+          </View>
         ))}
         {line.stations.map((station, index) => {
           const role = stationRole(station);
@@ -653,6 +668,7 @@ function Line3DView({
           const top = 28 + (index % 2) * 14;
           return (
             <View key={station.id} style={[styles.line3dStation, { left, top, borderColor: STATION_THEMES[role]?.color ?? colors.teal }]}>
+              <View style={[styles.line3dStationBeam, { backgroundColor: STATION_THEMES[role]?.color ?? colors.teal }]} />
               <View style={[styles.line3dStationCap, { backgroundColor: STATION_THEMES[role]?.color ?? colors.teal }]}>
                 <Text style={styles.line3dStationCode}>{STATION_THEMES[role]?.icon ?? role}</Text>
               </View>
@@ -664,11 +680,41 @@ function Line3DView({
             </View>
           );
         })}
+        {supportWorker && (
+          <View style={styles.line3dSupportBay}>
+            <Text style={styles.line3dSupportLabel}>SUPPORT</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <CharacterAvatar worker={supportWorker} size="xs" />
+              <Text style={styles.line3dSupportName} numberOfLines={1}>{profileForWorker(supportWorker).firstName}</Text>
+            </View>
+          </View>
+        )}
         <View style={styles.line3dOutfeed}>
           <Text style={styles.line3dOutfeedText}>{running ? 'OUT' : 'HOLD'}</Text>
         </View>
       </View>
     </View>
+  );
+}
+
+function BeltScanner({ width, durationMs }: { width: number; durationMs: number }) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    progress.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(progress, { toValue: 1, duration: durationMs, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [durationMs, progress]);
+
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [22, Math.max(72, width - 52)] });
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [26, -10] });
+  const opacity = progress.interpolate({ inputRange: [0, 0.12, 0.85, 1], outputRange: [0, 0.8, 0.8, 0] });
+
+  return (
+    <Animated.View style={[styles.beltScanner, { opacity, transform: [{ translateX }, { translateY }, { rotateZ: '-8deg' }] }]} />
   );
 }
 
@@ -1056,10 +1102,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 10,
   },
+  line3dHud: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  line3dHudText: { color: colors.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
   line3dScene: {
-    height: 198,
+    height: 218,
     marginTop: 4,
     overflow: 'hidden',
+  },
+  line3dFloorGrid: {
+    position: 'absolute',
+    left: -16,
+    right: -16,
+    bottom: 0,
+    height: 132,
+    backgroundColor: 'rgba(255,248,217,0.58)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(23,37,42,0.08)',
+    transform: [{ skewY: '-4deg' }],
   },
   line3dBackRail: {
     position: 'absolute',
@@ -1094,6 +1153,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     transform: [{ perspective: 500 }, { rotateX: '58deg' }, { rotateZ: '-8deg' }],
   },
+  line3dCenterLine: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    top: 24,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: 'rgba(228,198,75,0.42)',
+  },
   line3dBeltEdge: {
     position: 'absolute',
     left: 0,
@@ -1103,6 +1171,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(51,164,143,0.22)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(23,37,42,0.12)',
+  },
+  beltScanner: {
+    position: 'absolute',
+    left: 0,
+    bottom: 88,
+    width: 42,
+    height: 5,
+    borderRadius: 4,
+    backgroundColor: 'rgba(34,165,143,0.5)',
   },
   line3dStation: {
     position: 'absolute',
@@ -1119,6 +1196,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 7,
     elevation: 3,
+  },
+  line3dStationBeam: {
+    position: 'absolute',
+    left: '50%',
+    top: 74,
+    width: 2,
+    height: 58,
+    opacity: 0.28,
   },
   line3dStationCap: {
     position: 'absolute',
@@ -1153,12 +1238,34 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   line3dOutfeedText: { color: colors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  line3dSupportBay: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    minWidth: 104,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.inkBorder,
+    backgroundColor: colors.paper,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  line3dSupportLabel: { color: colors.teal, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  line3dSupportName: { color: colors.ink, fontSize: 11, fontWeight: '900', maxWidth: 58 },
   isoCarton: {
     position: 'absolute',
     left: 0,
     bottom: 74,
     width: 26,
     height: 22,
+  },
+  isoCartonParked: {
+    position: 'absolute',
+    width: 26,
+    height: 22,
+    opacity: 0.82,
+    transform: [{ rotateZ: '-6deg' }],
   },
   isoCartonTop: {
     position: 'absolute',

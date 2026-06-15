@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import {
   GameState, Worker,
   LEAD_COST, conversionCost, CONVERSION_MIN_SHIFTS_WORKED,
@@ -20,6 +20,7 @@ export function OfficeScreen({ state }: { state: GameState }) {
     promoteLead, convertWorker, terminateWorker, requestWorkers,
     soundOn, toggleSound, adsOn, adFree, toggleAdsTesting, reset,
   } = useGameStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const lines = Object.entries(state.lines);
   const temps = Object.values(state.workers).filter((w) => !w.permanent);
 
@@ -45,9 +46,46 @@ export function OfficeScreen({ state }: { state: GameState }) {
     .sort((a, b) => a.deadline - b.deadline)
     .slice(0, lineCount);
   const toneColor = tomorrow.tone === 'bad' ? colors.red : tomorrow.tone === 'good' ? colors.green : colors.cyan;
+  const riskLabel = short > 1 ? 'High risk' : short === 1 ? 'Watch' : 'Covered';
+  const riskColor = short > 1 ? colors.red : short === 1 ? colors.amber : colors.green;
+
+  if (settingsOpen) {
+    return (
+      <SettingsPanel
+        soundOn={soundOn}
+        adsOn={adsOn}
+        adFree={adFree}
+        onBack={() => setSettingsOpen(false)}
+        onToggleSound={toggleSound}
+        onToggleAds={toggleAdsTesting}
+        onReset={reset}
+      />
+    );
+  }
 
   return (
     <View style={{ gap: 14 }}>
+      <Panel style={styles.officeHeader}>
+        <View style={{ flex: 1 }}>
+          <Eyebrow>Office</Eyebrow>
+          <Text style={shared.h2}>Tomorrow & People</Text>
+          <Text style={[shared.bodyMute, { marginTop: 3 }]}>Planning, reservations, leads, and conversions.</Text>
+        </View>
+      </Panel>
+
+      <Pressable
+        onPress={() => setSettingsOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Open settings"
+        style={({ pressed }) => [styles.settingsEntry, pressed && { opacity: 0.82 }]}
+      >
+        <View>
+          <Eyebrow>Settings</Eyebrow>
+          <Text style={styles.settingsEntryTitle}>Sound, testing, and save controls</Text>
+        </View>
+        <Text style={styles.settingsEntryAction}>Open</Text>
+      </Pressable>
+
       <Panel>
         <View style={styles.rowBetween}>
           <View style={{ flex: 1 }}>
@@ -82,11 +120,17 @@ export function OfficeScreen({ state }: { state: GameState }) {
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
           <StatCell label="Positions" value={`${positions}`} />
-          <StatCell label="Likely in" value={`${expectedLow}-${expectedHigh}`} />
+          <StatCell label="Crew range" value={`${expectedLow}-${expectedHigh}`} />
           <StatCell label="Reserved" value={`${arriving}`} />
         </View>
+        <View style={[styles.riskBand, { borderColor: riskColor }]}>
+          <Text style={[styles.riskLabel, { color: riskColor }]}>{riskLabel}</Text>
+          <Text style={styles.riskCopy}>
+            Soft forecast from reliability, pay, programs, and tomorrow's condition. Reserve workers when the range is tight.
+          </Text>
+        </View>
         {short > 0 ? (
-          <Text style={styles.shortWarn}>⚠ Likely short {short} — reserve tonight or scramble tomorrow.</Text>
+          <Text style={styles.shortWarn}>Likely short {short} - reserve tonight or scramble tomorrow.</Text>
         ) : (
           <Text style={styles.coverageOk}>Coverage looks good ({roster} on roster).</Text>
         )}
@@ -100,48 +144,6 @@ export function OfficeScreen({ state }: { state: GameState }) {
         <Text style={styles.advanceNote}>
           Advance rate beats the {formatCurrency(HIRE_COST)} same-day walk-in — and arrivals never no-show day one.
         </Text>
-      </Panel>
-
-      <Panel>
-        <View style={styles.rowBetween}>
-          <View style={{ flex: 1 }}>
-            <Eyebrow>Settings</Eyebrow>
-            <Text style={shared.h2}>Controls</Text>
-            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Sound, test toggles, and save controls.</Text>
-          </View>
-          <Button
-            label={soundOn ? 'Sound ON' : 'Sound muted'}
-            tone={soundOn ? 'primary' : 'muted'}
-            small
-            onPress={toggleSound}
-          />
-        </View>
-        <View style={[styles.settingsRow, { marginTop: 12 }]}>
-          <View style={{ flex: 1 }}>
-            <Eyebrow>Testing</Eyebrow>
-            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
-              Interstitial ads every 5 shifts{adFree ? ' — removed (purchase simulated)' : ''}.
-            </Text>
-          </View>
-          <Button label={`Ads: ${adsOn ? 'ON' : 'OFF'}`} tone="muted" small onPress={toggleAdsTesting} />
-        </View>
-        <View style={styles.settingsRow}>
-          <View style={{ flex: 1 }}>
-            <Eyebrow color={colors.red}>Danger zone</Eyebrow>
-            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Wipe the save and start a fresh plant.</Text>
-          </View>
-          <Button
-            label="Reset run"
-            tone="danger"
-            small
-            onPress={() =>
-              Alert.alert('Reset the run?', 'This wipes your save and starts a fresh shift.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Reset', style: 'destructive', onPress: reset },
-              ])
-            }
-          />
-        </View>
       </Panel>
 
       <Panel>
@@ -209,9 +211,88 @@ export function OfficeScreen({ state }: { state: GameState }) {
   );
 }
 
+function SettingsPanel({
+  soundOn, adsOn, adFree, onBack, onToggleSound, onToggleAds, onReset,
+}: {
+  soundOn: boolean;
+  adsOn: boolean;
+  adFree: boolean;
+  onBack: () => void;
+  onToggleSound: () => void;
+  onToggleAds: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <View style={{ gap: 14 }}>
+      <Panel style={styles.officeHeader}>
+        <View style={{ flex: 1 }}>
+          <Eyebrow>Settings</Eyebrow>
+          <Text style={shared.h2}>App Controls</Text>
+          <Text style={[shared.bodyMute, { marginTop: 3 }]}>Sound, testing toggles, and save controls.</Text>
+        </View>
+        <Button label="Back" tone="ghost" small onPress={onBack} />
+      </Panel>
+
+      <Panel>
+        <View style={styles.settingsRowClean}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Sound</Eyebrow>
+            <Text style={styles.settingTitle}>Shift audio</Text>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Event sounds and feedback cues.</Text>
+          </View>
+          <Button
+            label={soundOn ? 'On' : 'Muted'}
+            tone={soundOn ? 'primary' : 'muted'}
+            small
+            onPress={onToggleSound}
+          />
+        </View>
+        <View style={styles.settingsDivider} />
+        <View style={styles.settingsRowClean}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Testing</Eyebrow>
+            <Text style={styles.settingTitle}>Interstitial ads</Text>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
+              Every 5 shifts{adFree ? ' - removed purchase simulated' : ''}.
+            </Text>
+          </View>
+          <Button label={adsOn ? 'Ads on' : 'Ads off'} tone="muted" small onPress={onToggleAds} />
+        </View>
+      </Panel>
+
+      <Panel style={{ borderColor: colors.red }}>
+        <View style={styles.settingsRowClean}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow color={colors.red}>Danger zone</Eyebrow>
+            <Text style={styles.settingTitle}>Reset run</Text>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>Wipe the save and start a fresh plant.</Text>
+          </View>
+          <Button
+            label="Reset"
+            tone="danger"
+            small
+            onPress={() =>
+              Alert.alert('Reset the run?', 'This wipes your save and starts a fresh shift.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Reset', style: 'destructive', onPress: onReset },
+              ])
+            }
+          />
+        </View>
+      </Panel>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  settingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 12 },
+  officeHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  settingsEntry: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, backgroundColor: colors.panel, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 12, paddingVertical: 10 },
+  settingsEntryTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
+  settingsEntryAction: { color: colors.teal, fontSize: 13, fontWeight: '900' },
+  settingsRowClean: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  settingsDivider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
+  settingTitle: { color: colors.text, fontSize: 15, fontWeight: '900', marginTop: 2 },
   officeWorker: { backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
   workerIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
   workerName: { color: colors.text, fontSize: 14, fontWeight: '900' },
@@ -224,6 +305,9 @@ const styles = StyleSheet.create({
   planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 10, paddingVertical: 7 },
   planSku: { color: colors.text, fontSize: 12, fontWeight: '900' },
   planCrew: { color: colors.cyan, fontSize: 12, fontWeight: '900' },
+  riskBand: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, borderWidth: 1, borderRadius: radius.sm, backgroundColor: colors.panelSoft, paddingHorizontal: 10, paddingVertical: 8 },
+  riskLabel: { minWidth: 62, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
+  riskCopy: { flex: 1, color: colors.textMute, fontSize: 10, fontWeight: '700', lineHeight: 14 },
   shortWarn: { color: colors.amber, fontSize: 11, fontWeight: '900', marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
   coverageOk: { color: colors.green, fontSize: 11, fontWeight: '900', marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
   advanceNote: { color: colors.textFaint, fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 6 },

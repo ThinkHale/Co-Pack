@@ -8,6 +8,7 @@ const Slider = RawSlider as unknown as React.ComponentType<any>;
 import {
   GameState,
   requiredPositions, coveredPositions, STAFFING_TARGET,
+  stationRole,
   effectiveWage, SHIFT_HOURS,
   PAY_RATE_MIN, PAY_RATE_MAX, PAY_RATE_STEP, PAY_RATE_DEFAULT,
   ATTENDANCE_PROGRAM_PER_HEAD, REFERRAL_PROGRAM_PER_HEAD, programsPerShiftCost,
@@ -18,7 +19,7 @@ import {
 import { colors, radius, shared, STATION_NAMES } from '../theme';
 import { formatCurrency, pct } from '../format';
 import { useGameStore } from '../store/useGameStore';
-import { Panel, Eyebrow, Pill, Bar, StatCell } from '../components/common';
+import { Panel, Eyebrow, Pill, StatCell } from '../components/common';
 
 export function StaffingScreen({ state }: { state: GameState }) {
   const { setPayRate, toggleSkill, toggleProgram, buyMeal, runIncentive } = useGameStore();
@@ -38,15 +39,20 @@ function StaffingBoard({ state }: { state: GameState }) {
   const openRoles = Math.max(0, required - covered);
   const history = state.staffingHistory.slice(-14);
   const coveredAll = openRoles === 0;
+  const roleNeeds = Object.values(state.lines).flatMap((line) => line.stations).reduce<Record<string, number>>((acc, station) => {
+    const role = stationRole(station);
+    acc[role] = (acc[role] ?? 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <Panel>
       <View style={styles.rowBetween}>
         <View style={{ flex: 1 }}>
           <Eyebrow>Staffing board</Eyebrow>
-          <Text style={shared.h2}>Labor Coverage</Text>
+          <Text style={shared.h2}>Coverage Plan</Text>
           <Text style={[shared.bodyMute, { marginTop: 4 }]}>
-            Today needs {required} floor position{required === 1 ? '' : 's'}. Seat the crew that showed up, then start the shift.
+            Seat the crew that showed up against today's station mix, then start the shift.
           </Text>
         </View>
         <View style={[styles.boardScore, { borderColor: coveredAll ? colors.green : colors.amber }]}>
@@ -56,10 +62,18 @@ function StaffingBoard({ state }: { state: GameState }) {
           <Text style={styles.boardScoreLbl}>Today</Text>
         </View>
       </View>
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-        <StatCell label="Positions" value={`${required}`} />
+      <View style={styles.roleMix}>
+        {Object.entries(roleNeeds).map(([stationId, count]) => (
+          <View key={stationId} style={styles.roleChip}>
+            <Text style={styles.roleName}>{STATION_NAMES[stationId] ?? stationId}</Text>
+            <Text style={styles.roleCount}>{count}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+        <StatCell label="Needed" value={`${required}`} />
         <StatCell label="Seated" value={`${covered}`} />
-        <StatCell label="Open roles" value={`${openRoles}`} tone={coveredAll ? colors.green : colors.amber} />
+        <StatCell label="Open" value={`${openRoles}`} tone={coveredAll ? colors.green : colors.amber} />
       </View>
       {history.length > 1 && (
         <View style={styles.histRow}>
@@ -243,6 +257,10 @@ const styles = StyleSheet.create({
   histRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 5, height: 60, marginTop: 14 },
   histCol: { width: 14, height: '100%', justifyContent: 'flex-end', borderRadius: 7, backgroundColor: colors.panelHi, overflow: 'hidden' },
   histBar: { width: '100%', borderRadius: 3, minHeight: 4 },
+  roleMix: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  roleChip: { flex: 1, minHeight: 46, backgroundColor: colors.panelSoft, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 10, paddingVertical: 7 },
+  roleName: { color: colors.textMute, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
+  roleCount: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 1 },
   payReadout: { fontSize: 34, fontWeight: '900' },
   rateLabel: { color: colors.textDim, fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   payEnd: { color: colors.textMute, fontSize: 11, fontWeight: '800' },

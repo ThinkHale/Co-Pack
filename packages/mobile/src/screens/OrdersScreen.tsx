@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import {
-  GameState, Order,
+  GameState, Order, orderProfile,
   reputationPayMultiplier, totalThroughput,
   openObjectives, OBJECTIVES, Objective,
   CLIENT_TIERS,
@@ -74,28 +74,31 @@ function OrderHero({
   const deadlineColor = isOverdue ? colors.red : isUrgent ? colors.amber : colors.green;
 
   return (
-    <Panel style={{ borderColor: colors.gold, borderWidth: 1.5 }}>
-      <Eyebrow color={colors.gold}>Active contract</Eyebrow>
+    <Panel style={styles.orderHero}>
       <View style={styles.heroTop}>
-        <View style={styles.skuBlock}>
-          <Text style={styles.heroSku}>{order.sku}</Text>
-          <Text style={styles.heroMeta} numberOfLines={1}>{Math.round(order.unitsCompleted)} / {order.units} units</Text>
+        <View style={styles.skuCard}>
+          <Eyebrow color={colors.gold}>Active SKU</Eyebrow>
+          <Text style={styles.heroSku} numberOfLines={1}>{order.sku}</Text>
+          <Text style={styles.heroMeta} numberOfLines={1}>{orderProfile(order).name}</Text>
         </View>
         <View style={styles.heroChips}>
           <Pill color={deadlineColor} filled>{ticksToTimeRemaining(remaining)}</Pill>
           <Pill color={repLow ? colors.red : colors.cyan}>{clientName} · Rep {pct(reputation)}</Pill>
         </View>
       </View>
-      <Text style={[shared.body, { marginTop: 6 }]}>
-        Pays <Text style={{ color: colors.green, fontWeight: '900' }}>${effectivePay.toFixed(2)}</Text>/unit at current reputation
-        {' '}(base ${order.revenuePerUnit.toFixed(2)} × {Math.round(payMultiplier * 100)}%). Miss the deadline and reputation drops.
-      </Text>
-      <View style={styles.scoreRow}>
-        <View>
+      <View style={styles.contractFacts}>
+        <View style={styles.contractFact}>
           <Text style={styles.scoreLabel}>Units left</Text>
           <Text style={styles.scoreValue}>{Math.ceil(unitsLeft)}</Text>
         </View>
-        <Text style={styles.rate}>{throughput.toFixed(2)} units/min</Text>
+        <View style={styles.contractFact}>
+          <Text style={styles.scoreLabel}>Rate</Text>
+          <Text style={[styles.factValue, { color: colors.cyan }]}>{throughput.toFixed(2)}/m</Text>
+        </View>
+        <View style={styles.contractFact}>
+          <Text style={styles.scoreLabel}>Pay</Text>
+          <Text style={[styles.factValue, { color: colors.green }]}>${effectivePay.toFixed(2)}/u</Text>
+        </View>
       </View>
       <View style={{ marginTop: 10 }}>
         <Bar value={Math.max(progress, 0.01)} color={isOverdue ? colors.red : colors.gold} height={12} />
@@ -104,6 +107,9 @@ function OrderHero({
           <Text style={styles.progText}>{Math.round(order.unitsCompleted)} / {order.units}</Text>
         </View>
       </View>
+      <Text style={[shared.bodyMute, { marginTop: 8 }]}>
+        Current reputation pays {Math.round(payMultiplier * 100)}% of base. Missed deadlines still hit the client relationship.
+      </Text>
     </Panel>
   );
 }
@@ -148,6 +154,9 @@ function ClientBook({ state }: { state: GameState }) {
     <Panel>
       <Eyebrow>Client book</Eyebrow>
       <Text style={shared.h2}>Contract Ladder</Text>
+      <Text style={[shared.bodyMute, { marginTop: 4 }]}>
+        Qualify by shipping, then spend cash to add the next client to your book.
+      </Text>
       <View style={{ gap: 8, marginTop: 10 }}>
         {CLIENT_TIERS.map((tier) => {
           const client = state.clients[tier.id];
@@ -160,22 +169,26 @@ function ClientBook({ state }: { state: GameState }) {
             needsShipped > 0 ? `ship ${needsShipped} more contract${needsShipped === 1 ? '' : 's'}` : null,
             needsLines > 0 ? `open ${needsLines} more line${needsLines === 1 ? '' : 's'}` : null,
           ].filter(Boolean).join(' · ') || `${formatCurrency(tier.signingCost)} signing cost`;
+          const status = signed ? 'Signed' : qualified ? 'Ready to buy' : 'Locked';
           return (
             <View key={tier.id} style={[styles.clientRow, !signed && !qualified && { opacity: 0.58 }]}>
               <View style={styles.rowBetween}>
-                <Text style={styles.clientName} numberOfLines={1}>{signed ? tier.name : `🔒 ${tier.name}`}</Text>
-                <Text style={styles.clientRate}>
-                  ${tier.revenueBase.toFixed(2)}–{(tier.revenueBase + tier.revenueSpread).toFixed(2)}/u
-                </Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.clientName} numberOfLines={1}>{tier.name}</Text>
+                  <Text style={styles.clientRate}>
+                    ${tier.revenueBase.toFixed(2)}-{(tier.revenueBase + tier.revenueSpread).toFixed(2)}/u
+                  </Text>
+                </View>
+                <Pill color={signed ? colors.green : qualified ? colors.gold : colors.textMute} filled={signed}>{status}</Pill>
               </View>
               <Text style={[shared.bodyMute, { marginTop: 2 }]} numberOfLines={2}>
                 {signed
-                  ? `Rep ${pct(client.reputation)} — paying ${pct(reputationPayMultiplier(client.reputation))} of rate. ${tier.blurb}`
+                  ? `Rep ${pct(client.reputation)} - paying ${pct(reputationPayMultiplier(client.reputation))} of rate. ${tier.blurb}`
                   : qualified ? `${tier.blurb} ${formatCurrency(tier.signingCost)} to add them to the book.` : unlockNote}
               </Text>
               {!signed && qualified && (
                 <Button
-                  label={`Sign client · ${formatCurrency(tier.signingCost)}`}
+                  label={`Purchase access · ${formatCurrency(tier.signingCost)}`}
                   tone="muted"
                   disabled={!canSign}
                   onPress={() => signClient(tier.id)}
@@ -239,21 +252,23 @@ const styles = StyleSheet.create({
   noOrders: { color: colors.textMute, fontSize: 13, fontWeight: '900', textAlign: 'center', paddingVertical: 24, textTransform: 'uppercase', letterSpacing: 1 },
   orderControls: { borderColor: colors.borderStrong },
   controlTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  orderHero: { borderColor: colors.gold, borderWidth: 1.5, backgroundColor: colors.panel },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginTop: 6 },
-  skuBlock: { flex: 1, minWidth: 0 },
-  heroSku: { color: colors.text, fontSize: 34, fontWeight: '900', lineHeight: 36 },
-  heroMeta: { color: colors.textMute, fontSize: 11, fontWeight: '900', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  skuCard: { flex: 1, minWidth: 0, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 10, paddingVertical: 8 },
+  heroSku: { color: colors.text, fontSize: 28, fontWeight: '900', lineHeight: 31 },
+  heroMeta: { color: colors.textMute, fontSize: 11, fontWeight: '900', marginTop: 1 },
   heroChips: { gap: 5, alignItems: 'flex-end', maxWidth: 170 },
-  scoreRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 12 },
+  contractFacts: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  contractFact: { flex: 1, minHeight: 58, backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 9, paddingVertical: 8, justifyContent: 'space-between' },
   scoreLabel: { color: colors.textMute, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
-  scoreValue: { color: colors.text, fontSize: 36, fontWeight: '900', lineHeight: 38 },
-  rate: { color: colors.cyan, fontSize: 13, fontWeight: '800' },
+  scoreValue: { color: colors.text, fontSize: 28, fontWeight: '900', lineHeight: 30 },
+  factValue: { fontSize: 16, fontWeight: '900', lineHeight: 18 },
   progLabel: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   progText: { color: colors.textDim, fontSize: 11, fontWeight: '800' },
   orderMini: { backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 10 },
   orderMiniSku: { color: colors.text, fontSize: 14, fontWeight: '900' },
   clientRow: { backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, borderLeftWidth: 3, borderLeftColor: colors.gold, padding: 10 },
-  clientName: { color: colors.text, fontSize: 14, fontWeight: '900', flex: 1 },
+  clientName: { color: colors.text, fontSize: 14, fontWeight: '900' },
   clientRate: { color: colors.green, fontSize: 12, fontWeight: '900' },
   objRow: { backgroundColor: 'rgba(34,84,99,0.07)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, padding: 12 },
   objLabel: { color: colors.text, fontSize: 14, fontWeight: '900', flex: 1 },
