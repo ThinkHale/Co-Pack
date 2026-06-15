@@ -822,11 +822,12 @@ function OrdersTab({
 // what it takes to land the next one. This is the answer to "why grow?".
 function ClientBook({ state }: { state: GameState }) {
   return (
-    <section className="game-panel p-4">
-      <div className="mb-3">
+    <section className="game-panel accent-violet p-4">
+      <div>
         <div className="eyebrow">Client book</div>
         <h2 className="text-2xl font-black text-white">Contract Ladder</h2>
       </div>
+      <hr className="panel-divider" />
       <div className="space-y-2">
         {CLIENT_TIERS.map(tier => {
           const client = state.clients[tier.id];
@@ -953,7 +954,7 @@ function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void
       data-tut="goal"
       onClick={onGoTo}
       title={next.hint}
-      className="game-panel goal-strip mb-4 flex w-full items-center gap-3 p-3 text-left"
+      className="game-panel accent-amber goal-strip mb-4 flex w-full items-center gap-3 p-3 text-left"
     >
       <span className="eyebrow shrink-0">Next goal</span>
       <span className="min-w-0 flex-1 truncate text-sm font-black text-white">{next.label}</span>
@@ -1760,11 +1761,12 @@ function MiniBar({ label, value }: { label: string; value: number }) {
 
 function EventLog({ events }: { events: GameEvent[] }) {
   return (
-    <section className="game-panel p-4">
-      <div className="mb-3">
+    <section className="game-panel accent-cyan p-4">
+      <div>
         <div className="eyebrow">Floor radio</div>
         <h2 className="text-2xl font-black text-white">Shift Feed</h2>
       </div>
+      <hr className="panel-divider" />
       {events.length > 0 ? (
         <div className="space-y-2">
           {events.map((event, index) => {
@@ -1798,7 +1800,7 @@ function StaffingBoard({ state }: { state: GameState }) {
   const belowTarget = rolling < STAFFING_TARGET;
 
   return (
-    <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+    <section className="game-panel accent-cyan p-4 sm:p-5 lg:col-span-2">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="eyebrow">Staffing board</div>
@@ -1852,13 +1854,14 @@ function StaffingTab({
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <StaffingBoard state={state} />
-      <section className="game-panel p-4 sm:p-5">
+      <section className="game-panel accent-green p-4 sm:p-5">
         <div className="eyebrow">Pay rate</div>
         <h2 className="text-2xl font-black text-white">Agency Pay</h2>
         <p className="mt-1 text-sm font-semibold text-slate-300">
           The single biggest dial. Pay above market and the agency sends people who show up more
           and stick around — but your payroll climbs.
         </p>
+        <hr className="panel-divider" />
 
         <div className="mt-4 flex items-end justify-between">
           <div className={`pay-readout ${rate > 1.02 ? 'up' : rate < 0.98 ? 'down' : ''}`}>{ratePct}%</div>
@@ -1898,12 +1901,13 @@ function StaffingTab({
         </div>
       </section>
 
-      <section className="game-panel p-4 sm:p-5">
+      <section className="game-panel accent-amber p-4 sm:p-5">
         <div className="eyebrow">Skill request</div>
         <h2 className="text-2xl font-black text-white">What to Send</h2>
         <p className="mt-1 text-sm font-semibold text-slate-300">
           Tell the agency which roles you're short on. New hires skew toward the skills you flag.
         </p>
+        <hr className="panel-divider" />
         <div className="mt-4 grid grid-cols-3 gap-2">
           {['s1', 's2', 's3'].map(sid => {
             const active = state.skillRequest.includes(sid);
@@ -1927,7 +1931,7 @@ function StaffingTab({
         )}
       </section>
 
-      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <section className="game-panel accent-violet p-4 sm:p-5 lg:col-span-2">
         <div className="eyebrow">Standing programs</div>
         <h2 className="text-2xl font-black text-white">Ongoing Incentives</h2>
         <p className="mt-1 text-sm font-semibold text-slate-300">
@@ -2005,7 +2009,7 @@ function PlanningPanel({ state, onRequestWorkers }: { state: GameState; onReques
     .slice(0, lineCount);
 
   return (
-    <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+    <section className="game-panel accent-cyan p-4 sm:p-5 lg:col-span-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="eyebrow">Planning · tomorrow</div>
@@ -2017,10 +2021,10 @@ function PlanningPanel({ state, onRequestWorkers }: { state: GameState; onReques
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <div>
-          <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">Tomorrow's SKU lineup</div>
-          <div className="mt-2 space-y-1.5">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="panel-section">
+          <span className="panel-section-label">Tomorrow's SKU lineup</span>
+          <div className="space-y-1.5">
             {lineup.map(o => (
               <div key={o.id} className="planning-row">
                 <span className="font-black text-white">{o.sku}</span>
@@ -2037,9 +2041,9 @@ function PlanningPanel({ state, onRequestWorkers }: { state: GameState; onReques
             )}
           </div>
         </div>
-        <div>
-          <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">Labor coverage</div>
-          <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="panel-section">
+          <span className="panel-section-label">Labor coverage</span>
+          <div className="grid grid-cols-3 gap-2">
             <div className="staffing-stat"><span>Positions</span><strong>{positions}</strong></div>
             <div className="staffing-stat"><span>Expected in</span><strong>~{expected.toFixed(1)}</strong></div>
             <div className="staffing-stat"><span>Reserved</span><strong>{arriving}</strong></div>
@@ -2091,7 +2095,7 @@ function OfficeTab({
     <div className="grid gap-4 lg:grid-cols-2">
       <PlanningPanel state={state} onRequestWorkers={onRequestWorkers} />
 
-      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <section className="game-panel accent-violet p-4 sm:p-5 lg:col-span-2">
         <div className="eyebrow">Operations</div>
         <h2 className="text-2xl font-black text-white">Floor Supervisor</h2>
         {!state.hasSupervisor ? (
@@ -2140,13 +2144,14 @@ function OfficeTab({
         )}
       </section>
 
-      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <section className="game-panel accent-amber p-4 sm:p-5 lg:col-span-2">
         <div className="eyebrow">People moves</div>
         <h2 className="text-2xl font-black text-white">Leads & Conversions</h2>
         <p className="mt-1 text-sm font-semibold text-slate-300">
           Promote a lead to lift a line's morale and output. Convert a temp to a company employee for a
           steadier, stickier worker — at a permanent wage bump.
         </p>
+        <hr className="panel-divider" />
 
         <div className="mt-4 space-y-3">
           {Object.values(state.workers).length === 0 && (
@@ -2236,12 +2241,13 @@ function CorporateTab({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <section className="game-panel accent-violet p-4 sm:p-5 lg:col-span-2">
         <div className="eyebrow">Upgrades</div>
         <h2 className="text-2xl font-black text-white">Capabilities</h2>
         <p className="mt-1 text-sm font-semibold text-slate-300">
           One-time purchases that open up new levers. Earned, not given.
         </p>
+        <hr className="panel-divider" />
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {FEATURE_UNLOCKS.map(u => {
             const owned = state.unlocks.includes(u.id);
@@ -2275,7 +2281,7 @@ function CorporateTab({
         </div>
       </section>
 
-      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <section className="game-panel accent-cyan p-4 sm:p-5 lg:col-span-2">
         <div className="eyebrow">Capacity</div>
         <h2 className="text-2xl font-black text-white">Production Lines</h2>
         <button
@@ -2316,7 +2322,7 @@ function CorporateTab({
         </div>
       </section>
 
-      <section className="game-panel p-4 sm:p-5 lg:col-span-2">
+      <section className="game-panel accent-rose p-4 sm:p-5 lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="eyebrow">Settings · testing</div>
@@ -2350,14 +2356,15 @@ function ObjectivesPanel({ state }: { state: GameState }) {
   const open = openObjectives(state, 3);
   const cleared = state.completedObjectives.length;
   return (
-    <section className="game-panel p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section className="game-panel accent-green p-4">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <div className="eyebrow">Career goals</div>
           <h2 className="text-2xl font-black text-white">Objectives</h2>
         </div>
         <div className="objective-count">{cleared}/{OBJECTIVES.length}</div>
       </div>
+      <hr className="panel-divider" />
       {open.length > 0 ? (
         <div className="space-y-2">
           {open.map(o => <ObjectiveRow key={o.id} obj={o} state={state} />)}
@@ -2397,11 +2404,12 @@ function ObjectiveRow({ obj, state }: { obj: Objective; state: GameState }) {
 // Compact list of the orders behind the hero contract — the visible backlog.
 function OrdersStrip({ orders, tick, clients }: { orders: Order[]; tick: number; clients: GameState['clients'] }) {
   return (
-    <section className="game-panel p-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
+    <section className="game-panel accent-amber p-4">
+      <div className="flex items-center justify-between gap-3">
         <div className="eyebrow">Contract board</div>
         <span className="text-xs font-bold text-slate-400">{orders.length} more queued</span>
       </div>
+      <hr className="panel-divider" />
       <div className="orders-strip">
         {orders.map(o => {
           const remaining = o.deadline - tick;
