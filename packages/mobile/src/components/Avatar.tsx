@@ -5,15 +5,39 @@ import { profileForWorker } from '../format';
 import { colors } from '../theme';
 
 const SIZES = { xs: 26, sm: 38, md: 54, lg: 74 } as const;
+type Presentation = Worker['appearance']['presentation'];
 
-const PORTRAITS: ImageSourcePropType[] = [
-  require('../../assets/workers/worker-portrait-01.png'),
-  require('../../assets/workers/worker-portrait-02.png'),
-  require('../../assets/workers/worker-portrait-03.png'),
-  require('../../assets/workers/worker-portrait-04.png'),
-  require('../../assets/workers/worker-portrait-05.png'),
-  require('../../assets/workers/worker-portrait-06.png'),
+// Curated portrait bank. Names, traits, skills, and appearance tokens can vary
+// procedurally; the portrait itself is selected from the matching presentation pool.
+const PORTRAITS: { source: ImageSourcePropType; presentation: Presentation }[] = [
+  { source: require('../../assets/workers/worker-portrait-01.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-02.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-03.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-04.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-05.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-06.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-07.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-08.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-09.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-10.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-11.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-12.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-13.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-14.png'), presentation: 'feminine' },
+  { source: require('../../assets/workers/worker-portrait-15.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-16.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-17.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-18.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-19.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-20.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-21.png'), presentation: 'masculine' },
+  { source: require('../../assets/workers/worker-portrait-22.png'), presentation: 'masculine' },
 ];
+const PORTRAIT_POOLS: Record<Presentation, number[]> = {
+  feminine: PORTRAITS.flatMap((portrait, index) => portrait.presentation === 'feminine' ? [index] : []),
+  masculine: PORTRAITS.flatMap((portrait, index) => portrait.presentation === 'masculine' ? [index] : []),
+  neutral: PORTRAITS.map((_, index) => index),
+};
 const FEMININE_FIRST_NAMES = new Set([
   'Diana', 'Maria', 'Keisha', 'Tamika', 'Priya', 'Sandra', 'Tasha', 'Yolanda',
   'Renee', 'Nina', 'Dawn', 'Bianca', 'Lakeisha', 'Mei', 'Fatima', 'Rosa', 'Ingrid',
@@ -29,7 +53,7 @@ const STARTER_PORTRAITS: Record<string, number> = {
 export function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?: keyof typeof SIZES }) {
   const p = profileForWorker(worker);
   const d = SIZES[size];
-  const portrait = PORTRAITS[portraitIndex(worker)];
+  const portrait = PORTRAITS[portraitIndex(worker)].source;
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
@@ -73,9 +97,11 @@ function portraitIndex(worker: Worker): number {
     hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
 
-  if (presentation === 'feminine') return [1, 3][hash % 2];
-  if (presentation === 'neutral') return [0, 1, 3, 5][hash % 4];
-  return [0, 2, 4, 5][hash % 4];
+  return pickFromPool(PORTRAIT_POOLS[presentation], hash);
+}
+
+function pickFromPool(pool: number[], hash: number): number {
+  return pool[hash % pool.length] ?? 0;
 }
 
 function inferPresentation(worker: Worker): Worker['appearance']['presentation'] {
