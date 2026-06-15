@@ -20,6 +20,7 @@ import { TraitChips } from '../components/TraitChips';
 import { ConveyorBelt } from '../components/Belt';
 import { TUTORIAL_STEPS } from '../components/Overlays';
 import { Spotlight } from '../components/Spotlight';
+import { ProductionLine3D } from '../components/ProductionLine3D';
 
 type DayConditionInfo = ReturnType<typeof dayCondition>;
 const TONE_COLOR: Record<string, string> = { good: colors.green, bad: colors.red, neutral: colors.cyan };
@@ -615,6 +616,12 @@ function LinePreview({ running, rate }: { running: boolean; rate: number }) {
 }
 
 function Line3DView({
+  line, workers, running, rate,
+}: { line: Line; workers: Record<string, Worker>; running: boolean; rate: number }) {
+  return <ProductionLine3D line={line} workers={workers} running={running} rate={rate} />;
+}
+
+function LegacyLine3DView({
   line, workers, running, rate,
 }: { line: Line; workers: Record<string, Worker>; running: boolean; rate: number }) {
   const [width, setWidth] = useState(0);
