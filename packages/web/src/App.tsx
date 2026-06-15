@@ -1080,7 +1080,7 @@ function FloorLine({
     <section className="game-panel p-3 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="line-tag" style={{ '--station-color': '#7dd3fc' } as React.CSSProperties}>{line.name}</span>
+          <span className="line-tag" style={{ '--station-color': '#2f8198' } as React.CSSProperties}>{line.name}</span>
           {runningOrder && (
             <span
               className="sku-chip"
@@ -1719,28 +1719,70 @@ function TraitChips({ worker, className = '' }: { worker: Worker; className?: st
   );
 }
 
+// Curated portrait bank — the same pack the mobile app ships. The engine owns
+// each worker's appearance tokens; we map those stable tokens to a portrait
+// from the matching presentation pool and frame it in their uniform accent.
+type Presentation = Worker['appearance']['presentation'];
+const PORTRAITS: { file: string; presentation: Presentation }[] = [
+  { file: 'worker-portrait-01.png', presentation: 'masculine' },
+  { file: 'worker-portrait-02.png', presentation: 'feminine' },
+  { file: 'worker-portrait-03.png', presentation: 'masculine' },
+  { file: 'worker-portrait-04.png', presentation: 'feminine' },
+  { file: 'worker-portrait-05.png', presentation: 'masculine' },
+  { file: 'worker-portrait-06.png', presentation: 'masculine' },
+  { file: 'worker-portrait-07.png', presentation: 'feminine' },
+  { file: 'worker-portrait-08.png', presentation: 'feminine' },
+  { file: 'worker-portrait-09.png', presentation: 'feminine' },
+  { file: 'worker-portrait-10.png', presentation: 'feminine' },
+  { file: 'worker-portrait-11.png', presentation: 'feminine' },
+  { file: 'worker-portrait-12.png', presentation: 'feminine' },
+  { file: 'worker-portrait-13.png', presentation: 'feminine' },
+  { file: 'worker-portrait-14.png', presentation: 'feminine' },
+  { file: 'worker-portrait-15.png', presentation: 'masculine' },
+  { file: 'worker-portrait-16.png', presentation: 'masculine' },
+  { file: 'worker-portrait-17.png', presentation: 'masculine' },
+  { file: 'worker-portrait-18.png', presentation: 'masculine' },
+  { file: 'worker-portrait-19.png', presentation: 'masculine' },
+  { file: 'worker-portrait-20.png', presentation: 'masculine' },
+  { file: 'worker-portrait-21.png', presentation: 'masculine' },
+  { file: 'worker-portrait-22.png', presentation: 'masculine' },
+];
+const PORTRAIT_POOLS: Record<Presentation, number[]> = {
+  feminine: PORTRAITS.flatMap((p, i) => (p.presentation === 'feminine' ? [i] : [])),
+  masculine: PORTRAITS.flatMap((p, i) => (p.presentation === 'masculine' ? [i] : [])),
+  neutral: PORTRAITS.map((_, i) => i),
+};
+const FEMININE_FIRST_NAMES = new Set([
+  'Diana', 'Maria', 'Keisha', 'Tamika', 'Priya', 'Sandra', 'Tasha', 'Yolanda',
+  'Renee', 'Nina', 'Dawn', 'Bianca', 'Lakeisha', 'Mei', 'Fatima', 'Rosa', 'Ingrid',
+]);
+const STARTER_PORTRAITS: Record<string, number> = { w1: 4, w2: 1, w3: 5 };
+
+function inferPresentation(worker: Worker): Presentation {
+  const first = worker.name.split(' ')[0];
+  return FEMININE_FIRST_NAMES.has(first) ? 'feminine' : 'masculine';
+}
+
+function portraitIndex(worker: Worker): number {
+  const starter = STARTER_PORTRAITS[worker.id];
+  if (starter != null) return starter;
+  const presentation = worker.appearance.presentation ?? inferPresentation(worker);
+  const key = `${worker.id}|${worker.name}|${presentation}`;
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  const pool = PORTRAIT_POOLS[presentation];
+  return pool[hash % pool.length] ?? 0;
+}
+
 function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?: 'xs' | 'sm' | 'md' }) {
   const profile = profileForWorker(worker);
+  const src = `${import.meta.env.BASE_URL}workers/${PORTRAITS[portraitIndex(worker)].file}`;
   return (
     <div
-      className={`character-avatar avatar-${size} avatar-${profile.shape}`}
-      style={{
-        '--avatar-color': profile.palette,
-        '--avatar-skin': profile.skin,
-        '--avatar-hair': profile.hair,
-        '--avatar-uniform': profile.uniform,
-      } as React.CSSProperties}
-      aria-hidden="true"
+      className={`character-avatar avatar-${size}`}
+      style={{ '--avatar-color': profile.palette } as React.CSSProperties}
     >
-      <div className="avatar-head">
-        <span className="avatar-hair" />
-        <span className="avatar-eye left" />
-        <span className="avatar-eye right" />
-        <span className="avatar-smile" />
-      </div>
-      <div className="avatar-body">
-        <span />
-      </div>
+      <img src={src} alt="" loading="lazy" />
     </div>
   );
 }
@@ -2897,7 +2939,7 @@ function ConfettiBurst({ burst }: { burst: number }) {
     return () => clearTimeout(t);
   }, [burst]);
   if (!visible) return null;
-  const colors = ['#72ef8f', '#68d8ff', '#ffe66c', '#ff7a9a', '#7c6cff', '#35d0ba'];
+  const colors = ['#5fae68', '#4a9fba', '#e4c64b', '#bf6378', '#8474b4', '#22a58f'];
   return (
     <div className="confetti-stage" key={burst} aria-hidden="true">
       {Array.from({ length: 28 }).map((_, i) => (
