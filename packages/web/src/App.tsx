@@ -454,7 +454,7 @@ function Game() {
         <header className="hud-panel mb-4 p-3 sm:p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <img src="/logo.png" alt="Co-Pack" className="mb-1 h-10 sm:h-14 object-contain object-left" />
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Co-Pack" className="mb-1 h-10 sm:h-14 object-contain object-left" />
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                 <span className="status-pill status-time">{shiftLabel(state.tick)}</span>
                 <span className="status-pill status-clock" title="Time left in the current 10-hour shift">
@@ -2924,7 +2924,7 @@ function SplashScreen({ onStart }: { onStart: () => void }) {
       <div className="game-grid-bg" />
       <div className="relative flex flex-col items-center gap-8 text-center">
         <img
-          src="/splash.png"
+          src={`${import.meta.env.BASE_URL}splash.png`}
           alt="Co-Pack"
           className="w-full max-w-sm object-contain drop-shadow-2xl sm:max-w-md"
         />
