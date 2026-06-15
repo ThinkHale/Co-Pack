@@ -18,6 +18,11 @@ const FEMININE_FIRST_NAMES = new Set([
   'Diana', 'Maria', 'Keisha', 'Tamika', 'Priya', 'Sandra', 'Tasha', 'Yolanda',
   'Renee', 'Nina', 'Dawn', 'Bianca', 'Lakeisha', 'Mei', 'Fatima', 'Rosa', 'Ingrid',
 ]);
+const STARTER_PORTRAITS: Record<string, number> = {
+  w1: 4, // Marcus
+  w2: 1, // Diana
+  w3: 5, // Jerome
+};
 
 // The engine owns appearance tokens. Mobile maps those stable tokens to a small
 // generated portrait pack, then uses the worker's uniform accent as the frame.
@@ -57,33 +62,20 @@ export function CharacterAvatar({ worker, size = 'md' }: { worker: Worker; size?
 }
 
 function portraitIndex(worker: Worker): number {
-  const appearance = worker.appearance;
-  const presentation = appearance.presentation ?? inferPresentation(worker);
-  const key = [
-    worker.id,
-    worker.name,
-    presentation,
-    appearance.skinTone,
-    appearance.hairColor,
-    appearance.hairStyle,
-    appearance.facialHair,
-    appearance.build,
-    appearance.ageBracket,
-  ].join('|');
+  const starterPortrait = STARTER_PORTRAITS[worker.id];
+  if (starterPortrait != null) return starterPortrait;
+
+  const presentation = worker.appearance.presentation ?? inferPresentation(worker);
+  const key = `${worker.id}|${worker.name}|${presentation}`;
 
   let hash = 0;
   for (let i = 0; i < key.length; i += 1) {
     hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
 
-  const base = hash % PORTRAITS.length;
   if (presentation === 'feminine') return [1, 3][hash % 2];
   if (presentation === 'neutral') return [0, 1, 3, 5][hash % 4];
-  if (appearance.ageBracket === 'senior') return [2, 5, 1][hash % 3];
-  if (appearance.hairStyle === 'cap') return [5, 0, 2][hash % 3];
-  if (appearance.hairStyle === 'bun' || appearance.hairStyle === 'long') return [3, 1, 5][hash % 3];
-  if (appearance.facialHair !== 'none') return [4, base, 0, 2, 5][hash % 5];
-  return base;
+  return [0, 2, 4, 5][hash % 4];
 }
 
 function inferPresentation(worker: Worker): Worker['appearance']['presentation'] {
