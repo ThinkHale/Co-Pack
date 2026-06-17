@@ -414,6 +414,225 @@ button {
 .hud-stat-gold { --stat-color: #ffe66c; }
 .hud-stat-red { --stat-color: #ff6b81; }
 
+/* === Focused HUD ============================================================
+   The glance row carries only cash, the clock, and run controls — one calm
+   line. Everything that used to glow (five colored stat cards, a wall of
+   buttons) either folds into the ⚙ menu or drops to the quiet strip below. */
+.hud-glance {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem 1.1rem;
+  flex-wrap: wrap;
+}
+.hud-logo {
+  height: 2.4rem;
+  flex: 0 0 auto;
+  object-fit: contain;
+  object-position: left center;
+}
+.hud-cash {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.hud-cash-label {
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8fa3bd;
+}
+.hud-cash-value {
+  font-size: 1.7rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #eafff1;
+  font-variant-numeric: tabular-nums;
+}
+.hud-cash-value.negative { color: #ff8a9b; }
+
+.hud-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+.hud-day {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #c6d4ea;
+}
+.hud-clock-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* Run controls hug the right edge on wide screens. */
+.hud-run-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.hud-shift-progress { max-width: none; }
+
+/* The quiet stats strip — replaces the five glowing cards. One neutral row;
+   only a slipping fill rate is allowed to color itself. */
+.hud-stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.hud-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.hud-chip-label {
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8094ad;
+}
+.hud-chip-value {
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #eef4ff;
+  font-variant-numeric: tabular-nums;
+}
+.hud-chip-sub {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #6f819b;
+}
+.hud-chip-muted .hud-chip-value { color: #b8c6dd; }
+.hud-chip.alert .hud-chip-value { color: #ff8a9b; }
+.hud-chip.alert .hud-chip-sub { color: #ffb3bd; }
+
+/* ⚙ controls menu — a disclosure for the secondary levers. */
+.hud-menu { position: relative; }
+.hud-menu-trigger {
+  min-width: 2.7rem;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.hud-menu-trigger.open {
+  background: #34507f;
+  border-color: rgba(125, 211, 252, 0.5);
+}
+.hud-menu-pop {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 50;
+  width: min(17rem, 78vw);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 0.4rem;
+  background: rgba(15, 21, 35, 0.98);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: toast-in 140ms ease;
+}
+.hud-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.5rem 0.6rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.hud-menu-item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
+.hud-menu-item:disabled { opacity: 0.42; cursor: not-allowed; }
+.hud-menu-item.on { background: rgba(53, 208, 186, 0.16); }
+.hud-menu-name {
+  font-size: 0.84rem;
+  font-weight: 900;
+  color: #f3f8ff;
+}
+.hud-menu-item.on .hud-menu-name { color: #6fe6cf; }
+.hud-menu-note {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #8094ad;
+}
+.hud-menu-foot {
+  margin-top: 0.2rem;
+  padding: 0.45rem 0.6rem 0.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7c8ea8;
+}
+
+/* One-line alert: the single thing that needs the player right now. */
+.hud-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 9px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+.hud-alert-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  animation: alert-pulse 1.4s ease-in-out infinite;
+}
+.hud-alert-text { min-width: 0; flex: 1 1 auto; }
+.hud-alert-action {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111827;
+}
+.hud-alert-critical {
+  border-color: rgba(255, 110, 130, 0.5);
+  background: linear-gradient(135deg, rgba(255, 90, 110, 0.2), rgba(255, 90, 110, 0.06));
+  color: #ffd6dc;
+}
+.hud-alert-critical .hud-alert-dot { background: #ff5f7e; box-shadow: 0 0 10px #ff5f7e; }
+.hud-alert-warn {
+  border-color: rgba(255, 190, 70, 0.45);
+  background: linear-gradient(135deg, rgba(255, 180, 46, 0.16), rgba(255, 180, 46, 0.05));
+  color: #ffe6bd;
+}
+.hud-alert-warn .hud-alert-dot { background: #ffb02e; box-shadow: 0 0 10px #ffb02e; }
+@keyframes alert-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
 .speed-toggle {
   display: inline-flex;
   overflow: hidden;
@@ -1773,53 +1992,35 @@ button {
   .hud-panel {
     padding: 0.65rem;
   }
-  .hud-panel img {
-    height: 2.4rem;
-  }
-  .hud-stats-grid {
-    display: flex;
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    padding-bottom: 0.1rem;
-    scrollbar-width: none;
-  }
-  .hud-stats-grid::-webkit-scrollbar {
-    display: none;
-  }
-  .hud-stat {
-    min-width: 7.3rem;
-    padding: 0.55rem 0.6rem 0.65rem;
-  }
-  .hud-stat-value {
-    font-size: 1.18rem;
+  .hud-panel img,
+  .hud-logo {
+    height: 2.1rem;
   }
   .speed-toggle button,
   .game-button {
     min-height: 2.25rem;
   }
-  .hud-controls-row {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.55rem;
-    margin-top: 0.7rem;
+  /* Focused HUD on phones: logo + cash share the top line, the clock and run
+     controls wrap under them, and the stat strip scrolls sideways if tight. */
+  .hud-glance {
+    gap: 0.5rem 0.8rem;
+  }
+  .hud-cash-value { font-size: 1.45rem; }
+  .hud-run-controls {
+    margin-left: auto;
+    gap: 0.4rem;
+  }
+  .hud-stat-strip {
+    gap: 0.3rem 1.1rem;
+    margin-top: 0.65rem;
+    padding-top: 0.6rem;
     overflow-x: auto;
+    flex-wrap: nowrap;
     overscroll-behavior-x: contain;
-    padding-top: 0.7rem;
     scrollbar-width: none;
   }
-  .hud-controls-row::-webkit-scrollbar {
-    display: none;
-  }
-  .hud-controls-row > div:first-child {
-    flex-wrap: nowrap;
-    min-width: max-content;
-  }
-  .hud-controls-row > div:last-child {
-    flex: 0 0 auto;
-    white-space: nowrap;
-  }
+  .hud-stat-strip::-webkit-scrollbar { display: none; }
+  .hud-chip { flex: 0 0 auto; }
   .floor-pinned { top: 0.25rem; }
   .standup-bar {
     gap: 0.5rem;
@@ -2515,7 +2716,8 @@ button {
 }
 
 /* --- Juice: cash pulse on earnings --- */
-.hud-stat-bump .hud-stat-value {
+.hud-stat-bump .hud-stat-value,
+.hud-cash-value.hud-stat-bump {
   animation: stat-bump 650ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 @keyframes stat-bump {

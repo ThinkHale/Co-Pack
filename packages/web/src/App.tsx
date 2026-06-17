@@ -451,44 +451,34 @@ function Game() {
     <div className="game-shell min-h-screen text-white">
       <div className="game-grid-bg" />
       <main className="relative mx-auto w-full max-w-7xl px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
-        <header className="hud-panel mb-4 p-3 sm:p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <img src="/logo.png" alt="Co-Pack" className="mb-1 h-10 sm:h-14 object-contain object-left" />
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-200">
-                <span className="status-pill status-time">{shiftLabel(state.tick)}</span>
+        {/* Focused HUD: the glance row carries only what you read every second —
+            cash, the clock, and run controls. Secondary levers fold into the ⚙
+            menu; the five glowing stat cards collapse to one quiet strip below. */}
+        <header className="hud-panel hud-focused mb-4 p-3 sm:p-4">
+          <div className="hud-glance">
+            <img src="/logo.png" alt="Co-Pack" className="hud-logo" />
+
+            <div className="hud-cash" title="Cash on hand">
+              <span className="hud-cash-label">Cash</span>
+              <span className={`hud-cash-value ${cashBump ? 'hud-stat-bump' : ''} ${state.cash < 0 ? 'negative' : ''}`}>
+                {formatCurrency(state.cash)}
+              </span>
+            </div>
+
+            <div className="hud-clock">
+              <span className="hud-day">{shiftLabel(state.tick)}</span>
+              <div className="hud-clock-pills">
                 <span className="status-pill status-clock" title="Time left in the current 10-hour shift">
-                  ⏱ {shiftClock(state.tick)} left
+                  ⏱ {shiftClock(state.tick)}
                 </span>
                 <span className={`status-pill ${awaitingStaffing ? 'status-standup' : paused ? 'status-paused' : 'status-live'}`}>
-                  {awaitingStaffing ? 'Morning standup' : paused ? 'Paused' : 'Live run'}
+                  {awaitingStaffing ? 'Standup' : paused ? 'Paused' : 'Live'}
                 </span>
-                {nightShiftActive(state) && <span className="status-pill status-night">🌙 Nights</span>}
-              </div>
-              <div className="shift-progress mt-2" title="Shift progress">
-                <div style={{ width: `${(shiftElapsedTicks(state.tick) / TICKS_PER_SHIFT) * 100}%` }} />
+                {nightShiftActive(state) && <span className="status-pill status-night" title="Night shift running">🌙</span>}
               </div>
             </div>
 
-            <div className="hud-stats-grid grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:min-w-[700px]">
-              <HudStat label="Cash" value={formatCurrency(state.cash)} tone="green" bump={cashBump} />
-              <HudStat
-                label={`Fill · goal ${pct(FILL_RATE_TARGET)}`}
-                value={pct(fill)}
-                tone={fillBelowTarget ? 'red' : 'green'}
-              />
-              <HudStat label="Output" value={`${throughput.toFixed(2)}/min`} tone="cyan" />
-              <HudStat label="Crew" value={`${staffedStations}/${totalStations}`} tone="pink" />
-              <HudStat
-                label={`Morale · ${breakdown.thriving}↑ ${breakdown.struggling}↓`}
-                value={pct(averageMorale(workers))}
-                tone="gold"
-              />
-            </div>
-          </div>
-
-          <div className="hud-controls-row mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="hud-run-controls">
               <div className="speed-toggle" aria-label="Speed controls">
                 {([1, 4, 16] as SpeedSetting[]).map(s => (
                   <button
@@ -504,50 +494,65 @@ function Game() {
               <button type="button" onClick={togglePause} className="game-button game-button-primary">
                 {paused ? 'Resume' : 'Pause'}
               </button>
-              <button
-                type="button"
-                onClick={shoutout}
-                disabled={!canShoutout}
-                title="Recognize the crew on the floor — a free morale boost on cooldown"
-                className="game-button game-button-shout"
-              >
-                {canShoutout ? 'Shout-out' : 'Shout-out · cooling'}
-              </button>
-              <button
-                type="button"
-                onClick={toggleOvertime}
-                disabled={!hasUnlock(state, 'overtime')}
-                title={hasUnlock(state, 'overtime')
-                  ? 'Overtime: more output now, morale cost at shift end'
-                  : 'Locked — buy Overtime authorization in Front Office → Upgrades'}
-                className={`game-button ${state.overtime ? 'game-button-ot-on' : 'game-button-muted'}`}
-              >
-                {state.overtime ? 'Overtime ON' : hasUnlock(state, 'overtime') ? 'Overtime' : 'Overtime 🔒'}
-              </button>
-              {state.hasSupervisor && (
-                <button
-                  type="button"
-                  onClick={toggleAutoShift}
-                  title="The supervisor runs the morning standup — shifts roll on their own, even while you're away"
-                  className={`game-button ${state.autoShift ? 'game-button-ot-on' : 'game-button-muted'}`}
-                >
-                  {state.autoShift ? 'Auto-shift ON' : 'Auto-shift'}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={toggleSound}
-                title={soundOn ? 'Mute sound effects' : 'Unmute sound effects'}
-                className="game-button game-button-muted"
-              >
-                {soundOn ? '♪' : '✕'}
-              </button>
-            </div>
-            <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">
-              Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)} /shift
+              <ControlsMenu
+                canShoutout={canShoutout}
+                onShoutout={shoutout}
+                overtimeUnlocked={hasUnlock(state, 'overtime')}
+                overtimeOn={state.overtime}
+                onToggleOvertime={toggleOvertime}
+                hasSupervisor={state.hasSupervisor}
+                autoShift={state.autoShift}
+                onToggleAutoShift={toggleAutoShift}
+                soundOn={soundOn}
+                onToggleSound={toggleSound}
+                payroll={payroll}
+                overhead={overhead}
+              />
             </div>
           </div>
+
+          <div className="shift-progress hud-shift-progress mt-3" title="Shift progress">
+            <div style={{ width: `${(shiftElapsedTicks(state.tick) / TICKS_PER_SHIFT) * 100}%` }} />
+          </div>
+
+          <div className="hud-stat-strip">
+            <span className={`hud-chip ${fillBelowTarget ? 'alert' : ''}`}>
+              <span className="hud-chip-label">Fill</span>
+              <span className="hud-chip-value">{pct(fill)}</span>
+              <span className="hud-chip-sub">goal {pct(FILL_RATE_TARGET)}</span>
+            </span>
+            <span className="hud-chip">
+              <span className="hud-chip-label">Output</span>
+              <span className="hud-chip-value">{throughput.toFixed(2)}</span>
+              <span className="hud-chip-sub">units/min</span>
+            </span>
+            <span className="hud-chip">
+              <span className="hud-chip-label">Crew</span>
+              <span className="hud-chip-value">{staffedStations}/{totalStations}</span>
+              <span className="hud-chip-sub">stations</span>
+            </span>
+            <span className="hud-chip">
+              <span className="hud-chip-label">Morale</span>
+              <span className="hud-chip-value">{pct(averageMorale(workers))}</span>
+              <span className="hud-chip-sub">{breakdown.thriving}↑ {breakdown.struggling}↓</span>
+            </span>
+            <span className="hud-chip hud-chip-muted">
+              <span className="hud-chip-label">Burn</span>
+              <span className="hud-chip-value">{formatCurrency(payroll + overhead)}</span>
+              <span className="hud-chip-sub">per shift</span>
+            </span>
+          </div>
         </header>
+
+        <HudAlert
+          state={state}
+          shiftActive={shiftActive}
+          fillBelowTarget={fillBelowTarget}
+          fill={fill}
+          paused={paused}
+          tab={tab}
+          onGoToFloor={() => setTab('floor')}
+        />
 
         {/* Tutorial coaching + the morning standup controls are PINNED below the
             HUD: they stay on screen while the player scrolls down to staff the
@@ -968,11 +973,161 @@ function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void
   );
 }
 
-function HudStat({ label, value, tone, bump }: { label: string; value: string; tone: 'green' | 'cyan' | 'pink' | 'gold' | 'red'; bump?: boolean }) {
+// Secondary run levers live behind one ⚙ button instead of crowding the glance
+// row: shout-out, overtime, auto-shift, mute, and the payroll read-out. Opens a
+// small popover; click anywhere outside (or pick an item) to dismiss.
+function ControlsMenu({
+  canShoutout, onShoutout, overtimeUnlocked, overtimeOn, onToggleOvertime,
+  hasSupervisor, autoShift, onToggleAutoShift, soundOn, onToggleSound, payroll, overhead,
+}: {
+  canShoutout: boolean;
+  onShoutout: () => void;
+  overtimeUnlocked: boolean;
+  overtimeOn: boolean;
+  onToggleOvertime: () => void;
+  hasSupervisor: boolean;
+  autoShift: boolean;
+  onToggleAutoShift: () => void;
+  soundOn: boolean;
+  onToggleSound: () => void;
+  payroll: number;
+  overhead: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
   return (
-    <div className={`hud-stat hud-stat-${tone} ${bump ? 'hud-stat-bump' : ''}`}>
-      <div className="hud-stat-label">{label}</div>
-      <div className="hud-stat-value">{value}</div>
+    <div className="hud-menu" ref={ref}>
+      <button
+        type="button"
+        className={`game-button game-button-muted hud-menu-trigger ${open ? 'open' : ''}`}
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open ? 'true' : 'false'}
+        aria-label="More floor controls"
+        title="More controls"
+      >
+        ⚙
+      </button>
+      {open && (
+        <div className="hud-menu-pop">
+          <button
+            type="button"
+            className="hud-menu-item"
+            disabled={!canShoutout}
+            onClick={() => { onShoutout(); setOpen(false); }}
+          >
+            <span className="hud-menu-name">Shout-out</span>
+            <span className="hud-menu-note">{canShoutout ? 'Free morale boost' : 'Cooling down…'}</span>
+          </button>
+          <button
+            type="button"
+            className={`hud-menu-item ${overtimeOn ? 'on' : ''}`}
+            disabled={!overtimeUnlocked}
+            onClick={onToggleOvertime}
+          >
+            <span className="hud-menu-name">Overtime {overtimeOn ? '· ON' : overtimeUnlocked ? '' : '🔒'}</span>
+            <span className="hud-menu-note">{overtimeUnlocked ? 'More output now, morale cost at shift end' : 'Unlock in Corporate → Upgrades'}</span>
+          </button>
+          {hasSupervisor && (
+            <button
+              type="button"
+              className={`hud-menu-item ${autoShift ? 'on' : ''}`}
+              onClick={onToggleAutoShift}
+            >
+              <span className="hud-menu-name">Auto-shift {autoShift ? '· ON' : ''}</span>
+              <span className="hud-menu-note">Supervisor runs the morning standups</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className={`hud-menu-item ${soundOn ? 'on' : ''}`}
+            onClick={onToggleSound}
+          >
+            <span className="hud-menu-name">Sound {soundOn ? '· ON' : '· Off'}</span>
+            <span className="hud-menu-note">{soundOn ? 'Tap to mute effects' : 'Tap to unmute effects'}</span>
+          </button>
+          <div className="hud-menu-foot">
+            Burn {formatCurrency(payroll)} payroll + {formatCurrency(overhead)} overhead / shift
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The single most important thing wrong on the floor, surfaced as ONE line.
+// Priority: out of cash → a line stalled with nobody on it → short-staffed
+// lines → fill slipping below target. Renders nothing when all is well, so a
+// healthy run stays calm and the banner only ever means "look here now."
+function HudAlert({
+  state, shiftActive, fillBelowTarget, fill, paused, tab, onGoToFloor,
+}: {
+  state: GameState;
+  shiftActive: boolean;
+  fillBelowTarget: boolean;
+  fill: number;
+  paused: boolean;
+  tab: TabKey;
+  onGoToFloor: () => void;
+}) {
+  const lines = Object.values(state.lines).filter(l => l.active);
+  const presentOn = (line: Line) =>
+    line.stations.filter(s => s.assignedWorkerId && state.workers[s.assignedWorkerId]?.presentThisShift).length;
+  const stalled = shiftActive && !paused
+    ? lines.filter(l => l.stations.length > 0 && presentOn(l) === 0)
+    : [];
+  const short = shiftActive && !paused
+    ? lines.filter(l => { const p = presentOn(l); return p > 0 && p < l.stations.length; })
+    : [];
+
+  let alert: { tone: string; text: string; action?: { label: string; onClick: () => void } } | null = null;
+  if (state.cash < 0) {
+    alert = {
+      tone: 'critical',
+      text: `Out of cash (${formatCurrency(state.cash)}) — ship orders or cut burn before the plant closes.`,
+    };
+  } else if (stalled.length > 0) {
+    const onFloor = tab === 'floor';
+    alert = {
+      tone: 'critical',
+      text: stalled.length === 1
+        ? `${stalled[0].name} is stopped — nobody on the line.`
+        : `${stalled.length} lines stopped — nobody on them.`,
+      action: onFloor ? undefined : { label: 'Go to floor', onClick: onGoToFloor },
+    };
+  } else if (short.length > 0) {
+    alert = {
+      tone: 'warn',
+      text: short.length === 1
+        ? `${short[0].name} is short-staffed — running below capacity.`
+        : `${short.length} lines short-staffed — running below capacity.`,
+      action: tab === 'floor' ? undefined : { label: 'Go to floor', onClick: onGoToFloor },
+    };
+  } else if (fillBelowTarget && shiftActive) {
+    alert = {
+      tone: 'warn',
+      text: `Fill rate ${pct(fill)} — below the ${pct(FILL_RATE_TARGET)} target. Late orders cost reputation.`,
+    };
+  }
+
+  if (!alert) return null;
+  return (
+    <div className={`hud-alert hud-alert-${alert.tone} mb-4`} role="status">
+      <span className="hud-alert-dot" aria-hidden="true" />
+      <span className="hud-alert-text">{alert.text}</span>
+      {alert.action && (
+        <button type="button" className="hud-alert-action" onClick={alert.action.onClick}>
+          {alert.action.label}
+        </button>
+      )}
     </div>
   );
 }
