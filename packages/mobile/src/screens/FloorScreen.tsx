@@ -11,7 +11,7 @@ import {
   SUPPORT_STATION_ID, SUPPORT_OUTPUT_BONUS,
 } from '@copack/engine';
 import { colors, radius, shared, STATION_NAMES, STATION_THEMES } from '../theme';
-import { formatCurrency, pct, profileForWorker } from '../format';
+import { formatCurrency, pct, profileForWorker, ticksToTimeRemaining } from '../format';
 import { useGameStore, HIRE_COST } from '../store/useGameStore';
 import { Panel, Eyebrow, Pill, Button, StatCell, Bar } from '../components/common';
 import { CharacterAvatar, WorkerPortraitStrip, appearanceSummary } from '../components/Avatar';
@@ -90,6 +90,13 @@ export function FloorScreen({ state }: { state: GameState }) {
     <View style={{ gap: 14 }}>
       {/* The tutorial card + standup bar are pinned above the scroll view in
           App.tsx (FloorPinned) so they don't scroll away while staffing. */}
+      <FloorCommandCenter
+        state={state}
+        shiftActive={shiftActive}
+        benchCount={benchWorkers.filter((w) => w.presentThisShift).length}
+        onGoOrders={() => setTab('orders')}
+      />
+
       <Spotlight active={tutTarget === 'goal'} radius={radius.md}>
         <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
       </Spotlight>
@@ -172,6 +179,179 @@ export function FloorScreen({ state }: { state: GameState }) {
       </Modal>
     </View>
   );
+}
+
+// --- Shift-mode command center ---------------------------------------------
+
+type FloorException = {
+  id: string;
+  label: string;
+  detail: string;
+  tone: string;
+  action?: 'orders';
+};
+
+function FloorCommandCenter({
+  state, shiftActive, benchCount, onGoOrders,
+}: {
+  state: GameState;
+  shiftActive: boolean;
+  benchCount: number;
+  onGoOrders: () => void;
+}) {
+  const workers = Object.values(state.workers);
+  const lines = Object.values(state.lines);
+  const assignedIds = new Set(lines.flatMap((line) => [
+    ...(line.stations.map((station) => station.assignedWorkerId).filter(Boolean) as string[]),
+    ...(line.supportWorkerIds ?? []),
+  ]));
+  const staffed = lines.reduce((n, line) => n + line.stations.filter((station) => station.assignedWorkerId).length, 0);
+  const totalStations = lines.reduce((n, line) => n + line.stations.length, 0);
+  const present = workers.filter((worker) => worker.presentThisShift);
+  const presentPlaced = present.filter((worker) => assignedIds.has(worker.id)).length;
+  const rate = lines.reduce((sum, line) => sum + lineThroughput(state, line), 0);
+  const exceptions = floorExceptions(state, benchCount, shiftActive);
+  const primaryOrder = [...state.activeOrders].sort((a, b) => (a.deadline - state.tick) - (b.deadline - state.tick))[0];
+  const orderRemaining = primaryOrder ? primaryOrder.deadline - state.tick : null;
+
+  const mode = state.gameOver
+    ? 'Shutdown'
+    : state.awaitingStaffing ? 'Pre-shift'
+      : state.shiftChallenge ? 'Decision'
+        : exceptions.length > 0 ? 'Watchlist' : 'Running';
+  const modeColor = mode === 'Decision' ? colors.amber
+    : mode === 'Watchlist' ? colors.blue
+      : mode === 'Pre-shift' ? colors.blue
+        : state.gameOver ? colors.red : colors.green;
+  const title = state.gameOver
+    ? 'Plant is shut down'
+    : state.awaitingStaffing
+      ? staffed >= totalStations ? 'Ready to start the floor' : 'Staff the open stations'
+      : state.shiftChallenge ? 'Decision needed on the floor'
+        : exceptions.length > 0 ? `${exceptions.length} thing${exceptions.length === 1 ? '' : 's'} to watch`
+          : 'Floor is steady';
+  const detail = state.awaitingStaffing
+    ? `${presentPlaced}/${present.length} present crew placed · ${staffed}/${totalStations} stations covered`
+    : primaryOrder
+      ? `${primaryOrder.sku} due ${ticksToTimeRemaining(orderRemaining ?? 0)} · ${rate.toFixed(1)} units/min`
+      : `${rate.toFixed(1)} units/min · no active order`;
+  const primaryAction = exceptions.find((item) => item.action)?.action ?? (state.awaitingStaffing ? 'floor' : 'orders');
+  const primaryLabel = primaryAction === 'floor' ? 'Place crew' : 'Orders';
+
+  return (
+    <Panel style={[styles.commandCenter, { borderColor: modeColor }]}>
+      <View style={styles.commandTop}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={styles.modeRow}>
+            <View style={[styles.modeDot, { backgroundColor: modeColor }]} />
+            <Text style={[styles.modeLabel, { color: modeColor }]}>{mode}</Text>
+          </View>
+          <Text style={styles.commandTitle} numberOfLines={1}>{title}</Text>
+          <Text style={styles.commandDetail} numberOfLines={2}>{detail}</Text>
+        </View>
+        <Pressable
+          onPress={primaryAction === 'orders' ? onGoOrders : undefined}
+          disabled={primaryAction === 'floor'}
+          style={({ pressed }) => [
+            styles.commandAction,
+            primaryAction === 'floor' && styles.commandActionPassive,
+            pressed && primaryAction === 'orders' && { opacity: 0.84 },
+          ]}
+        >
+          <Text style={[styles.commandActionText, primaryAction === 'floor' && styles.commandActionTextPassive]}>{primaryLabel}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.commandMetrics}>
+        <SignalMetric label="Crew" value={`${presentPlaced}/${present.length}`} tone={presentPlaced < present.length ? colors.amber : colors.green} />
+        <SignalMetric label="Stations" value={`${staffed}/${totalStations}`} tone={staffed < totalStations ? colors.amber : colors.green} />
+        <SignalMetric label="Rate" value={`${rate.toFixed(1)}/m`} tone={rate > 0 ? colors.blue : colors.red} />
+      </View>
+
+      {exceptions.length > 0 && (
+        <View style={styles.exceptionList}>
+          {exceptions.slice(0, 3).map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={item.action === 'orders' ? onGoOrders : undefined}
+              style={({ pressed }) => [styles.exceptionRow, pressed && item.action && { opacity: 0.82 }]}
+            >
+              <View style={[styles.exceptionRail, { backgroundColor: item.tone }]} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.exceptionLabel} numberOfLines={1}>{item.label}</Text>
+                <Text style={styles.exceptionDetail} numberOfLines={1}>{item.detail}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </Panel>
+  );
+}
+
+function SignalMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
+  return (
+    <View style={styles.signalMetric}>
+      <Text style={styles.signalLabel}>{label}</Text>
+      <Text style={[styles.signalValue, { color: tone }]}>{value}</Text>
+    </View>
+  );
+}
+
+function floorExceptions(state: GameState, benchCount: number, shiftActive: boolean): FloorException[] {
+  const items: FloorException[] = [];
+  if (state.shiftChallenge) {
+    items.push({
+      id: 'challenge',
+      label: state.shiftChallenge.title,
+      detail: 'Resolve this before the floor keeps moving.',
+      tone: colors.amber,
+    });
+  }
+
+  const urgentOrder = [...state.activeOrders]
+    .sort((a, b) => (a.deadline - state.tick) - (b.deadline - state.tick))
+    .find((order) => order.deadline - state.tick < 240);
+  if (urgentOrder) {
+    const remaining = urgentOrder.deadline - state.tick;
+    items.push({
+      id: `order-${urgentOrder.id}`,
+      label: remaining <= 0 ? `${urgentOrder.sku} is overdue` : `${urgentOrder.sku} deadline close`,
+      detail: `${Math.ceil(Math.max(urgentOrder.units - urgentOrder.unitsCompleted, 0))} units left · ${ticksToTimeRemaining(remaining)}`,
+      tone: remaining <= 0 ? colors.red : colors.amber,
+      action: 'orders',
+    });
+  }
+
+  Object.values(state.lines).forEach((line) => {
+    const present = line.stations.filter((station) => station.assignedWorkerId && state.workers[station.assignedWorkerId]?.presentThisShift).length;
+    if (present === 0) {
+      items.push({
+        id: `line-idle-${line.id}`,
+        label: `${line.name} is idle`,
+        detail: `${line.stations.length} open station${line.stations.length === 1 ? '' : 's'} holding output at zero.`,
+        tone: shiftActive ? colors.red : colors.amber,
+      });
+    } else if (present < line.stations.length) {
+      items.push({
+        id: `line-short-${line.id}`,
+        label: `${line.name} is short`,
+        detail: `${present}/${line.stations.length} stations covered.`,
+        tone: colors.amber,
+      });
+    }
+  });
+
+  if (state.awaitingStaffing && benchCount > 0) {
+    items.push({
+      id: 'idle-crew',
+      label: `${benchCount} idle crew on bench`,
+      detail: 'Place them before start or they go home unpaid.',
+      tone: colors.blue,
+    });
+  }
+
+  return items;
 }
 
 // --- Next goal: one slim line of pull at the top of the Floor ----------------
@@ -499,18 +679,20 @@ function FloorLine({
     : isStopped ? colors.red : isShort ? colors.amber : colors.green;
 
   return (
-    <Panel style={styles.lineBoard}>
-      <View style={[styles.rowBetween, { marginBottom: 10, alignItems: 'flex-start' }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Pill color={colors.teal} filled>{line.name}</Pill>
-          {runningOrder && (
-            <Pill color={colors.gold}>{runningOrder.sku} · {orderProfile(runningOrder).short}</Pill>
-          )}
-          {line.automation > 0 && <Pill color={colors.cyan}>Auto L{line.automation}</Pill>}
-          {line.leadId && workers[line.leadId] && <Pill color={colors.gold}>LEAD</Pill>}
+    <Panel style={[styles.lineBoard, (isStopped || isShort) && styles.lineBoardWatch]}>
+      <View style={styles.lineHead}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={styles.lineTitleRow}>
+            <Text style={styles.lineName} numberOfLines={1}>{line.name}</Text>
+            {line.automation > 0 && <Text style={styles.lineMetaBadge}>Auto L{line.automation}</Text>}
+            {line.leadId && workers[line.leadId] && <Text style={styles.lineMetaBadge}>Lead</Text>}
+          </View>
+          <Text style={styles.lineSub} numberOfLines={1}>
+            {runningOrder ? `${runningOrder.sku} · ${orderProfile(runningOrder).short}` : 'No order assigned'}
+          </Text>
         </View>
         <View style={styles.lineStatusStack}>
-          <Text style={{ color: statusColor, fontSize: 11, fontWeight: '900' }}>{statusText}</Text>
+          <Text style={[styles.lineStatusText, { color: statusColor }]}>{statusText}</Text>
           {line.leadId && (
             <Pressable
               onPress={() => onPushHarder(lineId)}
@@ -598,8 +780,8 @@ function LinePreview({ running, rate }: { running: boolean; rate: number }) {
     <View style={styles.linePreview}>
       <View style={styles.linePreviewHead}>
         <View>
-          <Text style={styles.linePreviewLabel}>Board line</Text>
-          <Text style={styles.linePreviewMeta}>{running ? 'Running' : 'Boarding'} · {rate.toFixed(1)} units/min</Text>
+          <Text style={styles.linePreviewLabel}>{running ? 'Live belt' : 'Standing by'}</Text>
+          <Text style={styles.linePreviewMeta}>{rate.toFixed(1)} units/min</Text>
         </View>
         <View style={[styles.linePulse, { backgroundColor: running ? colors.green : colors.amber }]} />
       </View>
@@ -805,7 +987,7 @@ function StationTile({
           </>
         )}
       </View>
-      {worker && <MiniBar label="Mood" value={worker.morale} color={present ? colors.green : colors.red} />}
+      {worker && (!present || hasTarget) && <MiniBar label="Mood" value={worker.morale} color={present ? colors.green : colors.red} />}
     </Pressable>
     </Spotlight>
   );
@@ -939,6 +1121,57 @@ function BenchWorker({
 
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  commandCenter: {
+    backgroundColor: colors.panel,
+    borderWidth: 1.5,
+    padding: 12,
+    gap: 10,
+  },
+  commandTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  modeDot: { width: 8, height: 8, borderRadius: 4 },
+  modeLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 0.9, textTransform: 'uppercase' },
+  commandTitle: { color: colors.text, fontSize: 19, fontWeight: '900', marginTop: 3 },
+  commandDetail: { color: colors.textDim, fontSize: 12, fontWeight: '700', lineHeight: 16, marginTop: 2 },
+  commandAction: {
+    minHeight: 38,
+    minWidth: 76,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.sm,
+    backgroundColor: colors.blue,
+    paddingHorizontal: 12,
+  },
+  commandActionPassive: { backgroundColor: colors.blueSoft },
+  commandActionText: { color: colors.panel, fontSize: 12, fontWeight: '900' },
+  commandActionTextPassive: { color: colors.blueDeep },
+  commandMetrics: { flexDirection: 'row', gap: 8 },
+  signalMetric: {
+    flex: 1,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(52,120,199,0.14)',
+    backgroundColor: colors.panelSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  signalLabel: { color: colors.textMute, fontSize: 9, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
+  signalValue: { fontSize: 16, fontWeight: '900', marginTop: 1 },
+  exceptionList: { gap: 7 },
+  exceptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.panelAlt,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+  },
+  exceptionRail: { width: 4, alignSelf: 'stretch', borderRadius: 3 },
+  exceptionLabel: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  exceptionDetail: { color: colors.textMute, fontSize: 11, fontWeight: '700', marginTop: 1 },
   goalStrip: {
     backgroundColor: colors.panel,
     borderRadius: radius.md,
@@ -1035,12 +1268,29 @@ const styles = StyleSheet.create({
   trainProf: { color: colors.inkMute, fontSize: 10, fontWeight: '800' },
   trainCost: { color: colors.inkDim, fontSize: 10, fontWeight: '900' },
   lineBoard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inkBorder,
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
     borderWidth: 1,
     padding: 10,
   },
-  lineStatusStack: { alignItems: 'flex-end', gap: 5, maxWidth: 120 },
+  lineBoardWatch: { borderColor: 'rgba(217,145,46,0.38)', backgroundColor: colors.surface },
+  lineHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 9 },
+  lineTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  lineName: { color: colors.ink, fontSize: 17, fontWeight: '900' },
+  lineSub: { color: colors.inkMute, fontSize: 11, fontWeight: '800', marginTop: 2 },
+  lineMetaBadge: {
+    borderRadius: radius.pill,
+    backgroundColor: colors.panelSoft,
+    color: colors.blueDeep,
+    fontSize: 9,
+    fontWeight: '900',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    overflow: 'hidden',
+    textTransform: 'uppercase',
+  },
+  lineStatusStack: { alignItems: 'flex-end', gap: 5, maxWidth: 128 },
+  lineStatusText: { fontSize: 11, fontWeight: '900', textAlign: 'right' },
   pushButton: {
     minHeight: 28,
     justifyContent: 'center',
@@ -1057,32 +1307,32 @@ const styles = StyleSheet.create({
   segmented: {
     flexDirection: 'row',
     alignSelf: 'stretch',
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.panelSoft,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.inkBorder,
+    borderColor: colors.border,
     padding: 2,
     marginBottom: 10,
   },
-  segmentActive: { flex: 1, alignItems: 'center', backgroundColor: colors.ink, borderRadius: 5, paddingHorizontal: 12, paddingVertical: 7 },
+  segmentActive: { flex: 1, alignItems: 'center', backgroundColor: colors.blue, borderRadius: 5, paddingHorizontal: 12, paddingVertical: 7 },
   segmentIdle: { flex: 1, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7 },
-  segmentActiveText: { color: colors.surface, fontSize: 11, fontWeight: '900' },
+  segmentActiveText: { color: colors.panel, fontSize: 11, fontWeight: '900' },
   segmentIdleText: { color: colors.inkMute, fontSize: 11, fontWeight: '900' },
   linePreview: {
     overflow: 'hidden',
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.inkBorder,
-    backgroundColor: colors.surfaceAlt,
-    padding: 9,
-    gap: 8,
+    borderColor: colors.border,
+    backgroundColor: colors.panelAlt,
+    padding: 8,
+    gap: 7,
   },
   linePreviewHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  linePreviewLabel: { color: colors.ink, fontSize: 12, fontWeight: '900' },
+  linePreviewLabel: { color: colors.blueDeep, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   linePreviewMeta: { color: colors.inkMute, fontSize: 10, fontWeight: '800', marginTop: 1 },
   linePulse: { width: 10, height: 10, borderRadius: 5 },
   lineStations: { flexDirection: 'row', gap: 7 },
@@ -1091,8 +1341,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: radius.sm,
-    backgroundColor: colors.paper,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(255,253,244,0.64)',
+    paddingVertical: 4,
   },
   lineStationText: { fontSize: 10, fontWeight: '900' },
   line3dWrap: {
@@ -1304,20 +1554,15 @@ const styles = StyleSheet.create({
     height: 14,
     backgroundColor: colors.teal,
   },
-  stationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  stationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9 },
   station: {
     flex: 1,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.panelAlt,
     borderRadius: radius.sm,
-    borderWidth: 1.5,
+    borderWidth: 1,
     padding: 8,
     gap: 6,
-    minHeight: 124,
-    shadowColor: colors.bgDeep,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 1,
+    minHeight: 108,
   },
   stationTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stationCode: { width: 22, height: 18, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
@@ -1327,8 +1572,8 @@ const styles = StyleSheet.create({
   stationBody: { alignItems: 'center', gap: 3, flex: 1, justifyContent: 'center' },
   stationName: { color: colors.ink, fontSize: 13, fontWeight: '900' },
   emptyIcon: { color: colors.inkMute, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  support: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: colors.paper, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.inkBorder, padding: 10 },
-  supportLabel: { color: colors.teal, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  support: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: colors.panelAlt, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, padding: 10 },
+  supportLabel: { color: colors.blueDeep, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   supportTitle: { color: colors.ink, fontSize: 14, fontWeight: '900', marginTop: 1 },
   supportMeta: { color: colors.inkMute, fontSize: 12, fontWeight: '700', marginTop: 1 },
   emptyBench: { color: colors.textMute, fontSize: 13, fontWeight: '700', textAlign: 'center', paddingVertical: 18 },

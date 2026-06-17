@@ -76,7 +76,7 @@ export function Button({
 }
 
 const BTN_TONES: Record<ButtonTone, { container: ViewStyle; text: string }> = {
-  primary: { container: { backgroundColor: colors.teal, borderColor: colors.teal }, text: colors.bgDeep },
+  primary: { container: { backgroundColor: colors.blue, borderColor: colors.blue }, text: colors.panel },
   accent: { container: { backgroundColor: colors.gold, borderColor: colors.gold }, text: colors.bgDeep },
   danger: { container: { backgroundColor: 'rgba(212,84,79,0.12)', borderColor: colors.red }, text: colors.red },
   muted: { container: { backgroundColor: colors.panelSoft, borderColor: colors.borderStrong }, text: colors.text },

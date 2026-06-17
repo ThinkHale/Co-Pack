@@ -110,10 +110,10 @@ const styles = StyleSheet.create({
     minHeight: 38,
     justifyContent: 'center',
     borderRadius: radius.sm,
-    backgroundColor: colors.teal,
+    backgroundColor: colors.blue,
     paddingHorizontal: 9,
   },
-  hireText: { color: colors.bgDeep, fontSize: 11, fontWeight: '900' },
+  hireText: { color: colors.panel, fontSize: 11, fontWeight: '900' },
   stripFrame: { flex: 1 },
   strip: { flexDirection: 'row', gap: 6, paddingRight: 2 },
   chip: {

@@ -27,7 +27,7 @@ export function TabBar({
         const dot = (t.key === 'floor' && challengeActive) || (t.key === 'staffing' && fillBelowTarget);
         return (
           <Pressable key={t.key} onPress={() => onTab(t.key)} style={styles.tab}>
-            <Text style={[styles.icon, { color: active ? colors.cyan : colors.textMute }]}>{t.icon}</Text>
+            <Text style={[styles.icon, { color: active ? colors.blue : colors.textMute }]}>{t.icon}</Text>
             <Text style={[styles.label, { color: active ? colors.bgDeep : colors.textMute }]}>{t.label}</Text>
             {dot && <View style={styles.dot} />}
             {active && <View style={styles.activeBar} />}
@@ -55,5 +55,5 @@ const styles = StyleSheet.create({
   icon: { fontSize: 18, fontWeight: '900' },
   label: { fontSize: 11, fontWeight: '800' },
   dot: { position: 'absolute', top: 0, right: '28%', width: 7, height: 7, borderRadius: 4, backgroundColor: colors.amber },
-  activeBar: { position: 'absolute', top: -8, height: 3, width: 28, borderRadius: 2, backgroundColor: colors.teal },
+  activeBar: { position: 'absolute', top: -8, height: 3, width: 28, borderRadius: 2, backgroundColor: colors.blue },
 });

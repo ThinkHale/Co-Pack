@@ -62,13 +62,15 @@ function StandupBar({
     ...(line.supportWorkerIds ?? []),
   ]));
   const unplaced = present.filter((w) => !assigned.has(w.id)).length;
-  const accent = condition.tone === 'bad' ? colors.red : condition.tone === 'good' ? colors.green : colors.purple;
+  const accent = condition.tone === 'bad' ? colors.red : condition.tone === 'good' ? colors.green : colors.blue;
   const canRepeat = Object.entries(state.previousAssignments).some(([, id]) => state.workers[id]?.presentThisShift);
 
   return (
     <View style={[styles.bar, { borderColor: accent }]}>
       <View style={styles.facts}>
-        <Text style={styles.day}>Standup</Text>
+        <View style={styles.modeBadge}>
+          <Text style={styles.modeBadgeText}>Pre-shift</Text>
+        </View>
         <Text style={styles.stat}>
           <Text style={{ color: colors.green, fontWeight: '900' }}>{present.length}</Text>/{workers.length} in
           {absent > 0 ? <Text style={{ color: colors.pinkSoft }}> · {absent} out</Text> : null}
@@ -103,7 +105,8 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   facts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  day: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  modeBadge: { borderRadius: radius.pill, backgroundColor: colors.blue, paddingHorizontal: 9, paddingVertical: 4 },
+  modeBadgeText: { color: colors.panel, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   stat: { color: colors.textDim, fontSize: 12, fontWeight: '800' },
   condition: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: colors.panelSoft },
   conditionText: { fontSize: 10, fontWeight: '900', maxWidth: 120 },

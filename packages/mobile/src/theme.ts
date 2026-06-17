@@ -3,20 +3,20 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
-  bg: '#e8efe1',
+  bg: '#edf5f8',
   bgDeep: '#102b3a',
-  surface: '#fff8d9',
-  surfaceAlt: '#dceccf',
-  paper: '#fbf6df',
-  panel: '#fffaf0',
-  panelAlt: '#edf5e8',
-  panelHi: '#d7e8df',
-  panelSoft: '#f6efd1',
+  surface: '#fff9e8',
+  surfaceAlt: '#e4f1f6',
+  paper: '#fbf7e9',
+  panel: '#fffdf4',
+  panelAlt: '#f3f9fb',
+  panelHi: '#d6eaf3',
+  panelSoft: '#eef6f9',
   steel: '#66838b',
   rail: '#b8cbc5',
-  border: 'rgba(31,66,76,0.14)',
-  borderStrong: 'rgba(31,66,76,0.24)',
-  inkBorder: 'rgba(16,43,58,0.16)',
+  border: 'rgba(31,66,76,0.12)',
+  borderStrong: 'rgba(31,66,76,0.20)',
+  inkBorder: 'rgba(16,43,58,0.13)',
 
   text: '#152d36',
   textDim: '#385863',
@@ -28,6 +28,9 @@ export const colors = {
 
   green: '#5fae68',
   cyan: '#4a9fba',
+  blue: '#3478c7',
+  blueDeep: '#1d5f9f',
+  blueSoft: '#b9dcf2',
   teal: '#22a58f',
   sky: '#83bdd1',
   gold: '#e4c64b',
@@ -42,7 +45,7 @@ export const colors = {
 export const STATION_NAMES: Record<string, string> = { s1: 'Induct', s2: 'Pack', s3: 'Stage' };
 export const STATION_THEMES: Record<string, { icon: string; color: string; note: string }> = {
   s1: { icon: 'IN', color: colors.teal, note: 'Feed' },
-  s2: { icon: 'PK', color: colors.amber, note: 'Build' },
+  s2: { icon: 'PK', color: colors.blue, note: 'Build' },
   s3: { icon: 'ST', color: colors.pink, note: 'Ship' },
 };
 
@@ -60,15 +63,15 @@ export const radius = { sm: 6, md: 9, lg: 12, xl: 18, pill: 999 } as const;
 // Shared building blocks reused across screens.
 export const shared = StyleSheet.create({
   panel: {
-    backgroundColor: colors.panelAlt,
+    backgroundColor: colors.panel,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.border,
     padding: 12,
     shadowColor: colors.bgDeep,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 9,
     elevation: 2,
   },
   eyebrow: {

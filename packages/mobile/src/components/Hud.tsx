@@ -31,7 +31,7 @@ export function Hud({ state }: { state: GameState }) {
       ? 'Shift Complete'
       : nightShiftActive(state) ? '2nd Shift' : '1st Shift';
   const phaseColor = awaitingStaffing ? colors.gold : state.gameOver ? colors.textMute : colors.green;
-  const statusLabel = `${phase} · ${condition.label} · ${state.staffingHistory.length}d`;
+  const dayCount = state.staffingHistory.length;
 
   return (
     <View style={styles.wrap}>
@@ -40,7 +40,10 @@ export function Hud({ state }: { state: GameState }) {
           <Image source={LOGO} style={styles.logo} resizeMode="contain" />
           <View>
             <Text style={styles.shiftLabel}>{shiftLabel(state.tick)}</Text>
-            <Text style={styles.clock}>{shiftClock(state.tick)} left</Text>
+            <View style={styles.phaseLine}>
+              <View style={[styles.phaseDot, { backgroundColor: phaseColor }]} />
+              <Text style={styles.clock}>{phase} · {shiftClock(state.tick)} left</Text>
+            </View>
           </View>
         </View>
         <View style={styles.timeControls}>
@@ -69,29 +72,28 @@ export function Hud({ state }: { state: GameState }) {
         </View>
       </View>
 
-      <View style={styles.statusRow}>
-        <StatusChip label={statusLabel} color={phaseColor} strong grow />
-        <StatusChip label={`Cash ${formatCurrency(state.cash)}`} color={colors.green} />
-        <StatusChip label={`${throughput.toFixed(1)}/m`} color={conditionColor || colors.cyan} />
+      <View style={styles.commandRow}>
+        <CommandStat label="Cash" value={formatCurrency(state.cash)} color={colors.green} />
+        <CommandStat label="Output" value={`${throughput.toFixed(1)}/m`} color={conditionColor || colors.blue} />
+        <CommandStat label="Floor" value={condition.label} color={conditionColor || colors.blue} grow />
       </View>
 
       <View style={styles.progressBlock}>
         <Bar value={progress} color={colors.teal} height={5} track="rgba(34,84,99,0.16)" />
         <View style={styles.metricRow}>
           <Text style={styles.metric}>Morale {pct(averageMorale(workers))}</Text>
-          <Text style={styles.metric}>Payroll {formatCurrency(payroll)} + overhead {formatCurrency(overhead)}</Text>
+          <Text style={styles.metric}>Day {dayCount} · Burn {formatCurrency(payroll + overhead)}</Text>
         </View>
       </View>
     </View>
   );
 }
 
-function StatusChip({ label, color, strong, grow }: { label: string; color: string; strong?: boolean; grow?: boolean }) {
+function CommandStat({ label, value, color, grow }: { label: string; value: string; color: string; grow?: boolean }) {
   return (
-    <View style={[styles.statusChip, grow && { flex: 1 }, strong && { backgroundColor: color, borderColor: color }]}>
-      <Text style={[styles.statusChipText, { color: strong ? colors.bgDeep : color }]} numberOfLines={1}>
-        {label}
-      </Text>
+    <View style={[styles.commandStat, grow && { flex: 1 }]}>
+      <Text style={styles.commandLabel}>{label}</Text>
+      <Text style={[styles.commandValue, { color }]} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -101,19 +103,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panel,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    padding: 9,
+    borderColor: 'rgba(52,120,199,0.22)',
+    padding: 10,
     shadowColor: colors.bgDeep,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
     elevation: 3,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 },
   logo: { width: 28, height: 28 },
   shiftLabel: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  clock: { color: colors.gold, fontSize: 11, fontWeight: '900', marginTop: 0 },
+  phaseLine: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  phaseDot: { width: 6, height: 6, borderRadius: 3 },
+  clock: { color: colors.blueDeep, fontSize: 11, fontWeight: '900', marginTop: 0 },
   timeControls: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   runButton: {
     minWidth: 58,
@@ -124,16 +128,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   runButtonText: { fontSize: 12, fontWeight: '900' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  statusChip: {
+  commandRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, marginTop: 9 },
+  commandStat: {
+    minWidth: 74,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.pill,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+    borderColor: 'rgba(52,120,199,0.16)',
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     backgroundColor: colors.panelSoft,
   },
-  statusChipText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.2 },
+  commandLabel: { color: colors.textMute, fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
+  commandValue: { fontSize: 14, fontWeight: '900', marginTop: 1 },
   progressBlock: { marginTop: 8, gap: 6 },
   metricRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   metric: { color: colors.textMute, fontSize: 10, fontWeight: '800' },
