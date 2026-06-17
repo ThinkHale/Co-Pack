@@ -6,6 +6,7 @@ import { GameEvent, fillRate, FILL_RATE_TARGET } from '@copack/engine';
 import { colors } from './src/theme';
 import { useGameStore } from './src/store/useGameStore';
 import { playSound, unlockAudio } from './src/lib/sound';
+import { initAds, showInterstitial, isInterstitialReady, preloadInterstitial } from './src/lib/ads';
 import { toastForEvent } from './src/events';
 import { Hud } from './src/components/Hud';
 import { TabBar } from './src/components/TabBar';
@@ -91,11 +92,30 @@ function Game() {
   }, [runTick, paused, speed, gameOver, awaitingStaffing, issueActive, adVisible]);
 
   // Interstitial cadence: one ad every AD_INTERVAL_DAYS shifts, never during
-  // the tutorial. showAd/dismissAd is the seam a real ad SDK plugs into.
+  // the tutorial. showAd flips adVisible (which pauses the sim clock); the
+  // effect below turns that into a real AdMob interstitial.
   useEffect(() => {
     if (adFree || !adsOn || adVisible || gameOver || !tutorialDone) return;
     if (state.day > 0 && state.day - lastAdDay >= AD_INTERVAL_DAYS) showAd();
   }, [state.day, adFree, adsOn, adVisible, gameOver, tutorialDone, lastAdDay, showAd]);
+
+  // Start the AdMob SDK once and warm the first interstitial.
+  useEffect(() => { void initAds(); }, []);
+
+  // When it's ad-time, prefer the real network interstitial; only fall back to
+  // the house placeholder if none is loaded (no fill / still loading). The
+  // native ad overlays the app full-screen, so no React modal renders for it —
+  // dismissing it resumes the sim via dismissAd().
+  const [houseAd, setHouseAd] = useState(false);
+  useEffect(() => {
+    if (!adVisible) { setHouseAd(false); return; }
+    if (isInterstitialReady()) {
+      showInterstitial(() => dismissAd());
+    } else {
+      setHouseAd(true);
+      preloadInterstitial();
+    }
+  }, [adVisible, dismissAd]);
 
   // Autosave every few seconds + whenever the app is backgrounded.
   useEffect(() => {
@@ -198,7 +218,7 @@ function Game() {
           onTutorial={() => { setTab('floor'); startTutorial(); }}
         />
       )}
-      {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
+      {adVisible && houseAd && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && <GameOverOverlay state={state} onRestart={reset} />}
     </View>

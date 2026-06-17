@@ -18,7 +18,7 @@ import { CharacterAvatar } from '../components/Avatar';
 export function OfficeScreen({ state }: { state: GameState }) {
   const {
     promoteLead, convertWorker, terminateWorker, requestWorkers,
-    soundOn, toggleSound, adsOn, adFree, toggleAdsTesting, reset,
+    soundOn, toggleSound, adsOn, adFree, toggleAdsTesting, reset, showAd,
   } = useGameStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const lines = Object.entries(state.lines);
@@ -58,6 +58,7 @@ export function OfficeScreen({ state }: { state: GameState }) {
         onBack={() => setSettingsOpen(false)}
         onToggleSound={toggleSound}
         onToggleAds={toggleAdsTesting}
+        onShowTestAd={showAd}
         onReset={reset}
       />
     );
@@ -212,7 +213,7 @@ export function OfficeScreen({ state }: { state: GameState }) {
 }
 
 function SettingsPanel({
-  soundOn, adsOn, adFree, onBack, onToggleSound, onToggleAds, onReset,
+  soundOn, adsOn, adFree, onBack, onToggleSound, onToggleAds, onShowTestAd, onReset,
 }: {
   soundOn: boolean;
   adsOn: boolean;
@@ -220,6 +221,7 @@ function SettingsPanel({
   onBack: () => void;
   onToggleSound: () => void;
   onToggleAds: () => void;
+  onShowTestAd: () => void;
   onReset: () => void;
 }) {
   return (
@@ -253,10 +255,22 @@ function SettingsPanel({
             <Eyebrow>Testing</Eyebrow>
             <Text style={styles.settingTitle}>Interstitial ads</Text>
             <Text style={[shared.bodyMute, { marginTop: 3 }]}>
-              Every 5 shifts{adFree ? ' - removed purchase simulated' : ''}.
+              Every 5 shifts{adFree ? ' - removed purchase simulated' : ''}. Dev builds serve
+              Google test ads.
             </Text>
           </View>
           <Button label={adsOn ? 'Ads on' : 'Ads off'} tone="muted" small onPress={onToggleAds} />
+        </View>
+        <View style={styles.settingsDivider} />
+        <View style={styles.settingsRowClean}>
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Verify</Eyebrow>
+            <Text style={styles.settingTitle}>Show a test ad now</Text>
+            <Text style={[shared.bodyMute, { marginTop: 3 }]}>
+              Fire an interstitial immediately to confirm AdMob is wired.
+            </Text>
+          </View>
+          <Button label="Show ad" tone="primary" small onPress={onShowTestAd} />
         </View>
       </Panel>
 

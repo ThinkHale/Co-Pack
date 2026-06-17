@@ -17,7 +17,6 @@ import { Panel, Eyebrow, Pill, Button, StatCell, Bar } from '../components/commo
 import { CharacterAvatar, WorkerPortraitStrip, appearanceSummary } from '../components/Avatar';
 import { MiniBar } from '../components/MiniBar';
 import { TraitChips } from '../components/TraitChips';
-import { ConveyorBelt } from '../components/Belt';
 import { TUTORIAL_STEPS } from '../components/Overlays';
 import { Spotlight } from '../components/Spotlight';
 import { ProductionLine3D } from '../components/ProductionLine3D';
@@ -65,6 +64,9 @@ export function FloorScreen({ state }: { state: GameState }) {
   // Station-first staffing: tap an empty station → pick from a best-fit list
   // right there. Kills the bench↔station scroll round-trips on big floors.
   const [picker, setPicker] = useState<{ lineId: string; stationId: string; stationName: string; role: string } | null>(null);
+  // One floor-wide view switch instead of a Board/Line toggle stamped on every
+  // line card — the chrome was repeated per line and read as clutter.
+  const [lineView, setLineView] = useState<'board' | 'line'>('board');
   const pickerCandidates = picker
     ? benchWorkers
         .filter((w) => w.presentThisShift)
@@ -95,11 +97,8 @@ export function FloorScreen({ state }: { state: GameState }) {
         shiftActive={shiftActive}
         benchCount={benchWorkers.filter((w) => w.presentThisShift).length}
         onGoOrders={() => setTab('orders')}
+        goalSpotlight={tutTarget === 'goal'}
       />
-
-      <Spotlight active={tutTarget === 'goal'} radius={radius.md}>
-        <NextGoalStrip state={state} onGoTo={() => setTab('orders')} />
-      </Spotlight>
 
       {state.shiftChallenge && (
         <ShiftChallengeCard challenge={state.shiftChallenge} onResolve={resolveChallenge} />
@@ -118,7 +117,20 @@ export function FloorScreen({ state }: { state: GameState }) {
         />
       )}
 
-      {/* Lines first — staffing is the floor's job; ambient info reads below. */}
+      {/* Lines first — staffing is the floor's job; ambient info reads below.
+          A single view switch sits above them all. */}
+      <View style={styles.lineViewRow}>
+        <Text style={styles.lineViewLabel}>Production lines</Text>
+        <View style={styles.lineViewToggle}>
+          <Pressable onPress={() => setLineView('board')} style={lineView === 'board' ? styles.segmentActive : styles.segmentIdle}>
+            <Text style={lineView === 'board' ? styles.segmentActiveText : styles.segmentIdleText}>Board</Text>
+          </Pressable>
+          <Pressable onPress={() => setLineView('line')} style={lineView === 'line' ? styles.segmentActive : styles.segmentIdle}>
+            <Text style={lineView === 'line' ? styles.segmentActiveText : styles.segmentIdleText}>Line View</Text>
+          </Pressable>
+        </View>
+      </View>
+
       {Object.entries(state.lines).map(([lineId, line]) => (
         <FloorLine
           key={lineId}
@@ -130,6 +142,7 @@ export function FloorScreen({ state }: { state: GameState }) {
           tick={state.tick}
           shiftActive={shiftActive}
           paused={paused}
+          viewMode={lineView}
           supportLocked={!hasUnlock(state, 'support')}
           highlightEmpty={tutTarget === 'stations'}
           selectedWorker={selectedWorker}
@@ -192,13 +205,17 @@ type FloorException = {
 };
 
 function FloorCommandCenter({
-  state, shiftActive, benchCount, onGoOrders,
+  state, shiftActive, benchCount, onGoOrders, goalSpotlight,
 }: {
   state: GameState;
   shiftActive: boolean;
   benchCount: number;
   onGoOrders: () => void;
+  goalSpotlight: boolean;
 }) {
+  const nextGoal = openObjectives(state, 1)[0];
+  const goalProg = nextGoal?.progress?.(state);
+  const goalRatio = goalProg ? Math.min(1, goalProg.current / goalProg.target) : null;
   const workers = Object.values(state.workers);
   const lines = Object.values(state.lines);
   const assignedIds = new Set(lines.flatMap((line) => [
@@ -285,6 +302,28 @@ function FloorCommandCenter({
           ))}
         </View>
       )}
+
+      {/* Next goal folds into the command center as a footer line instead of a
+          second stacked card — one place to read "what's the situation + what
+          am I chasing." */}
+      {nextGoal && (
+        <Spotlight active={goalSpotlight} radius={radius.sm}>
+          <Pressable onPress={onGoOrders} style={({ pressed }) => [styles.goalFooter, pressed && { opacity: 0.85 }]}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={styles.goalFooterTop}>
+                <Text style={styles.goalEyebrow}>Next goal</Text>
+                <Text style={styles.goalReward}>+{formatCurrency(nextGoal.reward)}</Text>
+              </View>
+              <Text style={styles.goalLabel} numberOfLines={1}>{nextGoal.label}</Text>
+              {goalRatio !== null && (
+                <View style={{ marginTop: 6 }}>
+                  <Bar value={Math.max(goalRatio, 0.04)} color={colors.gold} height={4} />
+                </View>
+              )}
+            </View>
+          </Pressable>
+        </Spotlight>
+      )}
     </Panel>
   );
 }
@@ -354,28 +393,6 @@ function floorExceptions(state: GameState, benchCount: number, shiftActive: bool
   return items;
 }
 
-// --- Next goal: one slim line of pull at the top of the Floor ----------------
-
-function NextGoalStrip({ state, onGoTo }: { state: GameState; onGoTo: () => void }) {
-  const next = openObjectives(state, 1)[0];
-  if (!next) return null;
-  const prog = next.progress?.(state);
-  const ratio = prog ? Math.min(1, prog.current / prog.target) : null;
-  return (
-    <Pressable onPress={onGoTo} style={({ pressed }) => [styles.goalStrip, pressed && { opacity: 0.85 }]}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.goalEyebrow}>Next goal</Text>
-        <Text style={styles.goalReward}>+{formatCurrency(next.reward)}</Text>
-      </View>
-      <Text style={styles.goalLabel} numberOfLines={1}>{next.label}</Text>
-      {ratio !== null && (
-        <View style={{ marginTop: 6 }}>
-          <Bar value={Math.max(ratio, 0.04)} color={colors.gold} height={5} />
-        </View>
-      )}
-    </Pressable>
-  );
-}
 
 // --- Conditions + break-glass levers ----------------------------------------
 
@@ -636,17 +653,16 @@ function ProfileStat({ label, value, color }: { label: string; value: number; co
 // --- A production line with its stations -------------------------------------
 
 function FloorLine({
-  lineId, line, workers, lineRate, runningOrder, tick, shiftActive, paused, supportLocked, highlightEmpty, selectedWorker, onSelectWorker, onAssign, onUnassign, onOpenPicker, onPushHarder,
+  lineId, line, workers, lineRate, runningOrder, tick, shiftActive, paused, viewMode, supportLocked, highlightEmpty, selectedWorker, onSelectWorker, onAssign, onUnassign, onOpenPicker, onPushHarder,
 }: {
   lineId: string; line: Line; workers: Record<string, Worker>; lineRate: number; runningOrder?: Order; tick: number;
-  shiftActive: boolean; paused: boolean; supportLocked: boolean; highlightEmpty: boolean; selectedWorker: Worker | null;
+  shiftActive: boolean; paused: boolean; viewMode: 'board' | 'line'; supportLocked: boolean; highlightEmpty: boolean; selectedWorker: Worker | null;
   onSelectWorker: (id: string | null) => void;
   onAssign: (workerId: string, lineId: string, stationId: string) => void;
   onUnassign: (lineId: string, stationId: string) => void;
   onOpenPicker: (stationId: string, stationName: string, role: string) => void;
   onPushHarder: (lineId: string) => void;
 }) {
-  const [viewMode, setViewMode] = useState<'board' | 'line'>('board');
   const presentCount = line.stations.filter((s) => s.assignedWorkerId && workers[s.assignedWorkerId]?.presentThisShift).length;
   const isStopped = presentCount === 0;
   const isShort = presentCount > 0 && presentCount < line.stations.length;
@@ -712,19 +728,8 @@ function FloorLine({
         </View>
       </View>
 
-      <View style={styles.segmented}>
-        <Pressable onPress={() => setViewMode('board')} style={viewMode === 'board' ? styles.segmentActive : styles.segmentIdle}>
-          <Text style={viewMode === 'board' ? styles.segmentActiveText : styles.segmentIdleText}>Board</Text>
-        </Pressable>
-        <Pressable onPress={() => setViewMode('line')} style={viewMode === 'line' ? styles.segmentActive : styles.segmentIdle}>
-          <Text style={viewMode === 'line' ? styles.segmentActiveText : styles.segmentIdleText}>Line View</Text>
-        </Pressable>
-      </View>
-
       {viewMode === 'board' ? (
-        <>
-          <LinePreview running={running} rate={lineRate} />
-          <View style={styles.stationGrid}>
+        <View style={styles.stationGrid}>
             {line.stations.map((station) => {
               const worker = station.assignedWorkerId ? workers[station.assignedWorkerId] : null;
               const present = worker?.presentThisShift ?? false;
@@ -752,8 +757,7 @@ function FloorLine({
                 />
               );
             })}
-          </View>
-        </>
+        </View>
       ) : (
         <Line3DView line={line} workers={workers} running={running} rate={lineRate} />
       )}
@@ -775,27 +779,6 @@ function FloorLine({
   );
 }
 
-function LinePreview({ running, rate }: { running: boolean; rate: number }) {
-  return (
-    <View style={styles.linePreview}>
-      <View style={styles.linePreviewHead}>
-        <View>
-          <Text style={styles.linePreviewLabel}>{running ? 'Live belt' : 'Standing by'}</Text>
-          <Text style={styles.linePreviewMeta}>{rate.toFixed(1)} units/min</Text>
-        </View>
-        <View style={[styles.linePulse, { backgroundColor: running ? colors.green : colors.amber }]} />
-      </View>
-      <ConveyorBelt running={running} rate={rate} height={42} />
-      <View style={styles.lineStations}>
-        {(['s1', 's2', 's3'] as const).map((stationId) => (
-          <View key={stationId} style={[styles.lineStationMarker, { borderColor: STATION_THEMES[stationId].color }]}>
-            <Text style={[styles.lineStationText, { color: STATION_THEMES[stationId].color }]}>{STATION_NAMES[stationId]}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
 
 function Line3DView({
   line, workers, running, rate,
@@ -1185,6 +1168,18 @@ const styles = StyleSheet.create({
   goalEyebrow: { color: colors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   goalReward: { color: colors.green, fontSize: 12, fontWeight: '900' },
   goalLabel: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
+  goalFooter: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
+  goalFooterTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  lineViewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  lineViewLabel: { color: colors.textMute, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  lineViewToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.panelSoft,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 2,
+  },
   banner: { borderWidth: 1.5 },
   bannerOut: { color: colors.pinkSoft, fontSize: 11, fontWeight: '700' },
   bannerStations: { color: colors.textDim, fontSize: 11, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 8 },
