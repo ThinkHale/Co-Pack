@@ -1,0 +1,12 @@
+{
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/DomWebView.swift" : {
+    "abi-baseline-json" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView.abi.json",
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary.dia",
+    "objc-header" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-Swift.h",
+    "swiftdoc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView.swiftdoc",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView.swiftmodule",
+    "swiftsourceinfo" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView.swiftsourceinfo"
+  }
+}

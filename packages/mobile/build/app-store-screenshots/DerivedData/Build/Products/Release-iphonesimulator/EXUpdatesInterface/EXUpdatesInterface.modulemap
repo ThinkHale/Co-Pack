@@ -1,0 +1,12 @@
+module EXUpdatesInterface {
+  umbrella header "EXUpdatesInterface-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module EXUpdatesInterface.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/EXUpdatesInterface/Swift Compatibility Header/EXUpdatesInterface-Swift.h"
+  requires objc
+}

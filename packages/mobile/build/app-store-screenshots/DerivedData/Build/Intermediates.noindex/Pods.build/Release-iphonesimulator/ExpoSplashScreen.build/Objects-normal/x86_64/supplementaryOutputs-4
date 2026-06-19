@@ -1,0 +1,12 @@
+{
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-splash-screen/ios/SplashScreenAppDelegateSubscriber.swift" : {
+    "abi-baseline-json" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen.abi.json",
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen-primary.dia",
+    "objc-header" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen-Swift.h",
+    "swiftdoc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen.swiftdoc",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen.swiftmodule",
+    "swiftsourceinfo" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoSplashScreen.build/Objects-normal/x86_64/ExpoSplashScreen.swiftsourceinfo"
+  }
+}

@@ -1,0 +1,12 @@
+module ExpoDomWebView {
+  umbrella header "ExpoDomWebView-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module ExpoDomWebView.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/ExpoDomWebView/Swift Compatibility Header/ExpoDomWebView-Swift.h"
+  requires objc
+}

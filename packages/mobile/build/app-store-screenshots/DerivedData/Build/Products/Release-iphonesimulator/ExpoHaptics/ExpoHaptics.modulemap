@@ -1,0 +1,12 @@
+module ExpoHaptics {
+  umbrella header "ExpoHaptics-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module ExpoHaptics.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/ExpoHaptics/Swift Compatibility Header/ExpoHaptics-Swift.h"
+  requires objc
+}

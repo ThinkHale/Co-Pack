@@ -1,0 +1,21 @@
+{
+  "" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBox-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/log-box/ios/ExpoLogBoxController.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBoxController.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBoxController.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBoxController.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/log-box/ios/ExpoLogBoxWebViewWrapper.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBoxWebViewWrapper.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBoxWebViewWrapper.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoLogBox.build/Objects-normal/arm64/ExpoLogBoxWebViewWrapper.o"
+  }
+}

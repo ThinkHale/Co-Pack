@@ -1,0 +1,12 @@
+{
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu-interface/ios/DevMenuBridgeProtocol.swift" : {
+    "abi-baseline-json" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/EXDevMenuInterface.abi.json",
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/expo-dev-menu-interface-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/expo-dev-menu-interface-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/expo-dev-menu-interface-primary.dia",
+    "objc-header" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/EXDevMenuInterface-Swift.h",
+    "swiftdoc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/EXDevMenuInterface.swiftdoc",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/EXDevMenuInterface.swiftmodule",
+    "swiftsourceinfo" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu-interface.build/Objects-normal/arm64/EXDevMenuInterface.swiftsourceinfo"
+  }
+}

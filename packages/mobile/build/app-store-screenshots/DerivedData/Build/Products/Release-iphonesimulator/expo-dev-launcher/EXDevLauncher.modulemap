@@ -1,0 +1,12 @@
+module EXDevLauncher {
+  umbrella header "expo-dev-launcher-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module EXDevLauncher.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/expo-dev-launcher/Swift Compatibility Header/EXDevLauncher-Swift.h"
+  requires objc
+}

@@ -1,0 +1,12 @@
+module ExpoLogBox {
+  umbrella header "ExpoLogBox-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module ExpoLogBox.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/ExpoLogBox/Swift Compatibility Header/ExpoLogBox-Swift.h"
+  requires objc
+}

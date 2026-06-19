@@ -1,0 +1,16 @@
+{
+  "" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/EXConstants-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/EXConstants-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/EXConstants-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/EXConstants-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/EXConstants-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/EXConstants-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/EXConstants-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-constants/ios/ConstantsModule.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/ConstantsModule.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/ConstantsModule.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build/Objects-normal/x86_64/ConstantsModule.o"
+  }
+}

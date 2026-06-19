@@ -1,0 +1,16 @@
+{
+  "" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/ExpoAsset-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/ExpoAsset-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/ExpoAsset-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/ExpoAsset-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/ExpoAsset-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/ExpoAsset-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/ExpoAsset-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-asset/ios/AssetModule.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/AssetModule.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/AssetModule.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoAsset.build/Objects-normal/x86_64/AssetModule.o"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EXManifests-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-manifests/ios/EXManifests/EmbeddedManifest.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EmbeddedManifest.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EmbeddedManifest.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/EmbeddedManifest.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-manifests/ios/EXManifests/ExpoUpdatesManifest.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/ExpoUpdatesManifest.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/ExpoUpdatesManifest.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/ExpoUpdatesManifest.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-manifests/ios/EXManifests/Manifest.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/Manifest.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/Manifest.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/Manifest.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-manifests/ios/EXManifests/ManifestFactory.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/ManifestFactory.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/ManifestFactory.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/arm64/ManifestFactory.o"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/CustomItems.swift" : {
+    "abi-baseline-json" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenu.abi.json",
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary.dia",
+    "objc-header" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenu-Swift.h",
+    "swiftdoc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenu.swiftdoc",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenu.swiftmodule",
+    "swiftsourceinfo" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenu.swiftsourceinfo"
+  }
+}

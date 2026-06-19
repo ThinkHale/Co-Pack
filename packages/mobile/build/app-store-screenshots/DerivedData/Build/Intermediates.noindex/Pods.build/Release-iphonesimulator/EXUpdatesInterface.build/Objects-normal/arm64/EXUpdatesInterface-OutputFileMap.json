@@ -1,0 +1,21 @@
+{
+  "" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/EXUpdatesInterface-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-updates-interface/ios/EXUpdatesInterface/UpdatesControllerRegistry.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/UpdatesControllerRegistry.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/UpdatesControllerRegistry.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/UpdatesControllerRegistry.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-updates-interface/ios/EXUpdatesInterface/UpdatesInterface.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/UpdatesInterface.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/UpdatesInterface.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXUpdatesInterface.build/Objects-normal/arm64/UpdatesInterface.o"
+  }
+}

@@ -1,0 +1,12 @@
+module ExpoAsset {
+  umbrella header "ExpoAsset-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module ExpoAsset.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/ExpoAsset/Swift Compatibility Header/ExpoAsset-Swift.h"
+  requires objc
+}

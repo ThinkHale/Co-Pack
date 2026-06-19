@@ -1,0 +1,12 @@
+module ExpoGL {
+  umbrella header "ExpoGL-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module ExpoGL.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/ExpoGL/Swift Compatibility Header/ExpoGL-Swift.h"
+  requires objc
+}

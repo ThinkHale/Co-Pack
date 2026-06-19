@@ -1,0 +1,36 @@
+dependencies: \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.mm \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Target\ Support\ Files/ReactCodegen/ReactCodegen-prefix.pch \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-NativeModulesApple/ReactCommon/RCTTurboModule.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTBridge.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTBridgeDelegate.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTJavaScriptLoader.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTDefines.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTInspectorDevServerHelper.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTBridgeModule.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTJSThread.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Private/RCTDeprecation/RCTDeprecation.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTBundleManager.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTBridgeModuleDecorator.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTFrameUpdate.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTInvalidating.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTBridgeConstants.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTConstants.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTModuleMethod.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTBridgeMethod.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTNullability.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-callinvoker/ReactCommon/CallInvoker.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-callinvoker/ReactCommon/SchedulerPriority.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/ReactCommon/ReactCommon/TurboModule.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-jsi/jsi/jsi.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-jsi/jsi/jsi-inl.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/ReactCommon/react/bridging/EventEmitter.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/ReactCommon/react/bridging/Function.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/ReactCommon/react/bridging/Base.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/ReactCommon/react/bridging/Convert.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/ReactCommon/react/bridging/CallbackWrapper.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/ReactCommon/react/bridging/LongLivedObject.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTLog.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTAssert.h \
+  /Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Headers/Public/React-Core/React/RCTUtils.h

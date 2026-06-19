@@ -1,0 +1,51 @@
+{
+  "" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/ExpoDomWebView-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/DomWebView.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebView.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebView.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebView.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/DomWebViewBrowserScripts.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewBrowserScripts.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewBrowserScripts.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewBrowserScripts.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/DomWebViewEnums.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewEnums.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewEnums.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewEnums.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/DomWebViewModule.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewModule.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewModule.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewModule.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/DomWebViewRecords.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewRecords.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewRecords.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewRecords.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/DomWebViewRegistry.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewRegistry.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewRegistry.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/DomWebViewRegistry.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/WeakDomWebViewRef.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/WeakDomWebViewRef.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/WeakDomWebViewRef.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/WeakDomWebViewRef.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo/node_modules/@expo/dom-webview/ios/WeakScriptMessageHandler.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/WeakScriptMessageHandler.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/WeakScriptMessageHandler.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/ExpoDomWebView.build/Objects-normal/x86_64/WeakScriptMessageHandler.o"
+  }
+}

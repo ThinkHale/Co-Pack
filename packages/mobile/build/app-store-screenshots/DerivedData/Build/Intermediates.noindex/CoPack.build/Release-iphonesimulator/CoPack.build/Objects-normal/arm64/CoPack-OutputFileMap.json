@@ -1,0 +1,39 @@
+{
+  "" : {
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/CoPack-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/CoPack-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/CoPack-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/CoPack-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/CoPack-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/CoPack/AppDelegate.swift" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate.dia",
+    "index-unit-output-path" : "/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate.o",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate.swiftdeps",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/AppDelegate~partial.swiftmodule"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/ios/Pods/Target Support Files/Pods-CoPack/ExpoModulesProvider.swift" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider.dia",
+    "index-unit-output-path" : "/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider.o",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider.swiftdeps",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/CoPack.build/Release-iphonesimulator/CoPack.build/Objects-normal/arm64/ExpoModulesProvider~partial.swiftmodule"
+  }
+}

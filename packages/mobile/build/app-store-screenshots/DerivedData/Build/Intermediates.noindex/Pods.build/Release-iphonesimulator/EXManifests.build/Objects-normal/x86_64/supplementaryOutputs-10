@@ -1,0 +1,12 @@
+{
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-manifests/ios/EXManifests/EmbeddedManifest.swift" : {
+    "abi-baseline-json" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests.abi.json",
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests-primary.dia",
+    "objc-header" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests-Swift.h",
+    "swiftdoc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests.swiftdoc",
+    "swiftmodule" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests.swiftmodule",
+    "swiftsourceinfo" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXManifests.build/Objects-normal/x86_64/EXManifests.swiftsourceinfo"
+  }
+}

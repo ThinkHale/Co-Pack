@@ -1,0 +1,12 @@
+module EXDevMenuInterface {
+  umbrella header "expo-dev-menu-interface-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+
+module EXDevMenuInterface.Swift {
+  header "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Products/Release-iphonesimulator/expo-dev-menu-interface/Swift Compatibility Header/EXDevMenuInterface-Swift.h"
+  requires objc
+}

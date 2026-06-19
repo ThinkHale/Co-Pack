@@ -1,0 +1,196 @@
+{
+  "" : {
+    "const-values" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary.swiftconstvalues",
+    "dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary.d",
+    "diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary.dia",
+    "emit-module-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary-emit-module.dia",
+    "pch" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/expo-dev-menu-primary.swiftdeps"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuDevOptionsDelegate.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuDevOptionsDelegate.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuDevOptionsDelegate.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuDevOptionsDelegate.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuGestureRecognizer.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuGestureRecognizer.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuGestureRecognizer.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuGestureRecognizer.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuManager.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuManager.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuManager.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuManager.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuPackagerConnectionHandler.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuPackagerConnectionHandler.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuPackagerConnectionHandler.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuPackagerConnectionHandler.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuTestInterceptor.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuTestInterceptor.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuTestInterceptor.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuTestInterceptor.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuUtils.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuUtils.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuUtils.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuUtils.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuViewController.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuViewController.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuViewController.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuViewController.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuWindow-default.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuWindow-default.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuWindow-default.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuWindow-default.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/DevMenuWindow-macOS.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuWindow-macOS.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuWindow-macOS.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuWindow-macOS.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/EXDevMenuDevSettings.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenuDevSettings.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenuDevSettings.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/EXDevMenuDevSettings.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/FAB/DevMenuFABView.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuFABView.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuFABView.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuFABView.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/FAB/DevMenuFABWindow.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuFABWindow.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuFABWindow.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuFABWindow.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/Interceptors/DevMenuKeyCommandsInterceptor.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuKeyCommandsInterceptor.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuKeyCommandsInterceptor.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuKeyCommandsInterceptor.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/Interceptors/DevMenuTouchInterceptor.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuTouchInterceptor.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuTouchInterceptor.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuTouchInterceptor.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/Modules/DevMenuModule.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuModule.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuModule.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuModule.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/Modules/DevMenuPreferences.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuPreferences.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuPreferences.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuPreferences.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/CustomItems.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/CustomItems.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/CustomItems.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/CustomItems.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuActions.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuActions.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuActions.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuActions.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuAppInfo.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuAppInfo.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuAppInfo.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuAppInfo.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuBundle.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuBundle.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuBundle.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuBundle.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuButtons.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuButtons.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuButtons.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuButtons.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuColors.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuColors.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuColors.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuColors.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuDeveloperTools.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuDeveloperTools.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuDeveloperTools.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuDeveloperTools.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuMainView.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuMainView.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuMainView.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuMainView.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuOnboardingView.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuOnboardingView.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuOnboardingView.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuOnboardingView.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuRNDevMenu.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuRNDevMenu.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuRNDevMenu.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuRNDevMenu.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuRootView.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuRootView.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuRootView.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuRootView.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/DevMenuViewModel.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuViewModel.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuViewModel.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/DevMenuViewModel.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/HeaderView.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HeaderView.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HeaderView.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HeaderView.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/HermesDebuggerTip.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HermesDebuggerTip.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HermesDebuggerTip.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HermesDebuggerTip.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/HostUrl.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HostUrl.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HostUrl.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/HostUrl.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/Models.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/Models.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/Models.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/Models.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/SourceMapExplorerView.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapExplorerView.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapExplorerView.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapExplorerView.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/SourceMapExplorerViewModel.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapExplorerViewModel.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapExplorerViewModel.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapExplorerViewModel.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/SourceMapModels.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapModels.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapModels.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapModels.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/SourceMapService.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapService.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapService.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SourceMapService.o"
+  },
+  "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/node_modules/expo-dev-menu/ios/SwiftUI/SyntaxHighlighter.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SyntaxHighlighter.o",
+    "llvm-bc" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SyntaxHighlighter.bc",
+    "object" : "/Users/Cody.Hale/ThinkHale/Co-Pack/packages/mobile/build/app-store-screenshots/DerivedData/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/expo-dev-menu.build/Objects-normal/x86_64/SyntaxHighlighter.o"
+  }
+}

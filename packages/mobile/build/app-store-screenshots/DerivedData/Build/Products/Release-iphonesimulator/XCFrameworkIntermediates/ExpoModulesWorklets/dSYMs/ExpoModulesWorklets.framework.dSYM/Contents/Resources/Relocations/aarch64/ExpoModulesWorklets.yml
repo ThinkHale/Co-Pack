@@ -1,0 +1,137 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/alanhughes/Work/expo/packages/precompile/.build/expo-modules-core/output/release/frameworks/ExpoModulesWorklets/Build/Products/Release-iphonesimulator/PackageFrameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets'
+relocations:
+  - { offset: 0x27, size: 0x8, addend: 0x0, symName: '-[EXJavaScriptSerializable initWithHandle:valueType:]', symObjAddr: 0x0, symBinAddr: 0x1618, symSize: 0x88 }
+  - { offset: 0x16B, size: 0x8, addend: 0x0, symName: '-[EXJavaScriptSerializable initWithHandle:valueType:]', symObjAddr: 0x0, symBinAddr: 0x1618, symSize: 0x88 }
+  - { offset: 0x1BD, size: 0x8, addend: 0x0, symName: '-[EXJavaScriptSerializable valueType]', symObjAddr: 0x88, symBinAddr: 0x16A0, symSize: 0x8 }
+  - { offset: 0x1F1, size: 0x8, addend: 0x0, symName: '-[EXJavaScriptSerializable handle]', symObjAddr: 0x90, symBinAddr: 0x16A8, symSize: 0x8 }
+  - { offset: 0x225, size: 0x8, addend: 0x0, symName: '-[EXJavaScriptSerializable .cxx_destruct]', symObjAddr: 0x98, symBinAddr: 0x16B0, symSize: 0xC }
+  - { offset: 0x59F, size: 0x8, addend: 0x0, symName: '+[EXWorkletsProviderRegistry shared]', symObjAddr: 0x0, symBinAddr: 0x16BC, symSize: 0x28 }
+  - { offset: 0x5B8, size: 0x8, addend: 0x0, symName: __ZL15_sharedProvider, symObjAddr: 0x19C8, symBinAddr: 0xCF40, symSize: 0x0 }
+  - { offset: 0x5F7, size: 0x8, addend: 0x0, symName: '+[EXWorkletsProviderRegistry shared]', symObjAddr: 0x0, symBinAddr: 0x16BC, symSize: 0x28 }
+  - { offset: 0x627, size: 0x8, addend: 0x0, symName: '+[EXWorkletsProviderRegistry setShared:]', symObjAddr: 0x28, symBinAddr: 0x16E4, symSize: 0x2C }
+  - { offset: 0x866, size: 0x8, addend: 0x0, symName: '+[EXSerializableExtractor isSerializableWithRuntimePointer:valuePointer:]', symObjAddr: 0x0, symBinAddr: 0x1710, symSize: 0x78 }
+  - { offset: 0x8A4, size: 0x8, addend: 0x0, symName: '+[EXSerializableExtractor isSerializableWithRuntimePointer:valuePointer:]', symObjAddr: 0x0, symBinAddr: 0x1710, symSize: 0x78 }
+  - { offset: 0x901, size: 0x8, addend: 0x0, symName: '+[EXSerializableExtractor extractSerializableWithRuntimePointer:valuePointer:]', symObjAddr: 0x78, symBinAddr: 0x1788, symSize: 0x80 }
+  - { offset: 0xBBA, size: 0x8, addend: 0x0, symName: '+[EXWorkletIntegrationLoader load]', symObjAddr: 0x0, symBinAddr: 0x1808, symSize: 0xC }
+  - { offset: 0xBDA, size: 0x8, addend: 0x0, symName: '+[EXWorkletIntegrationLoader load]', symObjAddr: 0x0, symBinAddr: 0x1808, symSize: 0xC }
+  - { offset: 0xE0A, size: 0x8, addend: 0x0, symName: '-[EXWorkletRuntimeHandle initWithRawPointer:]', symObjAddr: 0x0, symBinAddr: 0x1814, symSize: 0x110 }
+  - { offset: 0xE91, size: 0x8, addend: 0x0, symName: '-[EXWorkletRuntimeHandle initWithRawPointer:]', symObjAddr: 0x0, symBinAddr: 0x1814, symSize: 0x110 }
+  - { offset: 0xF42, size: 0x8, addend: 0x0, symName: '-[EXWorkletRuntimeHandle scheduleWorklet:arguments:]', symObjAddr: 0x110, symBinAddr: 0x1924, symSize: 0x14 }
+  - { offset: 0xF90, size: 0x8, addend: 0x0, symName: '-[EXWorkletRuntimeHandle executeWorklet:arguments:]', symObjAddr: 0x124, symBinAddr: 0x1938, symSize: 0x14 }
+  - { offset: 0xFDE, size: 0x8, addend: 0x0, symName: '-[EXWorkletRuntimeHandle .cxx_destruct]', symObjAddr: 0x138, symBinAddr: 0x194C, symSize: 0x30 }
+  - { offset: 0x1250, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets24NotSerializableExceptionCMa', symObjAddr: 0x0, symBinAddr: 0x197C, symSize: 0x38 }
+  - { offset: 0x1263, size: 0x8, addend: 0x0, symName: '_$s15ExpoModulesCore16GenericExceptionCy0aB8Worklets15AnySerializable_pXpGMa', symObjAddr: 0x40, symBinAddr: 0x19BC, symSize: 0x60 }
+  - { offset: 0x1276, size: 0x8, addend: 0x0, symName: ___swift_instantiateConcreteTypeFromMangledNameAbstractV2, symObjAddr: 0xA0, symBinAddr: 0x1A1C, symSize: 0x54 }
+  - { offset: 0x1289, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets24NotSerializableExceptionCMr', symObjAddr: 0xF4, symBinAddr: 0x1A70, symSize: 0x3C }
+  - { offset: 0x15CB, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets24NotSerializableExceptionCMU', symObjAddr: 0x7B0, symBinAddr: 0x212C, symSize: 0x8 }
+  - { offset: 0x15DE, size: 0x8, addend: 0x0, symName: '_$sSo23EXSerializableValueTypeVMa', symObjAddr: 0x7B8, symBinAddr: 0x2134, symSize: 0x50 }
+  - { offset: 0x15F1, size: 0x8, addend: 0x0, symName: ___swift_memcpy16_8, symObjAddr: 0x808, symBinAddr: 0x2184, symSize: 0xC }
+  - { offset: 0x1604, size: 0x8, addend: 0x0, symName: ___swift_noop_void_return, symObjAddr: 0x814, symBinAddr: 0x2190, symSize: 0x4 }
+  - { offset: 0x1617, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeVwet', symObjAddr: 0x818, symBinAddr: 0x2194, symSize: 0x48 }
+  - { offset: 0x162A, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeVwst', symObjAddr: 0x860, symBinAddr: 0x21DC, symSize: 0x3C }
+  - { offset: 0x163D, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeVMa', symObjAddr: 0x89C, symBinAddr: 0x2218, symSize: 0x10 }
+  - { offset: 0x165A, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AAs23CustomStringConvertiblePWb', symObjAddr: 0x8DC, symBinAddr: 0x2258, symSize: 0x4 }
+  - { offset: 0x166D, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeVACs23CustomStringConvertibleAAWl', symObjAddr: 0x8E0, symBinAddr: 0x225C, symSize: 0x40 }
+  - { offset: 0x1680, size: 0x8, addend: 0x0, symName: ___swift_allocate_boxed_opaque_existential_0, symObjAddr: 0x920, symBinAddr: 0x229C, symSize: 0x3C }
+  - { offset: 0x1693, size: 0x8, addend: 0x0, symName: ___swift_destroy_boxed_opaque_existential_0, symObjAddr: 0xA00, symBinAddr: 0x237C, symSize: 0x20 }
+  - { offset: 0x16A6, size: 0x8, addend: 0x0, symName: ___swift_instantiateConcreteTypeFromMangledNameV2, symObjAddr: 0xA20, symBinAddr: 0x239C, symSize: 0x50 }
+  - { offset: 0x16B9, size: 0x8, addend: 0x0, symName: '_$s15ExpoModulesCore11ConversionsV19ConvertingExceptionCy_0aB8Worklets12SerializableCGAA0F0Cs5ErrorAAWl', symObjAddr: 0xA70, symBinAddr: 0x23EC, symSize: 0x50 }
+  - { offset: 0x16CC, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV4cast7jsValue10appContextyp0aB3JSI010JavaScriptI0C_0aB4Core03AppK0CtKFSo06EXJavanE0CSgSvXEfU_TA', symObjAddr: 0xAC0, symBinAddr: 0x243C, symSize: 0x5C }
+  - { offset: 0x1704, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV4cast7jsValue10appContextyp0aB3JSI010JavaScriptI0C_0aB4Core03AppK0CtKFSo06EXJavanE0CSgSvXEfU_AOSVXEfU_TA', symObjAddr: 0xB5C, symBinAddr: 0x24D8, symSize: 0x58 }
+  - { offset: 0x173A, size: 0x8, addend: 0x0, symName: '_$s15ExpoModulesCore14AnyDynamicType_pWOc', symObjAddr: 0xBB4, symBinAddr: 0x2530, symSize: 0x44 }
+  - { offset: 0x180C, size: 0x8, addend: 0x0, symName: '_$sSo23EXSerializableValueTypeVSQSCSQ2eeoiySbx_xtFZTW', symObjAddr: 0x8AC, symBinAddr: 0x2228, symSize: 0x14 }
+  - { offset: 0x1891, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV5wrapsySbxmlF', symObjAddr: 0x130, symBinAddr: 0x1AAC, symSize: 0xC }
+  - { offset: 0x1B50, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV4cast7jsValue10appContextyp0aB3JSI010JavaScriptI0C_0aB4Core03AppK0CtKF', symObjAddr: 0x13C, symBinAddr: 0x1AB8, symSize: 0x21C }
+  - { offset: 0x1D0A, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV4cast_10appContextypx_0aB4Core03AppI0CtKlF', symObjAddr: 0x358, symBinAddr: 0x1CD4, symSize: 0x160 }
+  - { offset: 0x1D89, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV13convertResult_10appContextypx_0aB4Core03AppJ0CtKlF', symObjAddr: 0x4B8, symBinAddr: 0x1E34, symSize: 0x50 }
+  - { offset: 0x1DCF, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP5wrapsySbqd__mlFTW', symObjAddr: 0x508, symBinAddr: 0x1E84, symSize: 0xC }
+  - { offset: 0x1DF9, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP6equalsySbAdE_pFTW', symObjAddr: 0x514, symBinAddr: 0x1E90, symSize: 0x6C }
+  - { offset: 0x1E2B, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP4cast7jsValue10appContextyp0aB3JSI010JavaScriptK0C_AD03AppM0CtKFTW', symObjAddr: 0x580, symBinAddr: 0x1EFC, symSize: 0x18 }
+  - { offset: 0x1E3E, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP4cast_10appContextypqd___AD03AppK0CtKlFTW', symObjAddr: 0x598, symBinAddr: 0x1F14, symSize: 0x18 }
+  - { offset: 0x1E57, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP8castToJS_10appContext0aB3JSI15JavaScriptValueCqd___AD03AppM0CtKlFTW', symObjAddr: 0x5B0, symBinAddr: 0x1F2C, symSize: 0x14 }
+  - { offset: 0x1E7F, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP8castToJS_10appContext2in0aB3JSI15JavaScriptValueCqd___AD03AppM0CAJ0pQ7RuntimeCtKlFTW', symObjAddr: 0x5C4, symBinAddr: 0x1F40, symSize: 0x20 }
+  - { offset: 0x1E92, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP11convertToJS_10appContext0aB3JSI15JavaScriptValueCqd___AD03AppM0CtKlFTW', symObjAddr: 0x5E4, symBinAddr: 0x1F60, symSize: 0x20 }
+  - { offset: 0x1EA5, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP11convertToJS_10appContext2in0aB3JSI15JavaScriptValueCqd___AD03AppM0CAJ0pQ7RuntimeCtKlFTW', symObjAddr: 0x604, symBinAddr: 0x1F80, symSize: 0x20 }
+  - { offset: 0x1EB8, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV0aB4Core03AnydF0AadEP13convertResult_10appContextypqd___AD03AppL0CtKlFTW', symObjAddr: 0x624, symBinAddr: 0x1FA0, symSize: 0x18 }
+  - { offset: 0x1ED1, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeVs23CustomStringConvertibleAAsADP11descriptionSSvgTW', symObjAddr: 0x63C, symBinAddr: 0x1FB8, symSize: 0x30 }
+  - { offset: 0x1F23, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets24NotSerializableExceptionC6reasonSSvg', symObjAddr: 0x66C, symBinAddr: 0x1FE8, symSize: 0xA0 }
+  - { offset: 0x1FA8, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets24NotSerializableExceptionCfD', symObjAddr: 0x70C, symBinAddr: 0x2088, symSize: 0x1C }
+  - { offset: 0x1FE5, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets24NotSerializableExceptionC_4file4line8functionAcA03AnyE0_pXp_SSSuSStcfC0aB4Core07GenericF0CAHRi_zrlE_AdefJyxGx_SSSuSStcfCTV', symObjAddr: 0x728, symBinAddr: 0x20A4, symSize: 0x88 }
+  - { offset: 0x2047, size: 0x8, addend: 0x0, symName: '_$sSo23EXSerializableValueTypeVSYSCSY03rawB0xSg03RawB0Qz_tcfCTW', symObjAddr: 0x8C0, symBinAddr: 0x223C, symSize: 0x10 }
+  - { offset: 0x205A, size: 0x8, addend: 0x0, symName: '_$sSo23EXSerializableValueTypeVSYSCSY03rawB003RawB0QzvgTW', symObjAddr: 0x8D0, symBinAddr: 0x224C, symSize: 0xC }
+  - { offset: 0x206D, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeV8castToJS_10appContext0aB3JSI15JavaScriptValueCx_0aB4Core03AppK0CtKlFTf4nnd_n', symObjAddr: 0x95C, symBinAddr: 0x22D8, symSize: 0xA4 }
+  - { offset: 0x21BA, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeVMa', symObjAddr: 0x94, symBinAddr: 0x2574, symSize: 0x10 }
+  - { offset: 0x23D0, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV0aB4Core03AnydF0AAs23CustomStringConvertiblePWb', symObjAddr: 0x54C, symBinAddr: 0x2950, symSize: 0x4 }
+  - { offset: 0x23E3, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeVACs23CustomStringConvertibleAAWl', symObjAddr: 0x550, symBinAddr: 0x2954, symSize: 0x40 }
+  - { offset: 0x23F6, size: 0x8, addend: 0x0, symName: '_$s15ExpoModulesCore11ConversionsV19ConvertingExceptionCy_0aB8Worklets7WorkletCGAA0F0Cs5ErrorAAWl', symObjAddr: 0x70C, symBinAddr: 0x29C0, symSize: 0x50 }
+  - { offset: 0x24DE, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV4cast7jsValue10appContextyp0aB3JSI010JavaScriptI0C_0aB4Core03AppK0CtKF', symObjAddr: 0xA4, symBinAddr: 0x2584, symSize: 0x198 }
+  - { offset: 0x25AB, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV4cast_10appContextypx_0aB4Core03AppI0CtKlF', symObjAddr: 0x23C, symBinAddr: 0x271C, symSize: 0x160 }
+  - { offset: 0x263A, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV0aB4Core03AnydF0AadEP5wrapsySbqd__mlFTW', symObjAddr: 0x3EC, symBinAddr: 0x287C, symSize: 0x8 }
+  - { offset: 0x2679, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV0aB4Core03AnydF0AadEP6equalsySbAdE_pFTW', symObjAddr: 0x3F4, symBinAddr: 0x2884, symSize: 0x58 }
+  - { offset: 0x26AB, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV0aB4Core03AnydF0AadEP4cast7jsValue10appContextyp0aB3JSI010JavaScriptK0C_AD03AppM0CtKFTW', symObjAddr: 0x44C, symBinAddr: 0x28DC, symSize: 0x18 }
+  - { offset: 0x26BE, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV0aB4Core03AnydF0AadEP4cast_10appContextypqd___AD03AppK0CtKlFTW', symObjAddr: 0x464, symBinAddr: 0x28F4, symSize: 0x18 }
+  - { offset: 0x26D7, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeVs23CustomStringConvertibleAAsADP11descriptionSSvgTW', symObjAddr: 0x508, symBinAddr: 0x290C, symSize: 0x44 }
+  - { offset: 0x26FF, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeV5wrapsySbxmlFTf4dd_n', symObjAddr: 0x5CC, symBinAddr: 0x2994, symSize: 0x2C }
+  - { offset: 0x27E6, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets15AnySerializablePAAE14getDynamicType0aB4Core0dgH0_pyFZ', symObjAddr: 0x0, symBinAddr: 0x2A50, symSize: 0x44 }
+  - { offset: 0x282F, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets23DynamicSerializableTypeVAC0aB4Core03AnydF0AAWl', symObjAddr: 0x44, symBinAddr: 0x2A94, symSize: 0x40 }
+  - { offset: 0x28A0, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableCAA03AnyD0AAWI', symObjAddr: 0xD8, symBinAddr: 0x2B28, symSize: 0x24 }
+  - { offset: 0x28B3, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableCAC0aB4Core11AnyArgumentAAWl', symObjAddr: 0xFC, symBinAddr: 0x2B4C, symSize: 0x40 }
+  - { offset: 0x28C6, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableCMa', symObjAddr: 0x13C, symBinAddr: 0x2B8C, symSize: 0x20 }
+  - { offset: 0x28FD, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets15AnySerializablePAAE14getDynamicType0aB4Core0dgH0_pyFZ', symObjAddr: 0x0, symBinAddr: 0x2A50, symSize: 0x44 }
+  - { offset: 0x2929, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableC9valueTypeSo019EXSerializableValueF0Vvg', symObjAddr: 0x84, symBinAddr: 0x2AD4, symSize: 0x8 }
+  - { offset: 0x2961, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableCfd', symObjAddr: 0x8C, symBinAddr: 0x2ADC, symSize: 0x1C }
+  - { offset: 0x299D, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableCfD', symObjAddr: 0xA8, symBinAddr: 0x2AF8, symSize: 0x24 }
+  - { offset: 0x29EC, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableCAA03AnyD0A2aDP9valueTypeSo019EXSerializableValueG0VvgTW', symObjAddr: 0xCC, symBinAddr: 0x2B1C, symSize: 0xC }
+  - { offset: 0x2A1C, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets12SerializableC0aB4Core11AnyArgumentAadEP14getDynamicTypeAD0fiJ0_pyFZTW', symObjAddr: 0x15C, symBinAddr: 0x2BAC, symSize: 0x40 }
+  - { offset: 0x2E1D, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletCMa', symObjAddr: 0x4BC, symBinAddr: 0x3048, symSize: 0x20 }
+  - { offset: 0x2E30, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18DynamicWorkletTypeVAC0aB4Core03AnydF0AAWl', symObjAddr: 0x4DC, symBinAddr: 0x3068, symSize: 0x40 }
+  - { offset: 0x2E43, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletCAA15AnySerializableAAWI', symObjAddr: 0x51C, symBinAddr: 0x30A8, symSize: 0x3C }
+  - { offset: 0x2E56, size: 0x8, addend: 0x0, symName: '_$s15ExpoModulesCore16GenericExceptionCySo23EXSerializableValueTypeVGMa', symObjAddr: 0x5E4, symBinAddr: 0x3170, symSize: 0x54 }
+  - { offset: 0x2E69, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets19NotWorkletExceptionCMU', symObjAddr: 0x644, symBinAddr: 0x31D0, symSize: 0x8 }
+  - { offset: 0x2E7C, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets0C21NotInstalledExceptionCMU', symObjAddr: 0x6D4, symBinAddr: 0x3260, symSize: 0x8 }
+  - { offset: 0x2F7C, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets0C21NotInstalledExceptionC4file4line8functionACSS_SuSStcfC', symObjAddr: 0x0, symBinAddr: 0x2C0C, symSize: 0x68 }
+  - { offset: 0x2FDE, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletC9valueTypeSo019EXSerializableValueF0Vvg', symObjAddr: 0x68, symBinAddr: 0x2C74, symSize: 0xC }
+  - { offset: 0x3060, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletC8schedule2on9argumentsyAA0D7RuntimeC_SayypGtF', symObjAddr: 0x74, symBinAddr: 0x2C80, symSize: 0x7C }
+  - { offset: 0x30EF, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletC7execute2on9argumentsyAA0D7RuntimeC_SayypGtF', symObjAddr: 0xF0, symBinAddr: 0x2CFC, symSize: 0x7C }
+  - { offset: 0x3195, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletC14getDynamicType0aB4Core03AnyfG0_pyFZ', symObjAddr: 0x16C, symBinAddr: 0x2D78, symSize: 0x64 }
+  - { offset: 0x31E0, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletCfd', symObjAddr: 0x1D0, symBinAddr: 0x2DDC, symSize: 0x1C }
+  - { offset: 0x3212, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletCfD', symObjAddr: 0x1EC, symBinAddr: 0x2DF8, symSize: 0x24 }
+  - { offset: 0x3261, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletCAA15AnySerializableA2aDP9valueTypeSo019EXSerializableValueH0VvgTW', symObjAddr: 0x210, symBinAddr: 0x2E1C, symSize: 0x10 }
+  - { offset: 0x32E8, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets19NotWorkletExceptionC6reasonSSvg', symObjAddr: 0x284, symBinAddr: 0x2E2C, symSize: 0xB0 }
+  - { offset: 0x33B1, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets19NotWorkletExceptionC_4file4line8functionACSo23EXSerializableValueTypeV_SSSuSStcfC0aB4Core07GenericF0CAIRi_zrlE_AdefKyxGx_SSSuSStcfCTV', symObjAddr: 0x350, symBinAddr: 0x2EDC, symSize: 0x84 }
+  - { offset: 0x3411, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets0C21NotInstalledExceptionC6reasonSSvg', symObjAddr: 0x3D4, symBinAddr: 0x2F60, symSize: 0x1C }
+  - { offset: 0x3433, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets0C21NotInstalledExceptionC6reasonSSvg', symObjAddr: 0x3D4, symBinAddr: 0x2F60, symSize: 0x1C }
+  - { offset: 0x3491, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets0C21NotInstalledExceptionC4name11description4code4file4line8functionACSS_S2SSgSSSuSStcfC', symObjAddr: 0x3F0, symBinAddr: 0x2F7C, symSize: 0xB0 }
+  - { offset: 0x3502, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets0C21NotInstalledExceptionCfD', symObjAddr: 0x4A0, symBinAddr: 0x302C, symSize: 0x1C }
+  - { offset: 0x355C, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets7WorkletCyAcA12SerializableCKcfCTf4nd_n', symObjAddr: 0x6DC, symBinAddr: 0x3268, symSize: 0x140 }
+  - { offset: 0x36AD, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationC8registeryyFZ', symObjAddr: 0x0, symBinAddr: 0x33A8, symSize: 0x34 }
+  - { offset: 0x3888, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationCMa', symObjAddr: 0x400, symBinAddr: 0x3740, symSize: 0x20 }
+  - { offset: 0x389B, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets40WorkletRuntimePointerExtractionException33_1BA0B8946C9655CE16506F028C431FE6LLCMa', symObjAddr: 0x420, symBinAddr: 0x3760, symSize: 0x38 }
+  - { offset: 0x38AE, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets40WorkletRuntimePointerExtractionException33_1BA0B8946C9655CE16506F028C431FE6LLCMr', symObjAddr: 0x458, symBinAddr: 0x3798, symSize: 0x3C }
+  - { offset: 0x38C1, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets40WorkletRuntimePointerExtractionException33_1BA0B8946C9655CE16506F028C431FE6LLCMU', symObjAddr: 0x57C, symBinAddr: 0x37F0, symSize: 0x8 }
+  - { offset: 0x38D4, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets40WorkletRuntimePointerExtractionException33_1BA0B8946C9655CE16506F028C431FE6LLC0aB4Core0H0Cs5ErrorAEWl', symObjAddr: 0x584, symBinAddr: 0x37F8, symSize: 0x44 }
+  - { offset: 0x38FD, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationC8registeryyFZ', symObjAddr: 0x0, symBinAddr: 0x33A8, symSize: 0x34 }
+  - { offset: 0x3915, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationC8registeryyFZ0aB3JSI17JavaScriptRuntimeC0aB4Core10AppContextC_AE0hI5ValueCAGtKcfU_', symObjAddr: 0x34, symBinAddr: 0x33DC, symSize: 0x274 }
+  - { offset: 0x3CA7, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationC8registeryyFZTo', symObjAddr: 0x310, symBinAddr: 0x3650, symSize: 0x34 }
+  - { offset: 0x3CCF, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationCACycfC', symObjAddr: 0x344, symBinAddr: 0x3684, symSize: 0x18 }
+  - { offset: 0x3CE2, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationCACycfc', symObjAddr: 0x35C, symBinAddr: 0x369C, symSize: 0x34 }
+  - { offset: 0x3D16, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationCACycfcTo', symObjAddr: 0x390, symBinAddr: 0x36D0, symSize: 0x3C }
+  - { offset: 0x3D48, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets18WorkletIntegrationCfD', symObjAddr: 0x3CC, symBinAddr: 0x370C, symSize: 0x34 }
+  - { offset: 0x3D69, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets40WorkletRuntimePointerExtractionException33_1BA0B8946C9655CE16506F028C431FE6LLC6reasonSSvg', symObjAddr: 0x494, symBinAddr: 0x37D4, symSize: 0x1C }
+  - { offset: 0x3D8D, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets40WorkletRuntimePointerExtractionException33_1BA0B8946C9655CE16506F028C431FE6LLC6reasonSSvg', symObjAddr: 0x494, symBinAddr: 0x37D4, symSize: 0x1C }
+  - { offset: 0x4031, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeCMa', symObjAddr: 0xEC, symBinAddr: 0x3928, symSize: 0x38 }
+  - { offset: 0x4059, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeCfE', symObjAddr: 0x268, symBinAddr: 0x3A20, symSize: 0x10 }
+  - { offset: 0x4084, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeCMr', symObjAddr: 0x2E8, symBinAddr: 0x3AA0, symSize: 0x4C }
+  - { offset: 0x4097, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeCMU', symObjAddr: 0x384, symBinAddr: 0x3B3C, symSize: 0x8 }
+  - { offset: 0x4101, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeC14runtimePointerACSgSv_tcfC', symObjAddr: 0x0, symBinAddr: 0x383C, symSize: 0x84 }
+  - { offset: 0x417E, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeC14runtimePointerACSgSv_tcfc', symObjAddr: 0x84, symBinAddr: 0x38C0, symSize: 0x68 }
+  - { offset: 0x41F2, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeC8schedule_9argumentsySo24EXJavaScriptSerializableC_SayypGtF', symObjAddr: 0x124, symBinAddr: 0x3960, symSize: 0x60 }
+  - { offset: 0x423D, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeC7execute_9argumentsySo24EXJavaScriptSerializableC_SayypGtF', symObjAddr: 0x184, symBinAddr: 0x39C0, symSize: 0x60 }
+  - { offset: 0x4290, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeCACycfC', symObjAddr: 0x1E4, symBinAddr: 0x3B44, symSize: 0x2C }
+  - { offset: 0x42FC, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeC13unsafePointerACSv_tcfC', symObjAddr: 0x210, symBinAddr: 0x3B70, symSize: 0x2C }
+  - { offset: 0x437F, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeC13unsafePointer9scheduler8dispatchACSv_SvSVtcfC', symObjAddr: 0x23C, symBinAddr: 0x3B9C, symSize: 0x2C }
+  - { offset: 0x43E4, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeCfd', symObjAddr: 0x278, symBinAddr: 0x3A30, symSize: 0x34 }
+  - { offset: 0x4413, size: 0x8, addend: 0x0, symName: '_$s19ExpoModulesWorklets14WorkletRuntimeCfD', symObjAddr: 0x2AC, symBinAddr: 0x3A64, symSize: 0x3C }
+...
