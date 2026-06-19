@@ -76,18 +76,10 @@ interface GameStore {
   signClient: (tierId: string) => void;
   toggleNightShift: () => void;
   pushLineHarder: (lineId: string) => void;
-  // Ads (interstitial cadence; SDK-ready seam) + first-play tutorial
-  adsOn: boolean;
-  adFree: boolean;
-  lastAdDay: number;
-  adVisible: boolean;
+  // First-play tutorial
   tutorialDone: boolean;
   tutorialActive: boolean;
   tutorialStep: number;
-  showAd: () => void;
-  dismissAd: () => void;
-  removeAds: () => void;
-  toggleAdsTesting: () => void;
   startTutorial: () => void;
   advanceTutorial: () => void;
   finishTutorial: () => void;
@@ -114,10 +106,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   offlineSummary: null,
   bootedFromSave: false,
   hydrated: false,
-  adsOn: true,
-  adFree: false,
-  lastAdDay: 0,
-  adVisible: false,
   tutorialDone: false,
   tutorialActive: false,
   tutorialStep: 0,
@@ -135,9 +123,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         speed: loaded.prefs.speed,
         tab: loaded.prefs.tab,
         soundOn: loaded.prefs.soundOn,
-        adsOn: loaded.prefs.adsOn,
-        adFree: loaded.prefs.adFree,
-        lastAdDay: loaded.prefs.lastAdDay,
         tutorialDone: loaded.prefs.tutorialDone,
         hydrated: true,
       });
@@ -190,7 +175,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const s = get();
     void saveGame(s.state, {
       speed: s.speed, paused: s.paused, tab: s.tab, soundOn: s.soundOn,
-      adsOn: s.adsOn, adFree: s.adFree, lastAdDay: s.lastAdDay, tutorialDone: s.tutorialDone,
+      tutorialDone: s.tutorialDone,
     });
   },
 
@@ -251,12 +236,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   pushLineHarder: (lineId) => set((store) => applyEngineResult(store, enginePushLineHarder(store.state, lineId))),
 
-  // Marking lastAdDay at show-time keeps the trigger from re-firing while up.
-  showAd: () => set((store) => ({ adVisible: true, lastAdDay: store.state.day })),
-  dismissAd: () => set({ adVisible: false }),
-  // The IAP seam: when StoreKit lands, the purchase callback calls this.
-  removeAds: () => set({ adFree: true, adVisible: false }),
-  toggleAdsTesting: () => set((store) => ({ adsOn: !store.adsOn })),
   startTutorial: () => set({ tutorialActive: true, tutorialStep: 0 }),
   advanceTutorial: () => set((store) => ({ tutorialStep: store.tutorialStep + 1 })),
   finishTutorial: () => set({ tutorialDone: true, tutorialActive: false }),

@@ -40,19 +40,7 @@
           "resizeMode": "cover",
           "backgroundColor": "#e8efe1"
         }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "iosAppId": "ca-app-pub-1996752680038963~6394884504",
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
-        }
       ]
     ]
-  },
-  "react-native-google-mobile-ads": {
-    "ios_app_id": "ca-app-pub-1996752680038963~6394884504",
-    "android_app_id": "ca-app-pub-3940256099942544~3347511713"
   }
 }

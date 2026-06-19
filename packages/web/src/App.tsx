@@ -303,7 +303,6 @@ function Game() {
     buyLine, toggleOvertime, shoutout, train, buyMeal, runIncentive, repeatStaffing, startShift,
     resolveChallenge, setPayRate, toggleSkill, toggleProgram, upgradeAutomation, promoteLead, convertWorker, terminateWorker,
     hireSupervisor, toggleAutoShift, autoFillCrew, buyUnlock, toggleNightShift, requestWorkers,
-    adsOn, adFree, lastAdDay, adVisible, showAd, dismissAd, removeAds, toggleAdsTesting,
     tutorialDone, tutorialActive, tutorialStep, startTutorial, advanceTutorial, finishTutorial,
   } = useGameStore();
 
@@ -311,10 +310,10 @@ function Game() {
   const gameOver = state.gameOver;
   const awaitingStaffing = state.awaitingStaffing;
 
-  // The sim clock. Stops when paused, during the morning standup, after a
-  // shutdown, or while an interstitial is on screen.
+  // The sim clock. Stops when paused, during the morning standup, or after a
+  // shutdown.
   useEffect(() => {
-    if (paused || gameOver || awaitingStaffing || adVisible) {
+    if (paused || gameOver || awaitingStaffing) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
@@ -323,7 +322,7 @@ function Game() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [runTick, paused, speed, gameOver, awaitingStaffing, adVisible]);
+  }, [runTick, paused, speed, gameOver, awaitingStaffing]);
 
   // Autosave: every few seconds and whenever the tab is hidden or closed, so a
   // refresh or a backgrounded phone never loses the run.
@@ -369,14 +368,6 @@ function Game() {
       setConfetti(c => c + 1);
     }
   }, [events]);
-
-  // Interstitial cadence: one ad every AD_INTERVAL_DAYS shifts, never during
-  // the tutorial and never twice for the same day. The seam where a real ad
-  // SDK (AdMob et al.) plugs in later is showAd/dismissAd.
-  useEffect(() => {
-    if (adFree || !adsOn || adVisible || gameOver || !tutorialDone) return;
-    if (state.day > 0 && state.day - lastAdDay >= AD_INTERVAL_DAYS) showAd();
-  }, [state.day, adFree, adsOn, adVisible, gameOver, tutorialDone, lastAdDay, showAd]);
 
   const throughput = totalThroughput(state);
   const sortedOrders = useMemo(
@@ -707,9 +698,6 @@ function Game() {
             onBuyLine={buyLine}
             onUpgradeAutomation={upgradeAutomation}
             onBuyUnlock={buyUnlock}
-            adsOn={adsOn}
-            adFree={adFree}
-            onToggleAdsTesting={toggleAdsTesting}
             onReset={() => { if (window.confirm('Reset the run? This wipes your save and starts a fresh shift.')) reset(); }}
           />
         )}
@@ -739,7 +727,6 @@ function Game() {
           onTutorial={() => { if (soundOn) playSound('click'); setTab('floor'); startTutorial(); }}
         />
       )}
-      {adVisible && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && (
         <GameOverOverlay
@@ -2378,8 +2365,7 @@ function OfficeTab({
 // ---------------------------------------------------------------------------
 
 function CorporateTab({
-  state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onBuyUnlock,
-  adsOn, adFree, onToggleAdsTesting, onReset,
+  state, lineCost, canAffordLine, onBuyLine, onUpgradeAutomation, onBuyUnlock, onReset,
 }: {
   state: GameState;
   lineCost: number;
@@ -2387,9 +2373,6 @@ function CorporateTab({
   onBuyLine: () => void;
   onUpgradeAutomation: (lineId: string) => void;
   onBuyUnlock: (id: FeatureUnlockId) => void;
-  adsOn: boolean;
-  adFree: boolean;
-  onToggleAdsTesting: () => void;
   onReset: () => void;
 }) {
   const lines = Object.entries(state.lines);
@@ -2479,17 +2462,6 @@ function CorporateTab({
 
       <section className="game-panel accent-rose p-4 sm:p-5 lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="eyebrow">Settings · testing</div>
-            <p className="text-sm font-semibold text-slate-300">
-              Interstitial ads run every {AD_INTERVAL_DAYS} shifts{adFree ? ' — removed (purchase simulated) ✓' : ''}.
-            </p>
-          </div>
-          <button type="button" onClick={onToggleAdsTesting} className="game-button game-button-muted">
-            Ads: {adsOn ? 'ON' : 'OFF'}
-          </button>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
           <div>
             <div className="eyebrow">Danger zone</div>
             <p className="text-sm font-semibold text-slate-300">Wipe the save and start a fresh plant.</p>
@@ -2881,10 +2853,8 @@ function StationPicker({
 }
 
 // ---------------------------------------------------------------------------
-// MONETIZATION + ONBOARDING + JUICE
+// ONBOARDING + JUICE
 // ---------------------------------------------------------------------------
-
-const AD_INTERVAL_DAYS = 5;
 
 // Flash-on-change hook: true for a moment whenever the watched value moves.
 function useBump(value: number): boolean {
@@ -2995,50 +2965,6 @@ function TutorialCard({ step, onNext, onSkip }: { step: number; onNext: () => vo
         <button type="button" onClick={onSkip} className="tutorial-skip">Skip tutorial</button>
       </div>
     </section>
-  );
-}
-
-// Interstitial placeholder: same shape a real ad SDK fills later (showAd →
-// network ad → dismiss callback). The countdown + remove-ads flow match the
-// production UX so the cadence can be playtested before AdMob/StoreKit land.
-function AdModal({ adFree, onDismiss, onRemoveAds }: { adFree: boolean; onDismiss: () => void; onRemoveAds: () => void }) {
-  const [secondsLeft, setSecondsLeft] = useState(5);
-  useEffect(() => {
-    if (secondsLeft <= 0) return;
-    const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [secondsLeft]);
-
-  return (
-    <div className="overlay" style={{ zIndex: 80 }}>
-      <div className="overlay-card">
-        <div className="flex items-center justify-between gap-3">
-          <div className="eyebrow">Ad break</div>
-          <span className="ad-counter">{secondsLeft > 0 ? `${secondsLeft}s` : '✓'}</span>
-        </div>
-        <div className="ad-house mt-3">
-          <div className="ad-house-badge">AD</div>
-          <h2 className="text-2xl font-black text-white">Co-Pack runs on ads</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-300">
-            A short break every {AD_INTERVAL_DAYS} shifts keeps the game free. (Placeholder — a
-            network ad renders here in production builds.)
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          disabled={secondsLeft > 0}
-          className="game-button game-button-primary mt-4 w-full"
-        >
-          {secondsLeft > 0 ? `Continue in ${secondsLeft}…` : 'Continue ▸'}
-        </button>
-        {!adFree && (
-          <button type="button" onClick={onRemoveAds} className="game-button game-button-muted mt-2 w-full">
-            Remove ads · $2.99 (simulated in test builds)
-          </button>
-        )}
-      </div>
-    </div>
   );
 }
 

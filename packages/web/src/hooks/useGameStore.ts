@@ -73,18 +73,10 @@ interface GameStore {
   autoFillCrew: () => void;
   buyUnlock: (id: FeatureUnlockId) => void;
   toggleNightShift: () => void;
-  // Ads (interstitial every few shifts; SDK-ready seam) + first-play tutorial
-  adsOn: boolean;
-  adFree: boolean;
-  lastAdDay: number;
-  adVisible: boolean;
+  // First-play tutorial
   tutorialDone: boolean;   // persisted: the welcome choice has been made (skipped or completed)
   tutorialActive: boolean; // transient: the guided walkthrough is running right now
   tutorialStep: number;
-  showAd: () => void;
-  dismissAd: () => void;
-  removeAds: () => void;
-  toggleAdsTesting: () => void;
   startTutorial: () => void;
   advanceTutorial: () => void;
   finishTutorial: () => void;
@@ -101,7 +93,7 @@ const boot = (() => {
   }
   const prefs: UiPrefs = {
     speed: DEFAULT_SPEED, paused: false, tab: 'floor', soundOn: true,
-    adsOn: true, adFree: false, lastAdDay: 0, tutorialDone: false,
+    tutorialDone: false,
   };
   return { state: createInitialState(), prefs, offlineSummary: null, bootedFromSave: false };
 })();
@@ -122,10 +114,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   soundOn: boot.prefs.soundOn,
   offlineSummary: boot.offlineSummary,
   bootedFromSave: boot.bootedFromSave,
-  adsOn: boot.prefs.adsOn,
-  adFree: boot.prefs.adFree,
-  lastAdDay: boot.prefs.lastAdDay,
-  adVisible: false,
   tutorialDone: boot.prefs.tutorialDone,
   tutorialActive: false,
   tutorialStep: 0,
@@ -176,7 +164,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const s = get();
     saveGame(s.state, {
       speed: s.speed, paused: s.paused, tab: s.tab, soundOn: s.soundOn,
-      adsOn: s.adsOn, adFree: s.adFree, lastAdDay: s.lastAdDay, tutorialDone: s.tutorialDone,
+      tutorialDone: s.tutorialDone,
     });
   },
 
@@ -233,13 +221,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   toggleNightShift: () => set((store) => applyEngineResult(store, engineToggleNightShift(store.state))),
 
-  // Marking lastAdDay at show-time (not dismiss) keeps the trigger effect from
-  // re-firing while the interstitial is up.
-  showAd: () => set((store) => ({ adVisible: true, lastAdDay: store.state.day })),
-  dismissAd: () => set({ adVisible: false }),
-  // The IAP seam: when StoreKit lands, the purchase callback calls this.
-  removeAds: () => set({ adFree: true, adVisible: false }),
-  toggleAdsTesting: () => set((store) => ({ adsOn: !store.adsOn })),
   // The welcome modal's two doors: dive in (skip), or run the guided walkthrough.
   startTutorial: () => set({ tutorialActive: true, tutorialStep: 0 }),
   advanceTutorial: () => set((store) => ({ tutorialStep: store.tutorialStep + 1 })),

@@ -21,10 +21,7 @@ export interface UiPrefs {
   paused: boolean;
   tab: TabKey;
   soundOn: boolean;
-  // Monetization + onboarding live in prefs, NOT GameState — the sim stays pure.
-  adsOn: boolean;
-  adFree: boolean;
-  lastAdDay: number;
+  // Onboarding lives in prefs, NOT GameState — the sim stays pure.
   tutorialDone: boolean;
 }
 
@@ -129,9 +126,6 @@ export async function loadGame(): Promise<LoadedSave | null> {
       paused: blob.prefs?.paused ?? false,
       tab: blob.prefs?.tab ?? 'floor',
       soundOn: blob.prefs?.soundOn ?? true,
-      adsOn: blob.prefs?.adsOn ?? true,
-      adFree: blob.prefs?.adFree ?? false,
-      lastAdDay: blob.prefs?.lastAdDay ?? 0,
       tutorialDone: blob.prefs?.tutorialDone ?? false,
     };
     return { state, prefs, savedAt: blob.savedAt };

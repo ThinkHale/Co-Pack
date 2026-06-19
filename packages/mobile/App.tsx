@@ -6,12 +6,11 @@ import { GameEvent, fillRate, FILL_RATE_TARGET } from '@copack/engine';
 import { colors } from './src/theme';
 import { useGameStore } from './src/store/useGameStore';
 import { playSound, unlockAudio } from './src/lib/sound';
-import { initAds, showInterstitial, isInterstitialReady, preloadInterstitial } from './src/lib/ads';
 import { toastForEvent } from './src/events';
 import { Hud } from './src/components/Hud';
 import { TabBar } from './src/components/TabBar';
 import { Toasts, ToastItem } from './src/components/Toasts';
-import { SplashScreen as AppSplashScreen, OfflineModal, GameOverOverlay, PlacingBar, AdModal, AD_INTERVAL_DAYS, WelcomeModal } from './src/components/Overlays';
+import { SplashScreen as AppSplashScreen, OfflineModal, GameOverOverlay, PlacingBar, WelcomeModal } from './src/components/Overlays';
 import { ConfettiBurst } from './src/components/Confetti';
 import { CrewDock } from './src/components/CrewDock';
 import { FloorPinned } from './src/components/FloorPinned';
@@ -69,13 +68,9 @@ function Game() {
   const soundOn = useGameStore((s) => s.soundOn);
   const offlineSummary = useGameStore((s) => s.offlineSummary);
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
-  const adsOn = useGameStore((s) => s.adsOn);
-  const adFree = useGameStore((s) => s.adFree);
-  const lastAdDay = useGameStore((s) => s.lastAdDay);
-  const adVisible = useGameStore((s) => s.adVisible);
   const tutorialDone = useGameStore((s) => s.tutorialDone);
   const tutorialActive = useGameStore((s) => s.tutorialActive);
-  const { runTick, save, setTab, dismissOffline, selectWorker, reset, hireWorker, showAd, dismissAd, removeAds, startTutorial, finishTutorial } = useGameStore();
+  const { runTick, save, setTab, dismissOffline, selectWorker, reset, hireWorker, startTutorial, finishTutorial } = useGameStore();
 
   const insets = useSafeAreaInsets();
   const gameOver = state.gameOver;
@@ -84,38 +79,12 @@ function Game() {
   const selectedWorker = selectedWorkerId ? state.workers[selectedWorkerId] : null;
 
   // Sim clock — holds when paused, during the morning standup, after shutdown,
-  // or while an interstitial is on screen.
+  // or while a shift issue is awaiting a decision.
   useEffect(() => {
-    if (paused || gameOver || awaitingStaffing || issueActive || adVisible) return;
+    if (paused || gameOver || awaitingStaffing || issueActive) return;
     const id = setInterval(runTick, 1000 / speed);
     return () => clearInterval(id);
-  }, [runTick, paused, speed, gameOver, awaitingStaffing, issueActive, adVisible]);
-
-  // Interstitial cadence: one ad every AD_INTERVAL_DAYS shifts, never during
-  // the tutorial. showAd flips adVisible (which pauses the sim clock); the
-  // effect below turns that into a real AdMob interstitial.
-  useEffect(() => {
-    if (adFree || !adsOn || adVisible || gameOver || !tutorialDone) return;
-    if (state.day > 0 && state.day - lastAdDay >= AD_INTERVAL_DAYS) showAd();
-  }, [state.day, adFree, adsOn, adVisible, gameOver, tutorialDone, lastAdDay, showAd]);
-
-  // Start the AdMob SDK once and warm the first interstitial.
-  useEffect(() => { void initAds(); }, []);
-
-  // When it's ad-time, prefer the real network interstitial; only fall back to
-  // the house placeholder if none is loaded (no fill / still loading). The
-  // native ad overlays the app full-screen, so no React modal renders for it —
-  // dismissing it resumes the sim via dismissAd().
-  const [houseAd, setHouseAd] = useState(false);
-  useEffect(() => {
-    if (!adVisible) { setHouseAd(false); return; }
-    if (isInterstitialReady()) {
-      showInterstitial(() => dismissAd());
-    } else {
-      setHouseAd(true);
-      preloadInterstitial();
-    }
-  }, [adVisible, dismissAd]);
+  }, [runTick, paused, speed, gameOver, awaitingStaffing, issueActive]);
 
   // Autosave every few seconds + whenever the app is backgrounded.
   useEffect(() => {
@@ -218,7 +187,6 @@ function Game() {
           onTutorial={() => { setTab('floor'); startTutorial(); }}
         />
       )}
-      {adVisible && houseAd && <AdModal adFree={adFree} onDismiss={dismissAd} onRemoveAds={removeAds} />}
       {offlineSummary && <OfflineModal summary={offlineSummary} onClose={dismissOffline} />}
       {gameOver && <GameOverOverlay state={state} onRestart={reset} />}
     </View>

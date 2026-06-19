@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, Image, ImageBackground, StyleSheet, Modal, Pressable } from 'react-native';
 import { GameState, OBJECTIVES, Worker, TICKS_PER_SHIFT } from '@copack/engine';
 import { colors, radius, shared } from '../theme';
@@ -75,56 +75,6 @@ export function GameOverOverlay({ state, onRestart }: { state: GameState; onRest
             <SummaryStat label="Days run" value={`${state.day + 1}`} good />
           </View>
           <Button label="Start a new plant" tone="primary" onPress={onRestart} style={{ marginTop: 18 }} />
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-export const AD_INTERVAL_DAYS = 5;
-
-// Interstitial placeholder: same shape a real ad SDK fills later (showAd →
-// network ad → dismiss callback). Countdown + remove-ads flow match the
-// production UX so the cadence can be playtested before AdMob/StoreKit land.
-export function AdModal({ adFree, onDismiss, onRemoveAds }: { adFree: boolean; onDismiss: () => void; onRemoveAds: () => void }) {
-  const [secondsLeft, setSecondsLeft] = useState(5);
-  useEffect(() => {
-    if (secondsLeft <= 0) return;
-    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [secondsLeft]);
-
-  return (
-    <Modal transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Eyebrow>Ad break</Eyebrow>
-            <Text style={styles.adCounter}>{secondsLeft > 0 ? `${secondsLeft}s` : '✓'}</Text>
-          </View>
-          <View style={styles.adHouse}>
-            <View style={styles.adBadge}><Text style={styles.adBadgeText}>AD</Text></View>
-            <Text style={[shared.h2, { textAlign: 'center' }]}>Co-Pack runs on ads</Text>
-            <Text style={[shared.bodyMute, { marginTop: 6, textAlign: 'center' }]}>
-              A short break every {AD_INTERVAL_DAYS} shifts keeps the game free. (Placeholder — a
-              network ad renders here in production builds.)
-            </Text>
-          </View>
-          <Button
-            label={secondsLeft > 0 ? `Continue in ${secondsLeft}…` : 'Continue ▸'}
-            tone="primary"
-            disabled={secondsLeft > 0}
-            onPress={onDismiss}
-            style={{ marginTop: 14 }}
-          />
-          {!adFree && (
-            <Button
-              label="Remove ads · $2.99 (simulated in test builds)"
-              tone="muted"
-              onPress={onRemoveAds}
-              style={{ marginTop: 8 }}
-            />
-          )}
         </View>
       </View>
     </Modal>
@@ -251,10 +201,6 @@ const styles = StyleSheet.create({
   placing: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,250,240,0.98)', borderRadius: radius.lg, borderWidth: 1, borderColor: colors.cyan, padding: 12, zIndex: 40 },
   placingTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
   placingSub: { color: colors.textMute, fontSize: 11, fontWeight: '700' },
-  adCounter: { minWidth: 36, textAlign: 'center', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, backgroundColor: 'rgba(34,84,99,0.10)', color: colors.textDim, fontSize: 12, fontWeight: '900', overflow: 'hidden' },
-  adHouse: { marginTop: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(34,84,99,0.22)', borderRadius: radius.md, padding: 18, backgroundColor: colors.panelSoft },
-  adBadge: { position: 'absolute', top: 6, left: 6, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: colors.gold },
-  adBadgeText: { color: '#1b1405', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   tutorial: { borderWidth: 2, borderColor: 'rgba(104,216,255,0.55)', borderRadius: radius.lg, padding: 13, backgroundColor: colors.panel },
   tutorialSkip: { color: colors.sky, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   welcomeTitle: { color: colors.cyan, fontSize: 40, fontWeight: '900', letterSpacing: -1, marginTop: 2 },

@@ -2797,42 +2797,6 @@ button {
   cursor: pointer;
 }
 
-/* --- Ad break --- */
-.ad-counter {
-  display: inline-flex;
-  min-width: 2.2rem;
-  justify-content: center;
-  border-radius: 6px;
-  padding: 0.25rem 0.45rem;
-  background: rgba(255, 255, 255, 0.1);
-  color: #cbd5e1;
-  font-size: 0.78rem;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-.ad-house {
-  position: relative;
-  border: 2px dashed rgba(255, 255, 255, 0.22);
-  border-radius: 10px;
-  padding: 1.6rem 1.1rem 1.2rem;
-  background:
-    radial-gradient(circle at 80% 10%, rgba(53, 208, 186, 0.18), transparent 12rem),
-    rgba(8, 13, 24, 0.6);
-  text-align: center;
-}
-.ad-house-badge {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  border-radius: 4px;
-  padding: 0.1rem 0.35rem;
-  background: #ffe66c;
-  color: #1b1405;
-  font-size: 0.58rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece,
   .hud-stat-bump .hud-stat-value,
