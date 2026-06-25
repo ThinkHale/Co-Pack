@@ -61,11 +61,11 @@ export function Hud({ state }: { state: GameState }) {
             onPress={togglePause}
             style={({ pressed }) => [
               styles.runButton,
-              { backgroundColor: paused ? colors.teal : colors.surface },
+              { backgroundColor: paused ? colors.amber : colors.surface },
               pressed && { opacity: 0.82 },
             ]}
           >
-            <Text style={[styles.runButtonText, { color: paused ? colors.bgDeep : colors.ink }]}>
+            <Text style={[styles.runButtonText, { color: colors.ink }]}>
               {paused ? 'Resume' : 'Pause'}
             </Text>
           </Pressable>
@@ -102,12 +102,14 @@ const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.panel,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(52,120,199,0.22)',
+    borderWidth: 1.5,
+    borderTopWidth: 4,
+    borderColor: 'rgba(22,139,234,0.26)',
+    borderTopColor: colors.gold,
     padding: 10,
     shadowColor: colors.bgDeep,
     shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.07,
+    shadowOpacity: 0.10,
     shadowRadius: 14,
     elevation: 3,
   },
@@ -126,17 +128,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.sm,
     paddingHorizontal: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(7,24,39,0.13)',
   },
   runButtonText: { fontSize: 12, fontWeight: '900' },
   commandRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, marginTop: 9 },
   commandStat: {
     minWidth: 74,
-    borderWidth: 1,
-    borderColor: 'rgba(52,120,199,0.16)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(22,139,234,0.18)',
     borderRadius: radius.sm,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    backgroundColor: colors.panelSoft,
+    backgroundColor: colors.panelAlt,
   },
   commandLabel: { color: colors.textMute, fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.7 },
   commandValue: { fontSize: 14, fontWeight: '900', marginTop: 1 },

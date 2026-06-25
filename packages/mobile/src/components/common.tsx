@@ -23,7 +23,7 @@ export function Pill({
         style,
       ]}
     >
-      <Text style={[shared.pillText, { color: filled ? colors.bgDeep : color }]}>{children}</Text>
+      <Text style={[shared.pillText, { color: filled ? colors.panel : color }]}>{children}</Text>
     </View>
   );
 }
@@ -76,10 +76,10 @@ export function Button({
 }
 
 const BTN_TONES: Record<ButtonTone, { container: ViewStyle; text: string }> = {
-  primary: { container: { backgroundColor: colors.blue, borderColor: colors.blue }, text: colors.panel },
-  accent: { container: { backgroundColor: colors.gold, borderColor: colors.gold }, text: colors.bgDeep },
+  primary: { container: { backgroundColor: colors.blue, borderColor: colors.blueDeep }, text: colors.panel },
+  accent: { container: { backgroundColor: colors.gold, borderColor: colors.amber }, text: colors.bgDeep },
   danger: { container: { backgroundColor: 'rgba(212,84,79,0.12)', borderColor: colors.red }, text: colors.red },
-  muted: { container: { backgroundColor: colors.panelSoft, borderColor: colors.borderStrong }, text: colors.text },
+  muted: { container: { backgroundColor: colors.panelSoft, borderColor: 'rgba(22,139,234,0.24)' }, text: colors.text },
   ghost: { container: { backgroundColor: 'transparent', borderColor: colors.border }, text: colors.textDim },
 };
 
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: radius.sm,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 38,
@@ -119,10 +119,10 @@ const styles = StyleSheet.create({
   btnLabelSmall: { fontSize: 12 },
   statCell: {
     flex: 1,
-    backgroundColor: 'rgba(255,250,240,0.72)',
+    backgroundColor: 'rgba(240,249,255,0.9)',
     borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderWidth: 1.5,
+    borderColor: 'rgba(22,139,234,0.18)',
     paddingHorizontal: 10,
     paddingVertical: 8,
   },

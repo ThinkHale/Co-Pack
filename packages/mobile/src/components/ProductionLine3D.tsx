@@ -152,12 +152,12 @@ function createLineScene(
   });
   renderer.setSize(width, height, false);
   renderer.setPixelRatio(1);
-  renderer.setClearColor(0xe8efe1, 0);
+  renderer.setClearColor(0xeaf8ff, 0);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xe8efe1, 7, 16);
+  scene.fog = new THREE.Fog(0xeaf8ff, 7, 16);
 
   const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 50);
   const stationCount = Math.max(3, line.stations.length);
@@ -190,7 +190,7 @@ function createLineScene(
 }
 
 function addLights(scene: THREE.Scene) {
-  scene.add(new THREE.HemisphereLight(0xfaf3d9, 0x6e8a8e, 1.7));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x65cfff, 1.75));
 
   const key = new THREE.DirectionalLight(0xffffff, 2.7);
   key.position.set(-2.4, 5.8, 3.5);
@@ -200,19 +200,19 @@ function addLights(scene: THREE.Scene) {
   key.shadow.camera.far = 16;
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(0x83bdd1, 1.1);
+  const rim = new THREE.DirectionalLight(0x65cfff, 1.2);
   rim.position.set(4, 3, -3);
   scene.add(rim);
 }
 
 function addFloor(scene: THREE.Scene, beltLength: number) {
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0xf6efd1, roughness: 0.82, metalness: 0.04 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0xf7fcff, roughness: 0.82, metalness: 0.04 });
   const floor = new THREE.Mesh(new THREE.BoxGeometry(beltLength + 2.2, 0.08, 4.1), floorMat);
   floor.position.set(0, -0.08, 0);
   floor.receiveShadow = true;
   scene.add(floor);
 
-  const lineMat = new THREE.MeshStandardMaterial({ color: 0xd7e8df, roughness: 0.9 });
+  const lineMat = new THREE.MeshStandardMaterial({ color: 0xffd200, roughness: 0.86 });
   for (let i = -3; i <= 3; i += 1) {
     const stripe = new THREE.Mesh(new THREE.BoxGeometry(beltLength + 1.4, 0.012, 0.018), lineMat);
     stripe.position.set(0, -0.025, i * 0.55);
@@ -221,9 +221,9 @@ function addFloor(scene: THREE.Scene, beltLength: number) {
 }
 
 function addConveyor(scene: THREE.Scene, beltLength: number, automation: number) {
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x48656b, roughness: 0.58, metalness: 0.42 });
-  const beltMat = new THREE.MeshStandardMaterial({ color: 0x233840, roughness: 0.65, metalness: 0.18 });
-  const railMat = new THREE.MeshStandardMaterial({ color: automation > 0 ? 0x22a58f : 0x66838b, roughness: 0.42, metalness: 0.45 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x168bea, roughness: 0.48, metalness: 0.36 });
+  const beltMat = new THREE.MeshStandardMaterial({ color: 0x071827, roughness: 0.62, metalness: 0.18 });
+  const railMat = new THREE.MeshStandardMaterial({ color: automation > 0 ? 0xffd200 : 0x55798d, roughness: 0.4, metalness: 0.38 });
 
   const belt = new THREE.Mesh(new THREE.BoxGeometry(beltLength, 0.18, 0.72), beltMat);
   belt.position.set(0, 0.28, 0);
@@ -254,7 +254,7 @@ function addConveyor(scene: THREE.Scene, beltLength: number, automation: number)
 }
 
 function addScanner(scene: THREE.Scene, beltLength: number) {
-  const mat = new THREE.MeshBasicMaterial({ color: 0x35d0ba, transparent: true, opacity: 0.55 });
+  const mat = new THREE.MeshBasicMaterial({ color: 0x20bdfa, transparent: true, opacity: 0.55 });
   const scan = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.025, 0.86), mat);
   scan.position.set(-beltLength / 2, 0.62, 0);
   scene.add(scan);
@@ -267,11 +267,11 @@ function addCartons(scene: THREE.Scene, count: number, beltLength: number) {
     const group = new THREE.Group();
     const box = new THREE.Mesh(
       new THREE.BoxGeometry(0.36, 0.24, 0.3),
-      new THREE.MeshStandardMaterial({ color: 0xd9912e, roughness: 0.75, metalness: 0.02 })
+      new THREE.MeshStandardMaterial({ color: 0xf2b232, roughness: 0.75, metalness: 0.02 })
     );
     const tape = new THREE.Mesh(
       new THREE.BoxGeometry(0.045, 0.246, 0.306),
-      new THREE.MeshStandardMaterial({ color: 0x22a58f, roughness: 0.7 })
+      new THREE.MeshStandardMaterial({ color: 0x168bea, roughness: 0.7 })
     );
     group.add(box, tape);
     group.position.set(-beltLength / 2 + (i / count) * beltLength, 0.62, 0);
@@ -307,7 +307,7 @@ function addStations(scene: THREE.Scene, line: Line, workers: Record<string, Wor
 
     const table = new THREE.Mesh(
       new THREE.BoxGeometry(0.66, 0.16, 0.34),
-      new THREE.MeshStandardMaterial({ color: 0xfff8d9, roughness: 0.72, metalness: 0.05 })
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.05 })
     );
     table.position.set(x, 0.38, side * 0.72);
     table.castShadow = true;
@@ -350,8 +350,8 @@ function createWorkerRig(worker: Worker, role: string, side: number, active: boo
   const group = new THREE.Group();
   const skin = new THREE.MeshStandardMaterial({ color: colorNumber(worker.appearance.skinTone), roughness: 0.64, metalness: 0.02 });
   const uniform = new THREE.MeshStandardMaterial({ color: colorNumber(worker.appearance.accent), roughness: 0.72, metalness: 0.04 });
-  const vest = new THREE.MeshStandardMaterial({ color: 0xe4c64b, roughness: 0.68, metalness: 0.03 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x233840, roughness: 0.66 });
+  const vest = new THREE.MeshStandardMaterial({ color: 0xffd200, roughness: 0.66, metalness: 0.03 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x071827, roughness: 0.66 });
   const shadow = active ? 1 : 0.4;
 
   const legs = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.54, 0.18), dark);
@@ -435,7 +435,7 @@ function createHair(worker: Worker) {
   const hairMat = new THREE.MeshStandardMaterial({ color: colorNumber(worker.appearance.hairColor), roughness: 0.9 });
   const group = new THREE.Group();
   if (worker.appearance.hairStyle === 'cap') {
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.158, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x102b3a, roughness: 0.72 }));
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.158, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x0b4e98, roughness: 0.72 }));
     cap.scale.y = 0.55;
     group.add(cap);
     const bill = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.026, 0.09), cap.material as THREE.Material);
@@ -464,7 +464,7 @@ function addOpenStationGhost(scene: THREE.Scene, x: number, z: number, accent: n
 }
 
 function addOutfeed(scene: THREE.Scene, beltLength: number) {
-  const mat = new THREE.MeshStandardMaterial({ color: 0x102b3a, roughness: 0.56, metalness: 0.24 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x071827, roughness: 0.56, metalness: 0.24 });
   const gate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.9), mat);
   gate.position.set(beltLength / 2 + 0.32, 0.58, 0);
   gate.castShadow = true;
@@ -530,9 +530,11 @@ const styles = StyleSheet.create({
   wrap: {
     overflow: 'hidden',
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.inkBorder,
-    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1.5,
+    borderTopWidth: 4,
+    borderColor: 'rgba(22,139,234,0.24)',
+    borderTopColor: colors.gold,
+    backgroundColor: colors.panel,
   },
   header: {
     flexDirection: 'row',

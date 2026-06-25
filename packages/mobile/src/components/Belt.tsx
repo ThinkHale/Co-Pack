@@ -84,7 +84,7 @@ function Carton({ trackWidth, durationMs, offsetMs }: { trackWidth: number; dura
 
   return (
     <Animated.View style={[styles.carton, { opacity, transform: [{ translateX }] }]} pointerEvents="none">
-      <Animated.View style={[styles.cartonFace, { backgroundColor: '#ffb02e', opacity: packedOpacity }]} />
+      <Animated.View style={[styles.cartonFace, { backgroundColor: colors.amber, opacity: packedOpacity }]} />
       <Animated.View style={[styles.tape, { opacity: tapeOpacity }]} />
     </Animated.View>
   );
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
   track: {
     width: '100%',
     borderRadius: 8,
-    backgroundColor: colors.paper,
-    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
     borderColor: colors.inkBorder,
     overflow: 'hidden',
     justifyContent: 'center',
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     borderWidth: 1.5,
     borderColor: 'rgba(10,14,24,0.55)',
-    backgroundColor: '#b98546', // raw kraft carton off the Induct feed
+    backgroundColor: '#d99a38', // raw kraft carton off the Induct feed
     overflow: 'hidden',
   },
   cartonFace: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     left: '50%',
     width: 5,
     marginLeft: -2.5,
-    backgroundColor: '#2fd5be',
+    backgroundColor: colors.blue,
   },
   outlet: {
     position: 'absolute',
