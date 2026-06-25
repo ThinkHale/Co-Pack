@@ -16,9 +16,12 @@ set -e
 # Scripts run from the ci_scripts directory; work from the repo root.
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 
-# Node isn't preinstalled on Xcode Cloud images (CocoaPods usually is).
+# Xcode Cloud images change over time; use preinstalled tools when available
+# and only fall back to Homebrew when the command is missing.
 export HOMEBREW_NO_INSTALL_CLEANUP=1
-brew install node
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  brew install node
+fi
 command -v pod >/dev/null 2>&1 || brew install cocoapods
 
 # Install every workspace from the lockfile. The mobile app resolves
