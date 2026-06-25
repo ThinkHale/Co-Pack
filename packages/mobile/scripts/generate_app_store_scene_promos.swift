@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -178,11 +179,34 @@ func withCanvas(_ body: () -> Void) -> NSBitmapImageRep {
 }
 
 func save(_ rep: NSBitmapImageRep, _ name: String) {
-  guard let png = rep.representation(using: .png, properties: [:]) else {
+  let url = output.appendingPathComponent(name)
+  guard
+    let source = rep.cgImage,
+    let context = CGContext(
+      data: nil,
+      width: Int(canvas.width),
+      height: Int(canvas.height),
+      bitsPerComponent: 8,
+      bytesPerRow: Int(canvas.width) * 4,
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    )
+  else {
+    fatalError("Could not create flattened image for \(name)")
+  }
+  context.setFillColor(NSColor.white.cgColor)
+  context.fill(rect(0, 0, canvas.width, canvas.height))
+  context.draw(source, in: rect(0, 0, canvas.width, canvas.height))
+  guard
+    let flattened = context.makeImage(),
+    let destination = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil)
+  else {
     fatalError("Could not encode \(name)")
   }
-  let url = output.appendingPathComponent(name)
-  try! png.write(to: url)
+  CGImageDestinationAddImage(destination, flattened, nil)
+  guard CGImageDestinationFinalize(destination) else {
+    fatalError("Could not write \(name)")
+  }
   print("Wrote \(url.path)")
 }
 
